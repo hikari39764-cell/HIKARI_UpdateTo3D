@@ -57,15 +57,6 @@ struct ClusterCullVisibleRange
     uint4 packetClusterIndices3;
 };
 
-struct ClusterCullIndirectDrawArgument
-{
-    uint4 rootConstants;
-    uint vertexCountPerInstance;
-    uint instanceCount;
-    uint startVertexLocation;
-    uint startInstanceLocation;
-};
-
 struct ClusterCullMeshletDispatchArgument
 {
     uint4 rootConstants;
@@ -108,9 +99,9 @@ cbuffer ClusterCullFrameCB : register(b0)
     float4 gClusterCullCameraPosition;
     uint gClusterCullInputCount;
     uint gClusterCullVisibleRangeCapacity;
-    uint gClusterCullDrawArgumentCapacity;
+    uint gClusterCullCandidateCommandCapacity;
     uint gClusterCullEnableFrustumCull;
-    uint gClusterCullDrawArgumentBucketCapacity;
+    uint gClusterCullCandidateCommandBucketCapacity;
     uint gClusterCullClusterSrvPoolBegin;
     uint gClusterCullClusterSrvPoolCount;
     uint gClusterCullEnableConeCull;
@@ -139,14 +130,13 @@ cbuffer ClusterCullFrameCB : register(b0)
     uint gClusterCullHzbTestBudget;
     uint gClusterCullVisibleClusterListCapacity;
     uint gClusterCullMeshletFineCullingOwner;
-    uint gClusterCullEmitTraditionalDrawArgs;
+    uint gClusterCullCandidateCommandReserved;
     float gClusterCullLodTransitionRelaxPerLevel;
     float gClusterCullLodErrorRelaxPerLevel;
 };
 
 RWStructuredBuffer<ClusterCullVisibleRange> gClusterCullVisibleRanges : register(u0);
 RWByteAddressBuffer gClusterCullCounters : register(u1);
-RWStructuredBuffer<ClusterCullIndirectDrawArgument> gClusterCullDrawArguments : register(u2);
 RWStructuredBuffer<ClusterCullPageTask> gClusterCullPageTasks : register(u3);
 RWStructuredBuffer<uint3> gClusterCullDispatchArguments : register(u4);
 RWStructuredBuffer<ClusterCullMeshletDispatchArgument> gClusterCullMeshletDispatchArguments : register(u5);

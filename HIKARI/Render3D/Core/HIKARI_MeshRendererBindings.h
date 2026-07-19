@@ -95,6 +95,10 @@ namespace HIKARI::MESHRENDERER {
         const MeshBindingContext& ctx,
         D3D12_GPU_VIRTUAL_ADDRESS visibleClusterListAddress);
 
+    void BindMeshletDeformationPalettes(
+        const MeshBindingContext& ctx,
+        D3D12_GPU_VIRTUAL_ADDRESS paletteAddress);
+
     void BindPipelineState(
         const MeshBindingContext& ctx,
         ID3D12PipelineState* pso);

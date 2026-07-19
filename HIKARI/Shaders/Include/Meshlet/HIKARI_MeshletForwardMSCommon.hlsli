@@ -21,6 +21,7 @@ struct HikariMeshletVertexOut
     nointerpolation uint objectDataIndex : TEXCOORD4;
     nointerpolation uint surfaceGpuSceneIndex : TEXCOORD5;
     nointerpolation uint debugSurfaceId : TEXCOORD6;
+    nointerpolation uint surfaceFeatureFlags : TEXCOORD7;
 };
 
 HikariMeshletVertexOut HikariBuildEmptyMeshletVertex()
@@ -69,6 +70,7 @@ HikariMeshletVertexOut HikariBuildMeshletVertex(
     output.surfaceGpuSceneIndex = surfaceGpuSceneIndex;
     output.debugSurfaceId =
         resolved.visible.clusterSurfaceIndex * 4099u + resolved.visible.sectionIndex;
+    output.surfaceFeatureFlags = instance.flags;
     return output;
 }
 
@@ -103,6 +105,13 @@ void main(
         {
             HikariClusterVertex vertex =
                 HikariLoadClusterVertexShading(geometry, resolved.header, vertexIndex);
+            HikariApplyGpuDrivenSkinning(
+                geometry,
+                instance,
+                vertexIndex,
+                vertex.position.xyz,
+                vertex.normal.xyz,
+                vertex.tangent.xyz);
             vertices[vertexSlot] =
                 HikariBuildMeshletVertex(
                     instance,

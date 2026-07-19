@@ -75,6 +75,7 @@ namespace HIKARI::SHADOW {
         size_t shadowDynamicSourceInstanceCount = 0;
         bool shadowStaticRendered = false;
         bool shadowDynamicRendered = false;
+        bool shadowUnifiedRendered = false;
         bool shadowFallbackRendered = false;
         size_t staticCasterDrawCount = 0;
         size_t skinnedCasterDrawCount = 0;

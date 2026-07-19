@@ -7,6 +7,9 @@ struct HikariMeshletDepthVertexOut
     float2 uv : TEXCOORD0;
     float2 uv1 : TEXCOORD1;
     nointerpolation uint materialDataIndex : TEXCOORD2;
+    float3 worldPosWS : TEXCOORD3;
+    nointerpolation uint surfaceGpuSceneIndex : TEXCOORD4;
+    nointerpolation uint surfaceFeatureFlags : TEXCOORD5;
 };
 
 HikariMeshletDepthVertexOut HikariBuildEmptyMeshletDepthVertex()
@@ -27,6 +30,14 @@ HikariMeshletDepthVertexOut HikariBuildMeshletDepthVertex(
     float3 localPosition =
         HikariLoadClusterVertexPosition(geometry, resolved.header, vertexIndex).xyz;
     float3 localNormal = float3(0.0f, 1.0f, 0.0f);
+    float3 localTangent = float3(1.0f, 0.0f, 0.0f);
+    HikariApplyGpuDrivenSkinning(
+        geometry,
+        instance,
+        vertexIndex,
+        localPosition,
+        localNormal,
+        localTangent);
     HikariApplyGpuDrivenWaterDeform(
         instance,
         gTimeParams.x,
@@ -41,12 +52,18 @@ HikariMeshletDepthVertexOut HikariBuildMeshletDepthVertex(
 
     const bool alphaMasked =
         (instance.flags & HIKARI_SURFACE_GPU_SCENE_FLAG_ALPHA_MASKED) != 0u;
-    if (alphaMasked)
+    const bool materialFx =
+        (instance.flags & HIKARI_SURFACE_GPU_SCENE_FLAG_MATERIAL_FX) != 0u &&
+        (instance.flags & HIKARI_SURFACE_GPU_SCENE_FLAG_WATER_MATERIAL_FX) == 0u;
+    if (alphaMasked || materialFx)
     {
         float4 uv01 = HikariLoadClusterVertexUv01(geometry, resolved.header, vertexIndex);
         output.uv = uv01.xy;
         output.uv1 = uv01.zw;
         output.materialDataIndex = instance.materialDataIndex;
+        output.worldPosWS = worldPos.xyz;
+        output.surfaceGpuSceneIndex = resolved.visible.gpuSceneInstanceIndex;
+        output.surfaceFeatureFlags = instance.flags;
     }
     return output;
 }

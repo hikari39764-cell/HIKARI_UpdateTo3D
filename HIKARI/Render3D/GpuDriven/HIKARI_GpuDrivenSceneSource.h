@@ -65,6 +65,7 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
 
     struct GpuDrivenSceneSource {
         std::array<GpuDrivenPassSource, kGpuDrivenPassCount> passes{};
+        const std::vector<std::vector<MATH::Mat4>>* meshShaderJointPalettes = nullptr;
         uint64_t layoutVersion = 0;
         uint64_t sourceVersion = 0;
         uint64_t dirtyBaseSourceVersion = 0;

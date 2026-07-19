@@ -8,6 +8,9 @@ struct HikariMeshletGeometryAuxVertexOut
     float2 uv : TEXCOORD0;
     float2 uv1 : TEXCOORD1;
     nointerpolation uint materialDataIndex : TEXCOORD2;
+    float3 worldPosWS : TEXCOORD3;
+    nointerpolation uint surfaceGpuSceneIndex : TEXCOORD4;
+    nointerpolation uint surfaceFeatureFlags : TEXCOORD5;
 };
 
 HikariMeshletGeometryAuxVertexOut HikariBuildEmptyMeshletGeometryAuxVertex()
@@ -31,6 +34,14 @@ HikariMeshletGeometryAuxVertexOut HikariBuildMeshletGeometryAuxVertex(
         HikariLoadClusterVertexPosition(geometry, resolved.header, vertexIndex).xyz;
     float3 localNormal =
         HikariLoadClusterVertexNormal(geometry, resolved.header, vertexIndex).xyz;
+    float3 localTangent = float3(1.0f, 0.0f, 0.0f);
+    HikariApplyGpuDrivenSkinning(
+        geometry,
+        instance,
+        vertexIndex,
+        localPosition,
+        localNormal,
+        localTangent);
     HikariApplyGpuDrivenWaterDeform(
         instance,
         gTimeParams.x,
@@ -48,6 +59,9 @@ HikariMeshletGeometryAuxVertexOut HikariBuildMeshletGeometryAuxVertex(
     output.uv = uv01.xy;
     output.uv1 = uv01.zw;
     output.materialDataIndex = instance.materialDataIndex;
+    output.worldPosWS = worldPos.xyz;
+    output.surfaceGpuSceneIndex = resolved.visible.gpuSceneInstanceIndex;
+    output.surfaceFeatureFlags = instance.flags;
     return output;
 }
 

@@ -153,6 +153,7 @@ namespace HIKARI::SHADOW {
             RENDER3D::GPUDRIVEN::GpuDrivenSceneSource shadowSceneSource{};
             RENDER3D::GPUDRIVEN::GpuDrivenSceneSource staticShadowSceneSource{};
             RENDER3D::GPUDRIVEN::GpuDrivenSceneSource dynamicShadowSceneSource{};
+            RENDER3D::GPUDRIVEN::GpuDrivenSceneSource activeShadowSceneSource{};
             std::vector<RENDER3D::RUNTIME::SurfaceGpuSceneInstance> staticShadowPrimaryInstances{};
             std::vector<RENDER3D::RUNTIME::SurfaceGpuSceneMaterialSource> staticShadowPrimaryMaterialSources{};
             std::vector<RENDER3D::RUNTIME::SurfaceGpuSceneInstance> dynamicShadowPrimaryInstances{};
@@ -579,6 +580,24 @@ namespace HIKARI::SHADOW {
             return uploadCount;
         }
 
+        void UploadShadowMeshShaderJointPalettes() {
+            if (g.gpuDrivenSceneSource == nullptr ||
+                g.gpuDrivenSceneSource->meshShaderJointPalettes == nullptr) {
+                return;
+            }
+            const auto& palettes =
+                *g.gpuDrivenSceneSource->meshShaderJointPalettes;
+            const size_t paletteCount =
+                (std::min)(palettes.size(), static_cast<size_t>(kMaxCasterObjects));
+            for (size_t paletteIndex = 0; paletteIndex < paletteCount; ++paletteIndex) {
+                if (!palettes[paletteIndex].empty()) {
+                    (void)UploadShadowIndirectJointPalette(
+                        paletteIndex,
+                        palettes[paletteIndex]);
+                }
+            }
+        }
+
         void HydrateShadowTraditionalIndirectStream(
             OwnedShadowTraditionalIndirectStream& stream) {
 
@@ -766,6 +785,11 @@ namespace HIKARI::SHADOW {
                 cmd->SetGraphicsRootShaderResourceView(
                     RECORD::kShadowStaticRootParamMeshletVisibleClusterList,
                     meshletVisibleClusterListBuffer->GetGPUVirtualAddress());
+            }
+            if (g.jointPaletteCB != nullptr) {
+                cmd->SetGraphicsRootShaderResourceView(
+                    RECORD::kShadowStaticRootParamDeformationPalettes,
+                    g.jointPaletteCB->GetGPUVirtualAddress());
             }
             cmd->SetGraphicsRoot32BitConstant(
                 RECORD::kShadowStaticRootParamMaterialIndex,
@@ -1243,7 +1267,7 @@ namespace HIKARI::SHADOW {
 
         void PrepareShadowSurfaceGpuSceneMaterialFrame() {
             const RENDER3D::GPUDRIVEN::GpuDrivenPassSource& shadow =
-                g.shadowSceneSource.GetPass(
+                g.activeShadowSceneSource.GetPass(
                     RENDER3D::GPUDRIVEN::GpuDrivenPassKind::Shadow);
             PrepareShadowSurfaceGpuSceneMaterialSources(
                 shadow.gpuSceneBaseIndex,
@@ -1277,6 +1301,7 @@ namespace HIKARI::SHADOW {
                 g.shadowSceneSource.Reset();
                 g.staticShadowSceneSource.Reset();
                 g.dynamicShadowSceneSource.Reset();
+                g.activeShadowSceneSource.Reset();
                 g.staticShadowPrimaryInstances.clear();
                 g.staticShadowPrimaryMaterialSources.clear();
                 g.dynamicShadowPrimaryInstances.clear();
@@ -1302,6 +1327,13 @@ namespace HIKARI::SHADOW {
             g.shadowSceneSource.Reset();
             g.staticShadowSceneSource.Reset();
             g.dynamicShadowSceneSource.Reset();
+            g.activeShadowSceneSource.Reset();
+            g.shadowSceneSource.meshShaderJointPalettes =
+                g.gpuDrivenSceneSource->meshShaderJointPalettes;
+            g.staticShadowSceneSource.meshShaderJointPalettes =
+                g.gpuDrivenSceneSource->meshShaderJointPalettes;
+            g.dynamicShadowSceneSource.meshShaderJointPalettes =
+                g.gpuDrivenSceneSource->meshShaderJointPalettes;
             g.staticShadowPrimaryInstances.clear();
             g.staticShadowPrimaryMaterialSources.clear();
             g.dynamicShadowPrimaryInstances.clear();
@@ -1428,21 +1460,14 @@ namespace HIKARI::SHADOW {
                     RENDER3D::GPUDRIVEN::GpuDrivenBackendKind::TraditionalIndirect;
             }
 
-            g.dynamicShadowSceneSource.layoutVersion =
-                g.gpuDrivenSceneSource != nullptr
-                    ? g.gpuDrivenSceneSource->layoutVersion
-                    : 0u;
-            g.dynamicShadowSceneSource.sourceVersion =
-                g.gpuDrivenSceneSource != nullptr
-                    ? g.gpuDrivenSceneSource->sourceVersion
-                    : 0u;
-            g.dynamicShadowSceneSource.dirtyBaseSourceVersion =
-                g.gpuDrivenSceneSource != nullptr
-                    ? g.gpuDrivenSceneSource->dirtyBaseSourceVersion
-                    : 0u;
             g.dynamicShadowSceneSource.sourceInstanceCount =
                 dynamicPass.gpuSceneInstanceCount +
                 dynamicPass.traditionalIndirect.gpuSceneInstanceCount;
+            g.dynamicShadowSceneSource.layoutVersion =
+                BuildShadowSourceLayoutHash(dynamicPass);
+            g.dynamicShadowSceneSource.sourceVersion =
+                BuildShadowSourceContentHash(dynamicPass);
+            g.dynamicShadowSceneSource.dirtyBaseSourceVersion = 0u;
 
             RENDER3D::GPUDRIVEN::GpuDrivenPassSource& shadowPass =
                 g.shadowSceneSource.GetPass(
@@ -1469,6 +1494,8 @@ namespace HIKARI::SHADOW {
             g.shadowSceneSource.sourceInstanceCount =
                 shadowPass.gpuSceneInstanceCount +
                 shadowPass.traditionalIndirect.gpuSceneInstanceCount;
+            g.shadowSceneSource.meshShaderJointPalettes =
+                g.gpuDrivenSceneSource->meshShaderJointPalettes;
 
             g.frameHasStaticShadowWork =
                 g.staticShadowSceneSource.sourceInstanceCount != 0u;
@@ -1901,7 +1928,7 @@ namespace HIKARI::SHADOW {
             clusterGeometryPoolRange.OffsetInDescriptorsFromTableStart =
                 D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
 
-            D3D12_ROOT_PARAMETER params[RECORD::kShadowStaticRootParamCullingCamera + 1]{};
+            D3D12_ROOT_PARAMETER params[RECORD::kShadowStaticRootParamDeformationPalettes + 1]{};
             params[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
             params[0].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
             params[0].Descriptor.ShaderRegister = 0;
@@ -1965,6 +1992,12 @@ namespace HIKARI::SHADOW {
                 D3D12_SHADER_VISIBILITY_ALL;
             params[RECORD::kShadowStaticRootParamCullingCamera].Descriptor.ShaderRegister = 9;
             params[RECORD::kShadowStaticRootParamCullingCamera].Descriptor.RegisterSpace = 0;
+            params[RECORD::kShadowStaticRootParamDeformationPalettes].ParameterType =
+                D3D12_ROOT_PARAMETER_TYPE_SRV;
+            params[RECORD::kShadowStaticRootParamDeformationPalettes].ShaderVisibility =
+                D3D12_SHADER_VISIBILITY_ALL;
+            params[RECORD::kShadowStaticRootParamDeformationPalettes].Descriptor.ShaderRegister = 0;
+            params[RECORD::kShadowStaticRootParamDeformationPalettes].Descriptor.RegisterSpace = 3;
             D3D12_STATIC_SAMPLER_DESC sampler{};
             sampler.Filter = D3D12_FILTER_MIN_MAG_MIP_LINEAR;
             sampler.AddressU = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
@@ -2405,9 +2438,12 @@ namespace HIKARI::SHADOW {
                 return false;
             }
 
-            g.shadowSceneSource = source;
+            // The built sources belong to the source cache.  A draw may select a
+            // split source, but it must never replace the combined source used by
+            // later frames and by the correctness fallback.
+            g.activeShadowSceneSource = source;
             ResetShadowMaterialFrame();
-            if (!UploadShadowGpuSceneFrame(g.shadowSceneSource)) {
+            if (!UploadShadowGpuSceneFrame(g.activeShadowSceneSource)) {
                 return false;
             }
             PrepareShadowSurfaceGpuSceneMaterialFrame();
@@ -2435,11 +2471,11 @@ namespace HIKARI::SHADOW {
         void BuildShadowGpuDrivenWorkFrame() {
             const RENDER3D::GPUDRIVEN::GpuDrivenFrameBuildInput input =
                 RENDER3D::GPUDRIVEN::BuildGpuDrivenFrameInput(
-                    g.shadowSceneSource);
+                    g.activeShadowSceneSource);
             g.gpuDrivenFrame =
                 RENDER3D::GPUDRIVEN::BuildGpuDrivenFrame(input);
 
-            if (!g.shadowSceneSource.HasAnyGpuSceneRanges() ||
+            if (!g.activeShadowSceneSource.HasAnyGpuSceneRanges() ||
                 !g.surfaceGpuSceneBuffer.GetStats().initialized ||
                 g.surfaceGpuSceneBuffer.GetStats().overflowInstanceCount != 0) {
                 ResetShadowGpuDrivenWorkFrame();
@@ -2716,6 +2752,7 @@ namespace HIKARI::SHADOW {
             return;
         }
         BindActiveFrameResources(SERVICES::gCtx.frameIndex);
+        UploadShadowMeshShaderJointPalettes();
 
         const uint32_t resolution = ResolveShadowResolution(environment.directionalShadow.resolution);
         if (g.shadowMap == nullptr || g.resolution != resolution) {
@@ -2753,6 +2790,7 @@ namespace HIKARI::SHADOW {
             g.shadowSceneSource.Reset();
             g.staticShadowSceneSource.Reset();
             g.dynamicShadowSceneSource.Reset();
+            g.activeShadowSceneSource.Reset();
             g.staticShadowPrimaryInstances.clear();
             g.staticShadowPrimaryMaterialSources.clear();
             g.dynamicShadowPrimaryInstances.clear();
@@ -2767,9 +2805,14 @@ namespace HIKARI::SHADOW {
         g.shadowSceneSource.Reset();
         g.staticShadowSceneSource.Reset();
         g.dynamicShadowSceneSource.Reset();
+        g.activeShadowSceneSource.Reset();
         gShadowStaticTraditionalIndirectStream.Clear();
         gShadowDynamicTraditionalIndirectStream.Clear();
-        InvalidateShadowCache();
+        // Keep the static depth cache as a candidate.  The next rebuilt static
+        // source is checked against its content key before any reuse, allowing a
+        // dynamic-only refresh to keep valid static shadows without accepting
+        // stale static geometry.
+        InvalidateShadowSourceCache();
     }
 
     void RenderDirectionalShadowMap() {
@@ -2785,6 +2828,7 @@ namespace HIKARI::SHADOW {
         bool finalHasDepth = false;
         bool staticRendered = false;
         bool dynamicRendered = false;
+        bool unifiedRendered = false;
         bool fallbackRendered = false;
 
         if (g.shadowCache.WasHitThisFrame()) {
@@ -2795,35 +2839,45 @@ namespace HIKARI::SHADOW {
             }
         }
 
-        if (!finalHasDepth && g.frameHasStaticShadowWork) {
+        // The shadow GPU-driven context owns one transient upload/cull submission
+        // per frame.  Preparing static and dynamic sources back-to-back would make
+        // both queued GPU copies read the last CPU upload page, corrupting the
+        // static cache exactly when a skinned caster enters the scene.  If there
+        // is no reusable static depth, render the combined source once instead.
+        const bool needsUnifiedDynamicRender =
+            g.frameHasDynamicShadowWork && !finalHasDepth;
+        if (needsUnifiedDynamicRender) {
             PrepareFinalShadowMapForDepthWrite(cmd, true);
-            if (PrepareShadowSourceForDraw(g.staticShadowSceneSource)) {
-                staticRendered = ExecuteShadowGpuDrivenPass(
-                    GFX::GPU_PROFILE::Pass::TraditionalDrawShadowStatic,
-                    GFX::GPU_PROFILE::Pass::MeshletDrawShadowStatic);
+            if (PrepareShadowSourceForDraw(g.shadowSceneSource)) {
+                unifiedRendered = ExecuteShadowGpuDrivenPass(
+                    GFX::GPU_PROFILE::Pass::TraditionalDrawShadowFallback,
+                    GFX::GPU_PROFILE::Pass::MeshletDrawShadowFallback);
             }
-            if (staticRendered) {
-                finalHasDepth = true;
-                (void)UpdateStaticShadowCacheFromFinal(cmd);
-                g.shadowCache.SetFinalMatchesStaticCache(
-                    !g.frameHasDynamicShadowWork);
-            } else {
-                InvalidateShadowCache();
-            }
-        }
-
-        const bool staticSplitFailed =
-            !g.shadowCache.WasHitThisFrame() &&
-            g.frameHasStaticShadowWork &&
-            !staticRendered;
-
-        if (!staticSplitFailed) {
-            if (!finalHasDepth) {
+            finalHasDepth = unifiedRendered;
+            g.shadowCache.SetFinalMatchesStaticCache(false);
+        } else {
+            if (!finalHasDepth && g.frameHasStaticShadowWork) {
                 PrepareFinalShadowMapForDepthWrite(cmd, true);
-                finalHasDepth = true;
+                if (PrepareShadowSourceForDraw(g.staticShadowSceneSource)) {
+                    staticRendered = ExecuteShadowGpuDrivenPass(
+                        GFX::GPU_PROFILE::Pass::TraditionalDrawShadowStatic,
+                        GFX::GPU_PROFILE::Pass::MeshletDrawShadowStatic);
+                }
+                if (staticRendered) {
+                    finalHasDepth = true;
+                    (void)UpdateStaticShadowCacheFromFinal(cmd);
+                    g.shadowCache.SetFinalMatchesStaticCache(true);
+                } else {
+                    InvalidateShadowCache();
+                }
             }
 
-            if (g.frameHasDynamicShadowWork) {
+            const bool staticSplitFailed =
+                !g.shadowCache.WasHitThisFrame() &&
+                g.frameHasStaticShadowWork &&
+                !staticRendered;
+
+            if (!staticSplitFailed && g.frameHasDynamicShadowWork) {
                 PrepareFinalShadowMapForDepthWrite(cmd, false);
                 if (PrepareShadowSourceForDraw(g.dynamicShadowSceneSource)) {
                     dynamicRendered = ExecuteShadowGpuDrivenPass(
@@ -2832,23 +2886,24 @@ namespace HIKARI::SHADOW {
                 }
                 if (dynamicRendered) {
                     g.shadowCache.SetFinalMatchesStaticCache(false);
+                } else {
+                    // Keep the copied static depth this frame.  Invalidating the
+                    // cache makes the next frame use the single-submit unified path.
+                    InvalidateShadowCache();
                 }
             }
-        }
 
-        const bool dynamicSplitFailed =
-            g.frameHasDynamicShadowWork &&
-            !dynamicRendered;
-        if (staticSplitFailed || dynamicSplitFailed) {
-            PrepareFinalShadowMapForDepthWrite(cmd, true);
-            if (PrepareShadowSourceForDraw(g.shadowSceneSource)) {
-                fallbackRendered = ExecuteShadowGpuDrivenPass(
-                    GFX::GPU_PROFILE::Pass::TraditionalDrawShadowFallback,
-                    GFX::GPU_PROFILE::Pass::MeshletDrawShadowFallback);
-            }
-            finalHasDepth = fallbackRendered;
-            if (fallbackRendered) {
-                g.shadowCache.SetFinalMatchesStaticCache(false);
+            if (staticSplitFailed) {
+                PrepareFinalShadowMapForDepthWrite(cmd, true);
+                if (PrepareShadowSourceForDraw(g.shadowSceneSource)) {
+                    fallbackRendered = ExecuteShadowGpuDrivenPass(
+                        GFX::GPU_PROFILE::Pass::TraditionalDrawShadowFallback,
+                        GFX::GPU_PROFILE::Pass::MeshletDrawShadowFallback);
+                }
+                finalHasDepth = fallbackRendered;
+                if (fallbackRendered) {
+                    g.shadowCache.SetFinalMatchesStaticCache(false);
+                }
             }
         }
 
@@ -2859,6 +2914,7 @@ namespace HIKARI::SHADOW {
 
         g.debugStats.shadowStaticRendered = staticRendered;
         g.debugStats.shadowDynamicRendered = dynamicRendered;
+        g.debugStats.shadowUnifiedRendered = unifiedRendered;
         g.debugStats.shadowFallbackRendered = fallbackRendered;
         FinishFinalShadowMap(cmd);
     }

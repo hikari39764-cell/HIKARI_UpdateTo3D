@@ -108,6 +108,7 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
         for (GpuDrivenPassSource& pass : passes) {
             pass.Reset();
         }
+        meshShaderJointPalettes = nullptr;
         layoutVersion = 0;
         sourceVersion = 0;
         dirtyBaseSourceVersion = 0;

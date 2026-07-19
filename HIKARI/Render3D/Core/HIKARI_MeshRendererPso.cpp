@@ -465,10 +465,10 @@ namespace HIKARI::MESHRENDERER {
         params[ROOT_PARAM::TexturePool].DescriptorTable.NumDescriptorRanges = 1;
         params[ROOT_PARAM::TexturePool].DescriptorTable.pDescriptorRanges = &materialTexturePoolRange;
 
-        params[ROOT_PARAM::JointPalette].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
+        params[ROOT_PARAM::JointPalette].ParameterType = D3D12_ROOT_PARAMETER_TYPE_SRV;
         params[ROOT_PARAM::JointPalette].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
-        params[ROOT_PARAM::JointPalette].Descriptor.ShaderRegister = 3;
-        params[ROOT_PARAM::JointPalette].Descriptor.RegisterSpace = 0;
+        params[ROOT_PARAM::JointPalette].Descriptor.ShaderRegister = 0;
+        params[ROOT_PARAM::JointPalette].Descriptor.RegisterSpace = 3;
 
         params[ROOT_PARAM::SurfaceGpuScene].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
         params[ROOT_PARAM::SurfaceGpuScene].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;

@@ -751,7 +751,7 @@ uint HikariClusterCullPassBucketBaseIndex(uint passKind, uint bucket)
 {
     uint passIndex = HikariClusterCullPassIndex(passKind);
     return (passIndex * HIKARI_CLUSTER_DRAW_BUCKET_COUNT + bucket) *
-        gClusterCullDrawArgumentBucketCapacity;
+        gClusterCullCandidateCommandBucketCapacity;
 }
 
 uint HikariClusterCullPassDrawCounterOffset(uint passKind, uint bucket)
@@ -1147,7 +1147,7 @@ void HikariClusterCullEmitDraw(
     uint drawIndex = 0;
     gClusterCullCounters.InterlockedAdd(aggregateDrawCounterOffset, 1);
     gClusterCullCounters.InterlockedAdd(drawCounterOffset, 1, drawIndex);
-    if (drawIndex >= gClusterCullDrawArgumentBucketCapacity)
+    if (drawIndex >= gClusterCullCandidateCommandBucketCapacity)
     {
         gClusterCullCounters.InterlockedAdd(overflowCounterOffset, 1);
         gClusterCullCounters.InterlockedAdd(aggregateOverflowCounterOffset, 1);
@@ -1157,7 +1157,7 @@ void HikariClusterCullEmitDraw(
     uint globalDrawIndex =
         HikariClusterCullPassBucketBaseIndex(input.passKind, bucket) + drawIndex;
     uint visibleIndex = globalDrawIndex;
-    if (globalDrawIndex >= gClusterCullDrawArgumentCapacity ||
+    if (globalDrawIndex >= gClusterCullCandidateCommandCapacity ||
         visibleIndex >= gClusterCullVisibleRangeCapacity)
     {
         gClusterCullCounters.InterlockedAdd(overflowCounterOffset, 1);
@@ -1248,20 +1248,6 @@ void HikariClusterCullEmitDraw(
     visible.packetClusterIndices3 = packetClusterIndices3;
     gClusterCullVisibleRanges[visibleIndex] = visible;
 
-    if (gClusterCullEmitTraditionalDrawArgs != 0u)
-    {
-        ClusterCullIndirectDrawArgument drawArgument;
-        drawArgument.rootConstants = uint4(
-            input.gpuSceneInstanceIndex,
-            firstIndex,
-            visibleIndex,
-            input.passKind);
-        drawArgument.vertexCountPerInstance = indexCount;
-        drawArgument.instanceCount = 1;
-        drawArgument.startVertexLocation = 0;
-        drawArgument.startInstanceLocation = 0;
-        gClusterCullDrawArguments[globalDrawIndex] = drawArgument;
-    }
 }
 
 void HikariClusterCullFlushVisibleRun(

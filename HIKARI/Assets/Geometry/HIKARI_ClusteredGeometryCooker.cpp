@@ -20,6 +20,7 @@ namespace HIKARI::ASSETS::GEOMETRY {
         using RENDER3D::CLUSTER::ClusterSurfaceFlags;
         using RENDER3D::CLUSTER::ClusterSurfaceLodRange;
         using RENDER3D::CLUSTER::ClusterSurfaceSection;
+        using RENDER3D::CLUSTER::ClusterSkinVertex;
         using RENDER3D::CLUSTER::ClusterVertex;
         using RENDER3D::CLUSTER::ClusteredGeometryAsset;
         using RENDER3D::CLUSTER::ClusteredGeometryBuildReport;
@@ -328,6 +329,49 @@ namespace HIKARI::ASSETS::GEOMETRY {
             return out;
         }
 
+        ClusterVertex ToClusterVertex(const SkinnedVertex3D& source) {
+            ClusterVertex out{};
+            out.position = source.position;
+            out.normal = MATH::Normalize(source.normal);
+            if (MATH::Length(out.normal) <= 1e-5f) {
+                out.normal = { 0.0f, 1.0f, 0.0f };
+            }
+            MATH::Vec3 tangent = MATH::Normalize({
+                source.tangent.x,
+                source.tangent.y,
+                source.tangent.z
+            });
+            if (MATH::Length(tangent) <= 1e-5f) {
+                tangent = { 1.0f, 0.0f, 0.0f };
+            }
+            out.tangent = {
+                tangent.x,
+                tangent.y,
+                tangent.z,
+                source.tangent.w == 0.0f ? 1.0f : source.tangent.w
+            };
+            out.uv0 = source.uv0;
+            out.uv1 = source.uv1;
+            out.color = source.color0;
+
+            float weightSum = 0.0f;
+            for (size_t i = 0; i < 4u; ++i) {
+                out.joints[i] = source.joints[i];
+                out.weights[i] = (std::max)(0.0f, source.weights[i]);
+                weightSum += out.weights[i];
+            }
+            if (weightSum <= 1e-8f) {
+                out.joints[0] = 0u;
+                out.weights[0] = 1.0f;
+            } else {
+                const float inverseWeightSum = 1.0f / weightSum;
+                for (float& weight : out.weights) {
+                    weight *= inverseWeightSum;
+                }
+            }
+            return out;
+        }
+
         void EncapsulatePoint(Bounds& bounds, bool& hasBounds, const MATH::Vec3& point) {
             if (!IsFiniteVec3(point)) {
                 return;
@@ -513,20 +557,26 @@ namespace HIKARI::ASSETS::GEOMETRY {
                 nodeSkinIndex >= 0) {
                 RENDER3D::CLUSTER::AddFlag(flags, ClusterSurfaceFlags::Skinned);
             }
-            if (primitive.indices.size() < 3u || primitive.staticVertices.empty()) {
+            const bool skinned =
+                primitive.layout == VertexLayoutKind::SkinnedPNTTJW ||
+                !primitive.skinnedVertices.empty() ||
+                nodeSkinIndex >= 0;
+            if (primitive.indices.size() < 3u ||
+                (skinned
+                    ? primitive.skinnedVertices.empty()
+                    : primitive.staticVertices.empty())) {
                 RENDER3D::CLUSTER::AddFlag(flags, ClusterSurfaceFlags::Unsupported);
             }
             return flags;
         }
 
-        bool IsClusterableStaticPrimitive(
+        bool IsClusterablePrimitive(
             const ModelAsset& model,
             const MeshPrimitive& primitive,
             int nodeSkinIndex) {
 
             const uint32_t flags = BuildSurfaceFlags(model, primitive, nodeSkinIndex);
             return !primitive.hasMorphTargets &&
-                !RENDER3D::CLUSTER::HasFlag(flags, ClusterSurfaceFlags::Skinned) &&
                 !RENDER3D::CLUSTER::HasFlag(flags, ClusterSurfaceFlags::Unsupported);
         }
 
@@ -536,15 +586,22 @@ namespace HIKARI::ASSETS::GEOMETRY {
             int nodeSkinIndex,
             SourceGeometryCounts& counts) {
 
-            if (!IsClusterableStaticPrimitive(model, primitive, nodeSkinIndex)) {
+            if (!IsClusterablePrimitive(model, primitive, nodeSkinIndex)) {
                 return;
             }
 
             counts.staticTriangleCount += static_cast<uint32_t>(primitive.indices.size() / 3u);
-            counts.staticVertexCount += static_cast<uint32_t>(primitive.staticVertices.size());
+            const bool skinned =
+                primitive.layout == VertexLayoutKind::SkinnedPNTTJW ||
+                !primitive.skinnedVertices.empty() ||
+                nodeSkinIndex >= 0;
+            counts.staticVertexCount += static_cast<uint32_t>(
+                skinned
+                    ? primitive.skinnedVertices.size()
+                    : primitive.staticVertices.size());
         }
 
-        SourceGeometryCounts CountSourceStaticGeometry(const ModelAsset& model) {
+        SourceGeometryCounts CountSourceGeometry(const ModelAsset& model) {
             SourceGeometryCounts counts{};
             if (!model.nodes.empty()) {
                 for (const ModelNode& node : model.nodes) {
@@ -675,6 +732,51 @@ namespace HIKARI::ASSETS::GEOMETRY {
             out.uv0 = LerpVec2(a.uv0, b.uv0, t);
             out.uv1 = LerpVec2(a.uv1, b.uv1, t);
             out.color = LerpVec4(a.color, b.color, t);
+
+            struct Influence {
+                uint16_t joint = 0;
+                float weight = 0.0f;
+            };
+            std::array<Influence, 8> influences{};
+            size_t influenceCount = 0;
+            const auto appendInfluence = [&](uint16_t joint, float weight) {
+                if (weight <= 1e-8f) {
+                    return;
+                }
+                for (size_t i = 0; i < influenceCount; ++i) {
+                    if (influences[i].joint == joint) {
+                        influences[i].weight += weight;
+                        return;
+                    }
+                }
+                if (influenceCount < influences.size()) {
+                    influences[influenceCount++] = { joint, weight };
+                }
+            };
+            for (size_t i = 0; i < 4u; ++i) {
+                appendInfluence(a.joints[i], a.weights[i] * (1.0f - t));
+                appendInfluence(b.joints[i], b.weights[i] * t);
+            }
+            std::sort(
+                influences.begin(),
+                influences.begin() + influenceCount,
+                [](const Influence& lhs, const Influence& rhs) {
+                    return lhs.weight > rhs.weight;
+                });
+            const size_t retainedInfluenceCount =
+                (std::min)(influenceCount, size_t{ 4u });
+            float retainedWeightSum = 0.0f;
+            for (size_t i = 0; i < retainedInfluenceCount; ++i) {
+                out.joints[i] = influences[i].joint;
+                out.weights[i] = influences[i].weight;
+                retainedWeightSum += influences[i].weight;
+            }
+            if (retainedWeightSum > 1e-8f) {
+                const float inverseWeightSum = 1.0f / retainedWeightSum;
+                for (size_t i = 0; i < retainedInfluenceCount; ++i) {
+                    out.weights[i] *= inverseWeightSum;
+                }
+            }
             return out;
         }
 
@@ -2794,16 +2896,26 @@ namespace HIKARI::ASSETS::GEOMETRY {
             outWork.flags = BuildSurfaceFlags(model, primitive, nodeSkinIndex);
 
             if (primitive.hasMorphTargets ||
-                RENDER3D::CLUSTER::HasFlag(outWork.flags, ClusterSurfaceFlags::Skinned) ||
                 RENDER3D::CLUSTER::HasFlag(outWork.flags, ClusterSurfaceFlags::Unsupported)) {
                 return false;
             }
 
-            outWork.vertices.reserve(primitive.staticVertices.size());
+            const bool skinned =
+                RENDER3D::CLUSTER::HasFlag(outWork.flags, ClusterSurfaceFlags::Skinned);
+            outWork.vertices.reserve(
+                skinned
+                    ? primitive.skinnedVertices.size()
+                    : primitive.staticVertices.size());
             // 位置は node global を焼き込むが、法線と接線は逆転置で焼き込む。
-            const MATH::Mat4 normalMatrix = BuildNormalMatrixFromWorld(matrix);
-            for (const Vertex3D& vertex : primitive.staticVertices) {
-                outWork.vertices.push_back(ToClusterVertex(vertex, matrix, normalMatrix));
+            if (skinned) {
+                for (const SkinnedVertex3D& vertex : primitive.skinnedVertices) {
+                    outWork.vertices.push_back(ToClusterVertex(vertex));
+                }
+            } else {
+                const MATH::Mat4 normalMatrix = BuildNormalMatrixFromWorld(matrix);
+                for (const Vertex3D& vertex : primitive.staticVertices) {
+                    outWork.vertices.push_back(ToClusterVertex(vertex, matrix, normalMatrix));
+                }
             }
             outWork.indices = primitive.indices;
 
@@ -2944,6 +3056,9 @@ namespace HIKARI::ASSETS::GEOMETRY {
             report.packedVertexAttributeByteSize =
                 static_cast<uint64_t>(asset.packedVertices.size()) *
                 sizeof(RENDER3D::CLUSTER::ClusterGeometryGpuVertexAttributes);
+            report.packedSkinVertexByteSize =
+                static_cast<uint64_t>(asset.packedSkinningVertices.size()) *
+                sizeof(RENDER3D::CLUSTER::ClusterGeometryGpuSkinVertex);
 
             RENDER3D::CLUSTER::ClusterGeometryPackOptions packOptions{};
             packOptions.includeFallbackIndices = true;
@@ -3027,10 +3142,11 @@ namespace HIKARI::ASSETS::GEOMETRY {
         outReport = {};
         outAsset.sourceModelGuid = sourceGuid;
         outAsset.sourceModelPath = model.sourcePath;
-        const SourceGeometryCounts sourceCounts = CountSourceStaticGeometry(model);
+        const SourceGeometryCounts sourceCounts = CountSourceGeometry(model);
         outReport.sourceStaticTriangleCount = sourceCounts.staticTriangleCount;
         outReport.sourceStaticVertexCount = sourceCounts.staticVertexCount;
-        // HCMESH は node 行列を焼き込んだ model local 頂点を持つ。
+        // Static surfaces bake the node transform; skinned surfaces retain bind-pose
+        // model-space vertices and are identified by their per-surface flag.
         RENDER3D::CLUSTER::AddFlag(
             outAsset.flags,
             RENDER3D::CLUSTER::ClusteredGeometryFlags::NodeTransformBaked);
@@ -3117,6 +3233,31 @@ namespace HIKARI::ASSETS::GEOMETRY {
         outAsset.totalTriangleCount = RENDER3D::CLUSTER::CountClusterTriangles(outAsset);
         outAsset.totalVertexCount = static_cast<uint32_t>(outAsset.packedVertices.size());
         outAsset.localBounds = ComputeVertexBounds(outAsset.packedVertices);
+        const bool hasSkinningData = std::any_of(
+            outAsset.surfaces.begin(),
+            outAsset.surfaces.end(),
+            [](const ClusterSurface& surface) {
+                return RENDER3D::CLUSTER::HasFlag(
+                    surface.flags,
+                    ClusterSurfaceFlags::Skinned);
+            });
+        if (hasSkinningData) {
+            RENDER3D::CLUSTER::AddFlag(
+                outAsset.flags,
+                RENDER3D::CLUSTER::ClusteredGeometryFlags::SkinningData);
+            outAsset.packedSkinningVertices.resize(outAsset.packedVertices.size());
+            for (size_t vertexIndex = 0;
+                 vertexIndex < outAsset.packedVertices.size();
+                 ++vertexIndex) {
+                const ClusterVertex& source = outAsset.packedVertices[vertexIndex];
+                ClusterSkinVertex& destination =
+                    outAsset.packedSkinningVertices[vertexIndex];
+                for (size_t influence = 0; influence < 4u; ++influence) {
+                    destination.joints[influence] = source.joints[influence];
+                    destination.weights[influence] = source.weights[influence];
+                }
+            }
+        }
         FinalizeAssetLodMetrics(outAsset, settings);
         outAsset.valid =
             !outAsset.surfaces.empty() &&

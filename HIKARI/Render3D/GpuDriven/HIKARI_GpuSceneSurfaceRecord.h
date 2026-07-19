@@ -89,6 +89,8 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
         bool animationLoop = true;
         bool hasSpecialRenderDebug = false;
         bool skinned = false;
+        uint32_t jointPaletteSlot = RUNTIME::kInvalidRenderSurfaceIndex;
+        uint32_t jointPaletteMatrixCount = 0;
         bool castShadow = true;
         bool receiveShadow = true;
         bool forwardCandidate = false;

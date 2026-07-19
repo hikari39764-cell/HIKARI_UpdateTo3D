@@ -337,7 +337,9 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
                     : shaderProfile;
             const bool clusterVertexCompatible =
                 shaderRoute.vertexShaderId.empty() ||
-                shaderRoute.vertexShaderId == "Render3D_StaticVS";
+                shaderRoute.vertexShaderId == "Render3D_StaticVS" ||
+                shaderRoute.vertexShaderId == "Render3D_FxWaterVS" ||
+                (record.skinned && shaderRoute.vertexShaderId == "Render3D_SkinnedVS");
             const bool usesCustomVertexShader =
                 !shaderRoute.vertexShaderId.empty() &&
                 shaderRoute.vertexShaderId != "Render3D_StaticVS";
@@ -353,8 +355,7 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
 
             key.modelKey = modelKey;
             const bool animatedPoseRecord =
-                record.skinned ||
-                record.hasRuntimeAnimation;
+                record.hasRuntimeAnimation && !record.skinned;
             key.clusterGeometryKey =
                 !animatedPoseRecord
                     ? BuildStableStringKey("cluster-geometry-path", record.clusteredGeometryPath)
@@ -423,12 +424,20 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
                 shaderRoute.vertexShaderId == "Render3D_FxWaterVS";
             key.materialFxUsesCustomVertexShader =
                 key.materialFx &&
-                usesCustomVertexShader;
+                usesCustomVertexShader &&
+                !key.waterMaterialFx;
             key.customVertexShader = usesCustomVertexShader;
             key.depthAware = shaderRoute.depthAware;
-            const bool ordinaryStaticMeshletMaterial =
+            const bool ordinaryMeshletMaterial =
                 !key.materialFx &&
-                !key.waterMaterialFx;
+                !key.waterMaterialFx &&
+                !key.depthAware &&
+                !key.transparent;
+            const bool materialFxMeshletMaterial =
+                key.materialFx &&
+                !key.materialFxUsesCustomVertexShader;
+            // Cluster-compatible MaterialFX, including the built-in water
+            // deformation contract, stays on the mesh-shader route.
             // Mesh shader backend はまぁEstatic opaque / alpha-mask の cluster geometry だけを所有する、E
             key.clusterMainlineEligible =
                 !animatedPoseRecord &&
@@ -436,13 +445,11 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
                 clusterVertexCompatible &&
                 clusterPixelCompatible &&
                 key.objectDataCompatible &&
-                ordinaryStaticMeshletMaterial &&
-                !key.depthAware &&
-                !key.transparent;
-            if (record.skinned) {
-                key.backendRoute = RUNTIME::SurfaceBackendRoute::SkinnedVsPs;
-            } else if (key.clusterMainlineEligible) {
+                (ordinaryMeshletMaterial || materialFxMeshletMaterial);
+            if (key.clusterMainlineEligible) {
                 key.backendRoute = RUNTIME::SurfaceBackendRoute::MeshShader;
+            } else if (record.skinned) {
+                key.backendRoute = RUNTIME::SurfaceBackendRoute::SkinnedVsPs;
             } else {
                 key.backendRoute = RUNTIME::SurfaceBackendRoute::StaticVsPs;
             }
@@ -537,6 +544,9 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
             }
             if (record.key.clusterMainlineEligible) {
                 flags |= ToInstanceFlag(RUNTIME::SurfaceGpuSceneInstanceFlags::ClusterMainline);
+            }
+            if (record.skinned) {
+                flags |= ToInstanceFlag(RUNTIME::SurfaceGpuSceneInstanceFlags::Skinned);
             }
             return flags;
         }
@@ -650,7 +660,9 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
             instance.world = record.drawWorldMatrix;
             instance.normalMatrix = BuildNormalMatrixFromWorld(record.drawWorldMatrix);
             // HCMESH は node global めEbake 済みなので、cluster draw では object world だけを渡す、E
-            instance.clusterWorld = record.objectWorldTransform.GetWorldMatrix();
+            instance.clusterWorld = record.skinned
+                ? record.drawWorldMatrix
+                : record.objectWorldTransform.GetWorldMatrix();
             instance.clusterNormalMatrix = BuildNormalMatrixFromWorld(instance.clusterWorld);
             instance.boundsCenterRadius = BuildBoundsCenterRadius(record.worldBounds);
             instance.sourceRecordIndex = sourceRecordIndex;
@@ -663,6 +675,13 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
             instance.nodeIndex = record.nodeIndex;
             instance.flags = BuildInstanceFlags(record);
             instance.geometryBackend = static_cast<uint32_t>(record.key.geometryBackend);
+            if (record.skinned &&
+                record.jointPaletteSlot != RUNTIME::kInvalidRenderSurfaceIndex) {
+                instance.jointPaletteOffsetBytes =
+                    record.jointPaletteSlot *
+                    RUNTIME::kSurfaceGpuSceneJointPaletteStrideBytes;
+                instance.jointPaletteMatrixCount = record.jointPaletteMatrixCount;
+            }
 
             const RUNTIME::SurfaceResourceIds& resources = record.key.resources;
             if (resources.mesh) {
@@ -813,6 +832,9 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
                 record.key.objectDataCompatible &&
                 !record.hasSpecialRenderDebug &&
                 record.key.backendRoute == RUNTIME::SurfaceBackendRoute::MeshShader &&
+                (!record.skinned ||
+                    (record.jointPaletteSlot != RUNTIME::kInvalidRenderSurfaceIndex &&
+                        record.jointPaletteMatrixCount != 0u)) &&
                 HasValidSubmitPrimitiveTarget(record);
         }
     }

@@ -321,6 +321,15 @@ namespace HIKARI::RENDER3D::CLUSTER {
                 PackPair16(PackHalf16(source.uv1.y), 0u);
             return gpu;
         }
+
+        ClusterGeometryGpuSkinVertex ToGpuSkinVertex(const ClusterSkinVertex& source) {
+            ClusterGeometryGpuSkinVertex gpu{};
+            gpu.joints01 = PackPair16(source.joints[0], source.joints[1]);
+            gpu.joints23 = PackPair16(source.joints[2], source.joints[3]);
+            gpu.weights01 = PackPair16(PackHalf16(source.weights[0]), PackHalf16(source.weights[1]));
+            gpu.weights23 = PackPair16(PackHalf16(source.weights[2]), PackHalf16(source.weights[3]));
+            return gpu;
+        }
     } // namespace
 
     bool PackClusterGeometryForGpu(
@@ -346,6 +355,14 @@ namespace HIKARI::RENDER3D::CLUSTER {
             }
             return false;
         }
+        const bool hasSkinningData =
+            (asset.flags & static_cast<uint32_t>(ClusteredGeometryFlags::SkinningData)) != 0u;
+        if (hasSkinningData && asset.packedSkinningVertices.size() != asset.packedVertices.size()) {
+            if (outMessage != nullptr) {
+                *outMessage = "[ClusterGeometryPack] skin stream must be parallel to the packed vertex stream";
+            }
+            return false;
+        }
 
         ClusterGeometryPackedBytes packed{};
         packed.metadataBytes.resize(sizeof(ClusterGeometryGpuHeader));
@@ -359,6 +376,9 @@ namespace HIKARI::RENDER3D::CLUSTER {
         metadataHeader.clusterCount = ClampToUint32(asset.clusters.size());
         metadataHeader.pageCount = ClampToUint32(asset.pages.size());
         metadataHeader.vertexCount = ClampToUint32(asset.packedVertices.size());
+        metadataHeader.skinVertexCount = hasSkinningData
+            ? ClampToUint32(asset.packedSkinningVertices.size())
+            : 0u;
         metadataHeader.indexCount = options.includeFallbackIndices
             ? ClampToUint32(asset.packedIndices.size())
             : 0u;
@@ -415,6 +435,13 @@ namespace HIKARI::RENDER3D::CLUSTER {
             AppendPod(packed.geometryBytes, ToGpuVertexAttributes(vertex));
         }
 
+        if (hasSkinningData) {
+            geometryHeader.skinVertexOffsetBytes = AlignSection(packed.geometryBytes);
+            for (const ClusterSkinVertex& vertex : asset.packedSkinningVertices) {
+                AppendPod(packed.geometryBytes, ToGpuSkinVertex(vertex));
+            }
+        }
+
         if (options.includeFallbackIndices) {
             geometryHeader.indexOffsetBytes = AlignSection(packed.geometryBytes);
             std::vector<uint16_t> gpuIndices(asset.packedIndices.size(), 0u);
@@ -452,6 +479,8 @@ namespace HIKARI::RENDER3D::CLUSTER {
             kClusterGeometryGpuSectionAlignment));
 
         metadataHeader.vertexOffsetBytes = geometryHeader.vertexOffsetBytes;
+        metadataHeader.skinVertexCount = geometryHeader.skinVertexCount;
+        metadataHeader.skinVertexOffsetBytes = geometryHeader.skinVertexOffsetBytes;
         metadataHeader.indexOffsetBytes = geometryHeader.indexOffsetBytes;
         metadataHeader.materialSlotOffsetBytes = geometryHeader.materialSlotOffsetBytes;
         metadataHeader.meshletPrimitiveOffsetBytes = geometryHeader.meshletPrimitiveOffsetBytes;
@@ -473,6 +502,7 @@ namespace HIKARI::RENDER3D::CLUSTER {
         packed.layout.clusterCount = metadataHeader.clusterCount;
         packed.layout.pageCount = metadataHeader.pageCount;
         packed.layout.vertexCount = geometryHeader.vertexCount;
+        packed.layout.skinVertexCount = geometryHeader.skinVertexCount;
         packed.layout.indexCount = geometryHeader.indexCount;
         packed.layout.materialSlotCount = geometryHeader.materialSlotCount;
         packed.layout.surfaceOffsetBytes = metadataHeader.surfaceOffsetBytes;
@@ -481,6 +511,7 @@ namespace HIKARI::RENDER3D::CLUSTER {
         packed.layout.clusterOffsetBytes = metadataHeader.clusterOffsetBytes;
         packed.layout.pageOffsetBytes = metadataHeader.pageOffsetBytes;
         packed.layout.vertexOffsetBytes = geometryHeader.vertexOffsetBytes;
+        packed.layout.skinVertexOffsetBytes = geometryHeader.skinVertexOffsetBytes;
         packed.layout.indexOffsetBytes = geometryHeader.indexOffsetBytes;
         packed.layout.materialSlotOffsetBytes = geometryHeader.materialSlotOffsetBytes;
         packed.layout.meshletPrimitiveCount = geometryHeader.meshletPrimitiveCount;

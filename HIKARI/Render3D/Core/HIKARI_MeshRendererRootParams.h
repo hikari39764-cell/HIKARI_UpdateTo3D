@@ -56,7 +56,8 @@ namespace HIKARI::MESHRENDERER::ROOT_PARAM {
     constexpr UINT MeshletVisibleRanges = 24;
     // Meshlet visible cluster list buffer -> t19
     constexpr UINT MeshletVisibleClusterList = 25;
-    // JointPalette -> b3, skinned only. Keep this after indirect root constants.
+    // Mesh-shader deformation palettes -> t0, space3. The skinned VS/PS root signature
+    // overrides this same slot as the legacy b3 CBV during migration.
     constexpr UINT JointPalette = 26;
 
     constexpr UINT Count = JointPalette + 1;

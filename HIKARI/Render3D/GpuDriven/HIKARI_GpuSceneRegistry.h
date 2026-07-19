@@ -49,6 +49,13 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
         uint32_t blockedShadowRecordCount = 0;
         uint32_t forwardStaticTraditionalRecordCount = 0;
         uint32_t shadowStaticTraditionalRecordCount = 0;
+        uint32_t forwardMaterialFxMeshShaderRecordCount = 0;
+        uint32_t forwardMaterialFxTraditionalRecordCount = 0;
+        uint32_t forwardMaterialFxBlockedRecordCount = 0;
+        uint32_t shadowMaterialFxMeshShaderRecordCount = 0;
+        uint32_t shadowMaterialFxTraditionalRecordCount = 0;
+        uint32_t forwardSkinnedMeshShaderRecordCount = 0;
+        uint32_t shadowSkinnedMeshShaderRecordCount = 0;
         uint32_t forwardSkinnedTraditionalRecordCount = 0;
         uint32_t shadowSkinnedTraditionalRecordCount = 0;
         uint32_t depthPrepassOccluderRecordCount = 0;
@@ -108,6 +115,7 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
         void ClearFrameDirtyRanges();
 
         std::vector<GpuSceneSurfaceRecord> surfaceRecords_{};
+        std::vector<std::vector<MATH::Mat4>> meshShaderJointPalettes_{};
         std::vector<uint32_t> forwardOpaqueResidentRecordIndices_{};
         std::vector<uint32_t> depthPrepassOccluderRecordIndices_{};
         std::vector<uint32_t> forwardDepthAwareResidentRecordIndices_{};

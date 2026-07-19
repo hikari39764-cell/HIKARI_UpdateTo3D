@@ -161,11 +161,15 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
         }
 
         bool HasShadowCasterSafeMaterial(const GpuSceneSurfaceRecord& record) {
+            const bool staticMaterialFx =
+                record.key.materialFx &&
+                !record.key.waterMaterialFx &&
+                !record.key.materialFxUsesCustomVertexShader;
             return
                 !record.key.transparent &&
                 !record.key.depthAware &&
-                !record.key.materialFx &&
-                !record.key.waterMaterialFx;
+                !record.key.waterMaterialFx &&
+                (!record.key.materialFx || staticMaterialFx);
         }
 
         bool IsGpuSceneStaticShadowCasterRecord(
@@ -910,12 +914,10 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
         bool IsGpuSceneSkinnedTraditionalRecordCommon(
             const GpuSceneSurfaceRecord& record) {
 
-            return
-                record.valid &&
-                record.key.resourceKeyValid &&
-                record.skinned &&
-                !record.hasSpecialRenderDebug &&
-                HasValidSkinnedGpuSceneSubmitPrimitiveTarget(record);
+            // Skinned surfaces are owned by the mesh-shader deformation path.
+            // Missing cooked geometry/palette is a blocked contract, not a hidden VS/PS fallback.
+            (void)record;
+            return false;
         }
 
         bool IsGpuSceneForwardSkinnedTraditionalRecord(
@@ -942,6 +944,7 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
                 record.valid &&
                 record.key.resourceKeyValid &&
                 !record.skinned &&
+                !record.key.materialFx &&
                 !record.hasSpecialRenderDebug &&
                 HasValidGpuSceneSubmitPrimitiveTarget(record);
         }
@@ -1014,6 +1017,7 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
 
     void GpuSceneRegistry::Clear() {
         surfaceRecords_.clear();
+        meshShaderJointPalettes_.clear();
         forwardOpaqueResidentRecordIndices_.clear();
         depthPrepassOccluderRecordIndices_.clear();
         forwardDepthAwareResidentRecordIndices_.clear();
@@ -1130,6 +1134,31 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
             surfaceRecords_.push_back(std::move(record));
         }
 
+        meshShaderJointPalettes_.resize(surfaceRecords_.size());
+        GpuScenePoseBuilder meshShaderPoseBuilder{};
+        for (uint32_t recordIndex = 0;
+            recordIndex < surfaceRecords_.size();
+            ++recordIndex) {
+
+            GpuSceneSurfaceRecord& record = surfaceRecords_[recordIndex];
+            if (!record.skinned ||
+                record.key.backendRoute != RUNTIME::SurfaceBackendRoute::MeshShader ||
+                recordIndex >= RUNTIME::kSurfaceGpuSceneMaxDeformationPalettes) {
+                continue;
+            }
+            const std::vector<MATH::Mat4>* palette =
+                meshShaderPoseBuilder.ResolveJointPalette(record);
+            if (palette == nullptr || palette->empty() ||
+                palette->size() > RUNTIME::kSurfaceGpuSceneMaxJointMatrices) {
+                record.jointPaletteSlot = RUNTIME::kInvalidRenderSurfaceIndex;
+                record.jointPaletteMatrixCount = 0u;
+                continue;
+            }
+            meshShaderJointPalettes_[recordIndex] = *palette;
+            record.jointPaletteSlot = recordIndex;
+            record.jointPaletteMatrixCount = ClampToUint32(palette->size());
+        }
+
         stats_.sourceRecordCount = ClampToUint32(surfaceRecords_.size());
 
         std::vector<uint32_t> routedRecordIndices{};
@@ -1139,11 +1168,23 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
             ++recordIndex) {
 
             const GpuSceneSurfaceRecord& record = surfaceRecords_[recordIndex];
+            const bool meshShaderMaterialFxRecord =
+                record.key.materialFx &&
+                !record.key.materialFxUsesCustomVertexShader;
             if (record.valid && record.shadowCandidate && record.key.resourceKeyValid) {
                 if (IsGpuSceneStaticShadowCasterRecord(record)) {
                     shadowResidentRecordIndices_.push_back(recordIndex);
+                    if (meshShaderMaterialFxRecord) {
+                        ++stats_.shadowMaterialFxMeshShaderRecordCount;
+                    }
+                    if (record.key.skinned) {
+                        ++stats_.shadowSkinnedMeshShaderRecordCount;
+                    }
                 } else if (IsGpuSceneShadowStaticTraditionalRecord(record)) {
                     shadowStaticTraditionalRecordIndices_.push_back(recordIndex);
+                    if (meshShaderMaterialFxRecord) {
+                        ++stats_.shadowMaterialFxTraditionalRecordCount;
+                    }
                 } else if (IsGpuSceneShadowSkinnedTraditionalRecord(record)) {
                     shadowSkinnedRecordIndices_.push_back(recordIndex);
                 } else {
@@ -1168,13 +1209,34 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
             }
 
             const GpuSceneSurfaceRecord& record = surfaceRecords_[recordIndex];
+            const bool meshShaderMaterialFxRecord =
+                record.key.materialFx &&
+                !record.key.materialFxUsesCustomVertexShader;
             if (IsGpuSceneForwardOpaqueResidentRecord(record)) {
                 forwardOpaqueResidentRecordIndices_.push_back(recordIndex);
                 ++stats_.forwardOpaqueClusterCandidateRecordCount;
+                if (meshShaderMaterialFxRecord) {
+                    ++stats_.forwardMaterialFxMeshShaderRecordCount;
+                }
+                if (record.key.skinned) {
+                    ++stats_.forwardSkinnedMeshShaderRecordCount;
+                }
             } else if (IsGpuSceneForwardDepthAwareResidentRecord(record)) {
                 forwardDepthAwareResidentRecordIndices_.push_back(recordIndex);
+                if (meshShaderMaterialFxRecord) {
+                    ++stats_.forwardMaterialFxMeshShaderRecordCount;
+                }
+                if (record.key.skinned) {
+                    ++stats_.forwardSkinnedMeshShaderRecordCount;
+                }
             } else if (IsGpuSceneForwardTransparentResidentRecord(record)) {
                 forwardTransparentResidentRecordIndices_.push_back(recordIndex);
+                if (meshShaderMaterialFxRecord) {
+                    ++stats_.forwardMaterialFxMeshShaderRecordCount;
+                }
+                if (record.key.skinned) {
+                    ++stats_.forwardSkinnedMeshShaderRecordCount;
+                }
             } else if (IsGpuSceneForwardSkinnedTraditionalRecord(record)) {
                 if (record.key.depthAware) {
                     forwardDepthAwareSkinnedRecordIndices_.push_back(recordIndex);
@@ -1184,6 +1246,9 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
                     forwardOpaqueSkinnedRecordIndices_.push_back(recordIndex);
                 }
             } else if (IsGpuSceneForwardStaticTraditionalRecord(record)) {
+                if (meshShaderMaterialFxRecord) {
+                    ++stats_.forwardMaterialFxTraditionalRecordCount;
+                }
                 if (record.key.depthAware) {
                     forwardDepthAwareStaticTraditionalRecordIndices_.push_back(recordIndex);
                 } else if (record.key.transparent) {
@@ -1193,6 +1258,9 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
                 }
             } else if (record.forwardCandidate) {
                 ++stats_.unsupportedForwardRecordCount;
+                if (meshShaderMaterialFxRecord) {
+                    ++stats_.forwardMaterialFxBlockedRecordCount;
+                }
                 if (record.key.depthAware) {
                     ++stats_.blockedForwardDepthAwareRecordCount;
                 } else if (record.key.transparent) {
@@ -1533,6 +1601,7 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
         singleRecordIndex.reserve(1);
         std::vector<RUNTIME::SurfaceGpuSceneInstance> singleInstance{};
         std::vector<RUNTIME::SurfaceGpuSceneMaterialSource> singleMaterial{};
+        GpuScenePoseBuilder meshShaderPoseBuilder{};
 
         for (const uint32_t surfaceIndex : dirtySurfaceIndices) {
             if (surfaceIndex >= surfaces.size() ||
@@ -1542,6 +1611,21 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
 
             GpuSceneSurfaceRecord newRecord =
                 BuildGpuSceneSurfaceRecord(surfaces[surfaceIndex], surfaceIndex);
+            if (newRecord.skinned &&
+                newRecord.key.backendRoute == RUNTIME::SurfaceBackendRoute::MeshShader &&
+                surfaceIndex < RUNTIME::kSurfaceGpuSceneMaxDeformationPalettes) {
+                const std::vector<MATH::Mat4>* palette =
+                    meshShaderPoseBuilder.ResolveJointPalette(newRecord);
+                if (palette != nullptr && !palette->empty() &&
+                    palette->size() <= RUNTIME::kSurfaceGpuSceneMaxJointMatrices) {
+                    if (meshShaderJointPalettes_.size() != surfaceRecords_.size()) {
+                        return false;
+                    }
+                    meshShaderJointPalettes_[surfaceIndex] = *palette;
+                    newRecord.jointPaletteSlot = surfaceIndex;
+                    newRecord.jointPaletteMatrixCount = ClampToUint32(palette->size());
+                }
+            }
             const GpuSceneSurfaceRecord& oldRecord = surfaceRecords_[surfaceIndex];
             if (IsGpuSceneForwardSkinnedTraditionalRecord(oldRecord) ||
                 IsGpuSceneForwardSkinnedTraditionalRecord(newRecord) ||
@@ -1663,6 +1747,7 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
     }
 
     void GpuSceneRegistry::RebuildForwardSceneSource() {
+        sceneSource_.meshShaderJointPalettes = &meshShaderJointPalettes_;
         const uint32_t sharedPrimaryCount =
             ClampToUint32(globalGpuSceneInstances_.size());
         uint32_t cursor = sharedPrimaryCount;

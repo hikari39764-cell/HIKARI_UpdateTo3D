@@ -3,9 +3,10 @@
 #include <algorithm>
 #include <cstring>
 #include <fstream>
-#include <limits>
 #include <type_traits>
 #include <utility>
+
+#include "Assets/Geometry/HIKARI_HcmeshCompatibility.h"
 
 namespace HIKARI::ASSETS::GEOMETRY {
 
@@ -13,7 +14,6 @@ namespace HIKARI::ASSETS::GEOMETRY {
         constexpr uint32_t kMaxChunkCount = 32u;
         constexpr uint64_t kMaxChunkBytes = 2ull * 1024ull * 1024ull * 1024ull;
         constexpr uint32_t kMaxStringBytes = 16u * 1024u * 1024u;
-
         struct ChunkPayload {
             HcmeshChunkKind kind = HcmeshChunkKind::SourceInfo;
             uint32_t elementCount = 0;
@@ -208,7 +208,8 @@ namespace HIKARI::ASSETS::GEOMETRY {
                 outMessage = "[HCMESH] invalid magic";
                 return false;
             }
-            if (header.version != kHcmeshVersion) {
+            if (header.version != kHcmeshVersion &&
+                header.version != COMPATIBILITY::kStaticContainerVersion) {
                 outMessage = "[HCMESH] unsupported version; reimport asset";
                 return false;
             }
@@ -310,6 +311,7 @@ namespace HIKARI::ASSETS::GEOMETRY {
             packed.layout.clusterCount = metadataHeader.clusterCount;
             packed.layout.pageCount = metadataHeader.pageCount;
             packed.layout.vertexCount = geometryHeader.vertexCount;
+            packed.layout.skinVertexCount = geometryHeader.skinVertexCount;
             packed.layout.indexCount = geometryHeader.indexCount;
             packed.layout.materialSlotCount = geometryHeader.materialSlotCount;
             packed.layout.surfaceOffsetBytes = metadataHeader.surfaceOffsetBytes;
@@ -318,6 +320,7 @@ namespace HIKARI::ASSETS::GEOMETRY {
             packed.layout.clusterOffsetBytes = metadataHeader.clusterOffsetBytes;
             packed.layout.pageOffsetBytes = metadataHeader.pageOffsetBytes;
             packed.layout.vertexOffsetBytes = geometryHeader.vertexOffsetBytes;
+            packed.layout.skinVertexOffsetBytes = geometryHeader.skinVertexOffsetBytes;
             packed.layout.indexOffsetBytes = geometryHeader.indexOffsetBytes;
             packed.layout.materialSlotOffsetBytes = geometryHeader.materialSlotOffsetBytes;
             packed.layout.meshletPrimitiveCount = geometryHeader.meshletPrimitiveCount;
@@ -453,7 +456,9 @@ namespace HIKARI::ASSETS::GEOMETRY {
             return false;
         }
 
-        outMessage = "[HCMESH] wrote GPU-ready v14 " + path.generic_string();
+        outMessage =
+            "[HCMESH] wrote GPU-ready v" + std::to_string(kHcmeshVersion) + " " +
+            path.generic_string();
         return true;
     }
 
@@ -480,6 +485,19 @@ namespace HIKARI::ASSETS::GEOMETRY {
         if (!ReadRequiredChunk(ifs, chunks, HcmeshChunkKind::GpuGeometry, packed.geometryBytes) ||
             !ReadRequiredChunk(ifs, chunks, HcmeshChunkKind::GpuMetadata, packed.metadataBytes)) {
             outMessage = "[HCMESH] missing packed GPU chunks: " + path.generic_string();
+            return false;
+        }
+
+        const bool upgradedCompatibleStatic =
+            header.version == COMPATIBILITY::kStaticContainerVersion;
+        uint32_t compatibleHeaderGrowth = 0u;
+        if (upgradedCompatibleStatic &&
+            !COMPATIBILITY::UpgradeStaticPackedGpuChunks(
+                packed.geometryBytes,
+                packed.metadataBytes,
+                compatibleHeaderGrowth,
+                outMessage)) {
+            outMessage += ": " + path.generic_string();
             return false;
         }
 
@@ -511,6 +529,12 @@ namespace HIKARI::ASSETS::GEOMETRY {
             return false;
         }
 
+        const uint64_t expectedGeometryByteSize =
+            static_cast<uint64_t>(header.geometryByteSize) +
+            compatibleHeaderGrowth;
+        const uint64_t expectedMetadataByteSize =
+            static_cast<uint64_t>(header.metadataByteSize) +
+            compatibleHeaderGrowth;
         if (packed.layout.surfaceCount != header.surfaceCount ||
             packed.layout.surfaceLodRangeCount != header.surfaceLodRangeCount ||
             packed.layout.surfaceSectionCount != header.surfaceSectionCount ||
@@ -519,14 +543,17 @@ namespace HIKARI::ASSETS::GEOMETRY {
             packed.layout.vertexCount != header.vertexCount ||
             packed.layout.indexCount != header.indexCount ||
             packed.layout.meshletPrimitiveCount != header.meshletPrimitiveCount ||
-            packed.layout.byteSize != header.geometryByteSize ||
-            packed.metadataByteSize != header.metadataByteSize) {
+            packed.layout.byteSize != expectedGeometryByteSize ||
+            packed.metadataByteSize != expectedMetadataByteSize) {
             outMessage = "[HCMESH] packed layout/header mismatch: " + path.generic_string();
             return false;
         }
 
         outPacked = std::move(packed);
-        outMessage = "[HCMESH] read GPU-ready v14 " + path.generic_string();
+        outMessage =
+            "[HCMESH] read GPU-ready v" + std::to_string(header.version) +
+            (upgradedCompatibleStatic ? " (GPU v11 upgraded in memory) " : " ") +
+            path.generic_string();
         return true;
     }
 
@@ -554,7 +581,7 @@ namespace HIKARI::ASSETS::GEOMETRY {
             FindChunk(chunks, HcmeshChunkKind::SurfaceRanges) == nullptr ||
             FindChunk(chunks, HcmeshChunkKind::SurfaceLodRanges) == nullptr ||
             FindChunk(chunks, HcmeshChunkKind::SurfaceSections) == nullptr) {
-            outMessage = "[HCMESH] missing required v14 chunks: " + path.generic_string();
+            outMessage = "[HCMESH] missing required chunks: " + path.generic_string();
             return false;
         }
 
@@ -564,7 +591,9 @@ namespace HIKARI::ASSETS::GEOMETRY {
             return false;
         }
 
-        outMessage = "[HCMESH] inspected GPU-ready v14 " + path.generic_string();
+        outMessage =
+            "[HCMESH] inspected GPU-ready v" + std::to_string(header.version) + " " +
+            path.generic_string();
         return true;
     }
 
@@ -575,7 +604,7 @@ namespace HIKARI::ASSETS::GEOMETRY {
 
         outAsset = {};
         outMessage =
-            "[HCMESH] CPU asset read path was removed for v14; use ReadHcmeshPackedFile: " +
+            "[HCMESH] CPU asset read path is unavailable; use ReadHcmeshPackedFile: " +
             path.generic_string();
         return false;
     }

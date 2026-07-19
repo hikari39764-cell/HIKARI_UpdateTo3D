@@ -5,9 +5,9 @@
 
 static const uint HIKARI_CLUSTER_GEOMETRY_GPU_MAGIC = 0x534c4348u;
 // C++ 側 kClusterGeometryGpuVersion (HIKARI_ClusterGpuData.h) と同期させる。
-static const uint HIKARI_CLUSTER_GEOMETRY_GPU_VERSION = 11u;
+static const uint HIKARI_CLUSTER_GEOMETRY_GPU_VERSION = 12u;
 static const uint HIKARI_CLUSTER_GEOMETRY_INVALID_INDEX = 0xffffffffu;
-static const uint HIKARI_CLUSTER_GEOMETRY_HEADER_BYTES = 128u;
+static const uint HIKARI_CLUSTER_GEOMETRY_HEADER_BYTES = 144u;
 static const uint HIKARI_CLUSTER_GEOMETRY_SURFACE_BYTES = 112u;
 static const uint HIKARI_CLUSTER_GEOMETRY_SURFACE_LOD_RANGE_BYTES = 64u;
 static const uint HIKARI_CLUSTER_GEOMETRY_SURFACE_SECTION_BYTES = 128u;
@@ -15,6 +15,7 @@ static const uint HIKARI_CLUSTER_GEOMETRY_CLUSTER_BYTES = 112u;
 static const uint HIKARI_CLUSTER_GEOMETRY_PAGE_BYTES = 64u;
 static const uint HIKARI_CLUSTER_GEOMETRY_VERTEX_POSITION_BYTES = 12u;
 static const uint HIKARI_CLUSTER_GEOMETRY_VERTEX_ATTRIBUTE_BYTES = 24u;
+static const uint HIKARI_CLUSTER_GEOMETRY_SKIN_VERTEX_BYTES = 16u;
 static const uint HIKARI_CLUSTER_GEOMETRY_MESHLET_PRIMITIVE_BYTES = 4u;
 static const uint HIKARI_CLUSTER_GEOMETRY_MAX_MESHLET_PRIMITIVES =
     HIKARI_CLUSTER_GEOMETRY_CONFIG_MAX_MESHLET_TRIANGLES;
@@ -52,6 +53,11 @@ struct HikariClusterGeometryHeader
     uint surfaceLodRangeOffsetBytes;
     uint surfaceSectionCount;
     uint surfaceSectionOffsetBytes;
+
+    uint skinVertexCount;
+    uint skinVertexOffsetBytes;
+    uint reserved0;
+    uint reserved1;
 
     float4 localBoundsMin;
     float4 localBoundsMax;
@@ -187,6 +193,12 @@ struct HikariClusterVertex
     float4 color;
 };
 
+struct HikariClusterSkinVertex
+{
+    uint4 joints;
+    float4 weights;
+};
+
 struct HikariMeshletPrimitive
 {
     uint i0;
@@ -212,6 +224,7 @@ HikariClusterGeometryHeader HikariLoadClusterGeometryHeader(ByteAddressBuffer bu
     uint4 v3 = buffer.Load4(48u);
     uint4 v4 = buffer.Load4(64u);
     uint4 v5 = buffer.Load4(80u);
+    uint4 v6 = buffer.Load4(96u);
     header.magic = v0.x;
     header.version = v0.y;
     header.flags = v0.z;
@@ -236,8 +249,12 @@ HikariClusterGeometryHeader HikariLoadClusterGeometryHeader(ByteAddressBuffer bu
     header.surfaceLodRangeOffsetBytes = v5.y;
     header.surfaceSectionCount = v5.z;
     header.surfaceSectionOffsetBytes = v5.w;
-    header.localBoundsMin = asfloat(buffer.Load4(96u));
-    header.localBoundsMax = asfloat(buffer.Load4(112u));
+    header.skinVertexCount = v6.x;
+    header.skinVertexOffsetBytes = v6.y;
+    header.reserved0 = v6.z;
+    header.reserved1 = v6.w;
+    header.localBoundsMin = asfloat(buffer.Load4(112u));
+    header.localBoundsMax = asfloat(buffer.Load4(128u));
     return header;
 }
 
@@ -485,6 +502,38 @@ HikariClusterVertex HikariLoadClusterVertexShading(
         asfloat(buffer.Load3(positionOffset)),
         buffer.Load4(attributeOffset + 0u),
         buffer.Load2(attributeOffset + 16u));
+}
+
+HikariClusterSkinVertex HikariLoadClusterSkinVertex(
+    ByteAddressBuffer buffer,
+    HikariClusterGeometryHeader header,
+    uint vertexIndex)
+{
+    HikariClusterSkinVertex skin = (HikariClusterSkinVertex)0;
+    if (vertexIndex >= header.skinVertexCount || header.skinVertexOffsetBytes == 0u)
+    {
+        skin.weights.x = 1.0f;
+        return skin;
+    }
+
+    uint offset = header.skinVertexOffsetBytes +
+        vertexIndex * HIKARI_CLUSTER_GEOMETRY_SKIN_VERTEX_BYTES;
+    uint4 packed = buffer.Load4(offset);
+    skin.joints = uint4(
+        packed.x & 0xffffu,
+        packed.x >> 16u,
+        packed.y & 0xffffu,
+        packed.y >> 16u);
+    skin.weights = float4(
+        HikariUnpackHalf16(packed.z),
+        HikariUnpackHalf16(packed.z >> 16u),
+        HikariUnpackHalf16(packed.w),
+        HikariUnpackHalf16(packed.w >> 16u));
+    float weightSum = dot(skin.weights, 1.0f);
+    skin.weights = weightSum > 1.0e-6f
+        ? skin.weights / weightSum
+        : float4(1.0f, 0.0f, 0.0f, 0.0f);
+    return skin;
 }
 
 float4 HikariLoadClusterVertexPosition(

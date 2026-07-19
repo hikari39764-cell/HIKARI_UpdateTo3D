@@ -441,7 +441,7 @@ namespace HIKARI::MESHRENDERER {
         size_t clusterGpuCullWorkgroupCount = 0;
         size_t clusterGpuCullInputCapacity = 0;
         size_t clusterGpuCullVisibleRangeCapacity = 0;
-        size_t clusterGpuCullDrawArgumentCapacity = 0;
+        size_t clusterGpuCullCandidateCommandCapacity = 0;
         size_t clusterGpuCullOcclusionHistoryCapacity = 0;
         size_t clusterGpuCullDrawSeedCount = 0;
         size_t meshletBackendRequestedDispatchCount = 0;
@@ -472,8 +472,6 @@ namespace HIKARI::MESHRENDERER {
         bool traditionalCommandStreamArgumentBufferReady = false;
         bool traditionalCommandStreamCommandSignatureReady = false;
         bool clusterGpuCullReady = false;
-        bool clusterGpuCullDrawArgsReady = false;
-        bool clusterGpuCullCommandSignatureReady = false;
         bool clusterGpuCullCounterReadbackReady = false;
         bool clusterGpuCullCounterReadbackValid = false;
         bool clusterGpuCullDebugCountersEnabled = false;

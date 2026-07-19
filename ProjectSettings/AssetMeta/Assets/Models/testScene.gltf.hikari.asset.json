@@ -36,7 +36,7 @@
     "sourceFormat": ".gltf"
   },
   "importerId": "ModelImporter",
-  "importerVersion": 32,
+  "importerVersion": 33,
   "metaVersion": 1,
   "sourcePath": "Assets/Models/testScene.gltf",
   "type": "Model"

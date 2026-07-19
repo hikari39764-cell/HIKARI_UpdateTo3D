@@ -492,7 +492,6 @@ namespace HIKARI::RENDER3D::MESHLET {
 
         Microsoft::WRL::ComPtr<ID3DBlob> amplificationShader;
         Microsoft::WRL::ComPtr<ID3DBlob> forwardMeshShader;
-        Microsoft::WRL::ComPtr<ID3DBlob> forwardFxMeshShader;
         Microsoft::WRL::ComPtr<ID3DBlob> depthMeshShader;
         Microsoft::WRL::ComPtr<ID3DBlob> geometryMeshShader;
         std::array<
@@ -503,8 +502,7 @@ namespace HIKARI::RENDER3D::MESHLET {
         Microsoft::WRL::ComPtr<ID3DBlob> shadowPixelShader;
         Microsoft::WRL::ComPtr<ID3DBlob> geometryPixelShader;
         const bool needsForwardMeshShader =
-            IsPipelineRequested(pipelineMask_, MeshletPipelineKind::ForwardOpaque);
-        const bool needsForwardFxMeshShader =
+            IsPipelineRequested(pipelineMask_, MeshletPipelineKind::ForwardOpaque) ||
             IsPipelineRequested(pipelineMask_, MeshletPipelineKind::ForwardDepthAware) ||
             IsPipelineRequested(pipelineMask_, MeshletPipelineKind::ForwardTransparent);
         const bool needsDepthMeshShader =
@@ -525,14 +523,6 @@ namespace HIKARI::RENDER3D::MESHLET {
                 "main",
                 GFX::ShaderStage::Mesh,
                 forwardMeshShader.GetAddressOf())) {
-            return false;
-        }
-        if (needsForwardFxMeshShader &&
-            !GFX::CompileShaderFileSm6(
-                L"HIKARI/Shaders/Render3D_MeshletFxMS.hlsl",
-                "main",
-                GFX::ShaderStage::Mesh,
-                forwardFxMeshShader.GetAddressOf())) {
             return false;
         }
         if (needsDepthMeshShader &&
@@ -635,7 +625,7 @@ namespace HIKARI::RENDER3D::MESHLET {
                     device,
                     rootSignature,
                     amplificationShader.Get(),
-                    forwardFxMeshShader.Get(),
+                    forwardMeshShader.Get(),
                     depthAwarePixelShader.Get(),
                     DXGI_FORMAT_R16G16B16A16_FLOAT,
                     CullModeForBucket(bucket),
@@ -654,7 +644,7 @@ namespace HIKARI::RENDER3D::MESHLET {
                     device,
                     rootSignature,
                     amplificationShader.Get(),
-                    forwardFxMeshShader.Get(),
+                    forwardMeshShader.Get(),
                     transparentPixelShader.Get(),
                     DXGI_FORMAT_R16G16B16A16_FLOAT,
                     CullModeForBucket(bucket),

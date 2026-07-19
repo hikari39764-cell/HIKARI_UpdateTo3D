@@ -13,6 +13,11 @@ namespace HIKARI {
 
 namespace HIKARI::RENDER3D::RUNTIME {
 
+    constexpr uint32_t kSurfaceGpuSceneMaxJointMatrices = 128u;
+    constexpr uint32_t kSurfaceGpuSceneMaxDeformationPalettes = 2048u;
+    constexpr uint32_t kSurfaceGpuSceneJointPaletteStrideBytes =
+        kSurfaceGpuSceneMaxJointMatrices * sizeof(MATH::Mat4);
+
     enum class SurfaceGpuSceneInstanceFlags : uint32_t {
         None = 0,
         StaticGeometry = 1u << 0,
@@ -31,6 +36,7 @@ namespace HIKARI::RENDER3D::RUNTIME {
         PassForwardDepthAware = 1u << 13,
         PassForwardTransparent = 1u << 14,
         PassShadow = 1u << 15,
+        Skinned = 1u << 16,
     };
 
     enum class SurfaceGpuSceneResourceFlags : uint32_t {
@@ -85,10 +91,16 @@ namespace HIKARI::RENDER3D::RUNTIME {
         uint32_t clusterSelectedLodIndex = 0;
         uint32_t clusterLodFlags = 0;
 
+        uint32_t jointPaletteOffsetBytes = 0;
+        uint32_t jointPaletteMatrixCount = 0;
+        uint32_t deformationFlags = 0;
+        uint32_t deformationReserved = 0;
+
         MATH::Vec4 fxUser[VFX::kMaterialFxUserCount]{};
     };
 
-    static_assert(sizeof(SurfaceGpuSceneInstance) == 512u);
+    static_assert(sizeof(SurfaceGpuSceneInstance) == 528u);
+    static_assert(kSurfaceGpuSceneJointPaletteStrideBytes == 8192u);
 
     struct SurfaceGpuSceneMaterialSource {
         const ModelAsset* model = nullptr;

@@ -459,6 +459,21 @@ namespace HIKARI::MESHRENDERER {
         }
     }
 
+    void BindMeshletDeformationPalettes(
+        const MeshBindingContext& ctx,
+        D3D12_GPU_VIRTUAL_ADDRESS paletteAddress) {
+
+        if (ctx.cmd == nullptr || paletteAddress == 0u) {
+            return;
+        }
+        ctx.cmd->SetGraphicsRootShaderResourceView(
+            ROOT_PARAM::JointPalette,
+            paletteAddress);
+        if (ctx.cache != nullptr) {
+            ctx.cache->cbvAddresses[ROOT_PARAM::JointPalette] = paletteAddress;
+        }
+    }
+
     void BindPipelineState(
         const MeshBindingContext& ctx,
         ID3D12PipelineState* pso) {

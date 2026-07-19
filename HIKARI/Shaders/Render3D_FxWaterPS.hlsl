@@ -1,4 +1,15 @@
+#ifndef HIKARI_WATER_EMBEDDED
+#define HIKARI_WATER_EMBEDDED 0
+#endif
 
+#undef gFxUser0
+#undef gFxUser1
+#undef gFxUser2
+#undef gFxUser3
+#undef gFxUser4
+#undef gFxUser5
+#undef gFxUser6
+#undef gFxUser7
 #define gFxUser0 waterObjectData.fxUser[0]
 #define gFxUser1 waterObjectData.fxUser[1]
 #define gFxUser2 waterObjectData.fxUser[2]
@@ -31,6 +42,7 @@
 #define gWaterRefractionStrength gFxUser2.w
 #define gWaterSceneColorMix      gFxUser3.w
 
+#if !HIKARI_WATER_EMBEDDED
 cbuffer CameraCB : register(b0)
 {
     float4x4 gViewProj;
@@ -148,6 +160,10 @@ struct PSInput
     nointerpolation uint surfaceGpuSceneIndex : TEXCOORD5;
     nointerpolation uint debugSurfaceId : TEXCOORD6;
 };
+#else
+#define gSceneDepth gSceneDepthTex
+#define gSkySampler gLinearWrap
+#endif
 
 float SampleSceneDepth(float4 svPosition)
 {
@@ -489,6 +505,7 @@ float3 ApplyWaterSceneColorRefraction(
     return lerp(waterColor, refracted, refractionWeight);
 }
 
+#if !HIKARI_WATER_EMBEDDED
 float3 ApplyFog(float3 color, float3 worldPosWS)
 {
     if (gFogParams.x < 0.5f)
@@ -559,12 +576,15 @@ float3 SampleSkyEnvironment(float3 dir)
     return sky;
 
 }
+#else
+#define EvaluateSkyApprox HikariEvaluateSkyApprox
+#define SampleSkyEnvironment HikariSampleSkyEnvironment
+#endif
 
-float4 main(PSInput input) : SV_TARGET
+float4 HikariShadeWaterSurface(
+    PSInput input,
+    HikariMeshObjectData waterObjectData)
 {
-    HikariMeshObjectData waterObjectData =
-        HikariGetMeshObjectDataForSurfaceIndex(input.objectDataIndex, input.surfaceGpuSceneIndex);
-
 #if WATER_DEBUG_SCENE_DEPTH
     float sceneDepth = SampleSceneDepth(input.position);
     float vi = saturate((1.0f - sceneDepth) * 80.0f);
@@ -770,3 +790,14 @@ float4 main(PSInput input) : SV_TARGET
 
     return float4(color, waterAlpha);
 }
+
+#if !HIKARI_WATER_EMBEDDED
+float4 main(PSInput input) : SV_TARGET
+{
+    HikariMeshObjectData waterObjectData =
+        HikariGetMeshObjectDataForSurfaceIndex(
+            input.objectDataIndex,
+            input.surfaceGpuSceneIndex);
+    return HikariShadeWaterSurface(input, waterObjectData);
+}
+#endif

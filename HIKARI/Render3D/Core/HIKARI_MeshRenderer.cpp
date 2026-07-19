@@ -148,6 +148,28 @@ namespace HIKARI::MESHRENDERER {
             return context;
         }
 
+        void UploadMeshShaderJointPalettes() {
+            MeshRendererFrameResources& frame = ActiveFrameResources();
+            const auto* palettes =
+                g.gpuDrivenSceneSource.meshShaderJointPalettes;
+            if (frame.jointPaletteMapped == nullptr || palettes == nullptr) {
+                return;
+            }
+
+            const size_t paletteCount =
+                (std::min)(palettes->size(), static_cast<size_t>(kMaxObjectCount));
+            for (size_t paletteIndex = 0; paletteIndex < paletteCount; ++paletteIndex) {
+                const std::vector<MATH::Mat4>& palette = (*palettes)[paletteIndex];
+                if (palette.empty()) {
+                    continue;
+                }
+                (void)UploadJointPalette(
+                    frame.jointPaletteMapped,
+                    paletteIndex,
+                    palette);
+            }
+        }
+
         D3D12_GPU_DESCRIPTOR_HANDLE ResolveClusterGeometryPoolSrv() {
             D3D12_GPU_DESCRIPTOR_HANDLE handle{};
             ID3D12Device* device = SERVICES::gCtx.device;
@@ -425,6 +447,9 @@ namespace HIKARI::MESHRENDERER {
             g.materialResolver.SetFallbacks(fallbacks);
 
             g.initialized = true;
+            HIKARI_LOG_INFO(
+                "[MeshRenderer][Initialize] ready meshlet=" +
+                std::string(g.debugStats.meshletBackendPipelineReady ? "yes" : "no"));
             return true;
         }
 
@@ -808,11 +833,6 @@ namespace HIKARI::MESHRENDERER {
                 clusterCullStats.inputBufferReady &&
                 clusterCullStats.visibleRangeBufferReady &&
                 clusterCullStats.counterBufferReady;
-            g.debugStats.clusterGpuCullDrawArgsReady =
-                clusterCullStats.traditionalDrawArgsEmitted &&
-                clusterCullStats.drawArgumentBufferReady;
-            g.debugStats.clusterGpuCullCommandSignatureReady =
-                clusterCullStats.drawCommandSignatureReady;
             g.debugStats.clusterGpuCullSourceInstanceCount =
                 clusterCullStats.sourceInstanceCount;
             g.debugStats.clusterGpuCullCandidateInstanceCount =
@@ -977,8 +997,8 @@ namespace HIKARI::MESHRENDERER {
                 clusterCullStats.inputCapacity;
             g.debugStats.clusterGpuCullVisibleRangeCapacity =
                 clusterCullStats.visibleRangeCapacity;
-            g.debugStats.clusterGpuCullDrawArgumentCapacity =
-                clusterCullStats.drawArgumentCapacity;
+            g.debugStats.clusterGpuCullCandidateCommandCapacity =
+                clusterCullStats.candidateCommandCapacity;
             g.debugStats.clusterGpuCullOcclusionHistoryCapacity =
                 clusterCullStats.occlusionHistoryCapacity;
         }
@@ -1180,6 +1200,12 @@ namespace HIKARI::MESHRENDERER {
             BindMeshletVisibleClusterList(
                 drawCtx.binding,
                 visibleClusterListBuffer->GetGPUVirtualAddress());
+            const MeshRendererFrameResources& frame = ActiveFrameResources();
+            BindMeshletDeformationPalettes(
+                drawCtx.binding,
+                frame.jointPaletteCB != nullptr
+                    ? frame.jointPaletteCB->GetGPUVirtualAddress()
+                    : 0u);
 
             RENDER3D::MESHLET::MeshletRenderExecutionContext ctx{};
             ctx.commandList = backendContext.commandList;
@@ -1829,6 +1855,7 @@ namespace HIKARI::MESHRENDERER {
             SyncSurfaceGpuSceneMaterialFrame();
             CommitActiveMaterialDataFrame(cmd);
             if (HasGpuDrivenSceneSource()) {
+                UploadMeshShaderJointPalettes();
                 g.traditionalIndirectOwner.RefreshForActivePipeline(
                     g.gpuDrivenSceneSource,
                     BuildTraditionalIndirectHydrationContext());

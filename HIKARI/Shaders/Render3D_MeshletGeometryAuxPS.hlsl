@@ -1,5 +1,7 @@
 #define HIKARI_MATERIAL_TEXTURE_POOL_SAMPLING 1
 #include "Include/HIKARI_MeshMaterialData.hlsli"
+#include "Include/HIKARI_SurfaceGpuScene.hlsli"
+#include "Include/Forward/HIKARI_SurfaceFeatureCoverage.hlsli"
 
 static const uint MATERIAL_ALPHA_MASK = 1u << 1;
 
@@ -12,6 +14,9 @@ struct PSInput
     float2 uv : TEXCOORD0;
     float2 uv1 : TEXCOORD1;
     nointerpolation uint materialDataIndex : TEXCOORD2;
+    float3 worldPosWS : TEXCOORD3;
+    nointerpolation uint surfaceGpuSceneIndex : TEXCOORD4;
+    nointerpolation uint surfaceFeatureFlags : TEXCOORD5;
 };
 
 float4 main(PSInput input) : SV_TARGET
@@ -37,6 +42,15 @@ float4 main(PSInput input) : SV_TARGET
         albedo.a < materialData.pbrParams.w)
     {
         discard;
+    }
+    if (HikariSurfaceHasMaterialFx(input.surfaceFeatureFlags))
+    {
+        const HikariSurfaceGpuSceneInstance instance =
+            HikariGetSurfaceGpuSceneInstanceAt(input.surfaceGpuSceneIndex);
+        HikariApplyStaticMaterialFxCoverage(
+            input.worldPosWS,
+            instance.fxUser[0],
+            instance.fxUser[1]);
     }
 
     float roughness = clamp(materialData.pbrParams.y, 0.04f, 1.0f);

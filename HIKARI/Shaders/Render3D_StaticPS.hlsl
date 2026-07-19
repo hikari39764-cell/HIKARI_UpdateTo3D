@@ -1,5 +1,9 @@
 #include "Include/Forward/HIKARI_ForwardCommon.hlsli"
 
+#if HIKARI_FORWARD_ENABLE_MATERIAL_FX
+#include "Include/Forward/HIKARI_SurfaceFeatureShading.hlsli"
+#endif
+
 struct PSInput
 {
     float4 position : SV_POSITION;
@@ -15,6 +19,9 @@ struct PSInput
     nointerpolation uint objectDataIndex : TEXCOORD4;
     nointerpolation uint surfaceGpuSceneIndex : TEXCOORD5;
     nointerpolation uint debugSurfaceId : TEXCOORD6;
+#if defined(HIKARI_FORWARD_MESHLET_SURFACE_FEATURES) && HIKARI_FORWARD_MESHLET_SURFACE_FEATURES
+    nointerpolation uint surfaceFeatureFlags : TEXCOORD7;
+#endif
 };
 
 float3 ResolveShadingNormal(
@@ -275,8 +282,43 @@ float3 ApplyFog(float3 color, float3 worldPosWS)
     return lerp(color, gFogColorDensity.rgb, fogFactor);
 }
 
+#if defined(HIKARI_FORWARD_MESHLET_SURFACE_FEATURES) && HIKARI_FORWARD_MESHLET_SURFACE_FEATURES
+#define HIKARI_WATER_EMBEDDED 1
+#include "Render3D_FxWaterPS.hlsl"
+#undef HIKARI_WATER_EMBEDDED
+#endif
+
 float4 main(PSInput input) : SV_TARGET
 {
+#if defined(HIKARI_FORWARD_MESHLET_SURFACE_FEATURES) && HIKARI_FORWARD_MESHLET_SURFACE_FEATURES
+    if (HikariSurfaceHasWaterMaterialFx(input.surfaceFeatureFlags))
+    {
+        const HikariMeshObjectData waterObjectData =
+            HikariGetMeshObjectDataForPixel(
+                input.objectDataIndex,
+                input.surfaceGpuSceneIndex);
+        return HikariShadeWaterSurface(input, waterObjectData);
+    }
+#endif
+#if HIKARI_FORWARD_ENABLE_MATERIAL_FX
+    HikariMeshObjectData surfaceFeatureData = (HikariMeshObjectData)0;
+    bool hasStaticMaterialFx = false;
+#if defined(HIKARI_FORWARD_MESHLET_SURFACE_FEATURES) && HIKARI_FORWARD_MESHLET_SURFACE_FEATURES
+    hasStaticMaterialFx = HikariSurfaceHasMaterialFx(input.surfaceFeatureFlags);
+    if (hasStaticMaterialFx)
+    {
+        surfaceFeatureData = HikariGetMeshObjectDataForPixel(
+            input.objectDataIndex,
+            input.surfaceGpuSceneIndex);
+    }
+#else
+    surfaceFeatureData = HikariGetMeshObjectDataForPixel(
+        input.objectDataIndex,
+        input.surfaceGpuSceneIndex);
+    hasStaticMaterialFx = HikariObjectDataHasMaterialFx(surfaceFeatureData);
+#endif
+#endif
+
     HikariMeshMaterialData materialData = HikariGetMeshMaterialData(input.materialDataIndex);
 #if HIKARI_FORWARD_COST_MODE_STATIC != 255
     static const uint forwardCostMode = HIKARI_FORWARD_COST_MODE_STATIC;
@@ -475,5 +517,19 @@ float4 main(PSInput input) : SV_TARGET
 
     float3 finalColor = shadedColor + emissive;
     finalColor = ApplyFog(finalColor, input.worldPosWS);
+#if HIKARI_FORWARD_ENABLE_MATERIAL_FX
+    if (!costNoMaterialExtras && hasStaticMaterialFx)
+    {
+        finalColor = HikariApplyStaticMaterialFx(
+            finalColor,
+            input.worldPosWS,
+            geometricNormal,
+            n,
+            v,
+            input.position,
+            gTimeParams.x,
+            surfaceFeatureData);
+    }
+#endif
     return float4(finalColor, albedo.a);
 }

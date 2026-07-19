@@ -45,6 +45,11 @@ struct HikariSurfaceGpuSceneInstance
     uint clusterSelectedLodIndex;
     uint clusterLodFlags;
 
+    uint jointPaletteOffsetBytes;
+    uint jointPaletteMatrixCount;
+    uint deformationFlags;
+    uint deformationReserved;
+
     float4 fxUser[8];
 };
 
@@ -64,6 +69,7 @@ static const uint HIKARI_SURFACE_GPU_SCENE_FLAG_PASS_DEPTH_PREPASS = 1u << 12;
 static const uint HIKARI_SURFACE_GPU_SCENE_FLAG_PASS_FORWARD_DEPTH_AWARE = 1u << 13;
 static const uint HIKARI_SURFACE_GPU_SCENE_FLAG_PASS_FORWARD_TRANSPARENT = 1u << 14;
 static const uint HIKARI_SURFACE_GPU_SCENE_FLAG_PASS_SHADOW = 1u << 15;
+static const uint HIKARI_SURFACE_GPU_SCENE_FLAG_SKINNED = 1u << 16;
 static const uint HIKARI_SURFACE_GPU_SCENE_RESOURCE_MESH = 1u << 0;
 static const uint HIKARI_SURFACE_GPU_SCENE_RESOURCE_MATERIAL = 1u << 1;
 static const uint HIKARI_SURFACE_GPU_SCENE_RESOURCE_CLUSTER_GEOMETRY = 1u << 2;

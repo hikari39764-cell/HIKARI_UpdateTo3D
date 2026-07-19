@@ -504,6 +504,7 @@
     <ClCompile Include="HIKARI\Assets\HIKARI_AssetUsageAnalyzer.cpp" />
     <ClCompile Include="HIKARI\Assets\Geometry\HIKARI_ClusteredGeometryCooker.cpp" />
     <ClCompile Include="HIKARI\Assets\Geometry\HIKARI_ClusteredGeometryValidator.cpp" />
+    <ClCompile Include="HIKARI\Assets\Geometry\HIKARI_HcmeshCompatibility.cpp" />
     <ClCompile Include="HIKARI\Assets\Geometry\HIKARI_HcmeshFormat.cpp" />
     <ClCompile Include="HIKARI\Assets\Lighting\HIKARI_LightProbeVolumeFormat.cpp" />
     <ClCompile Include="HIKARI\Assets\Lighting\HIKARI_LightingBakeManifest.cpp" />
@@ -1017,6 +1018,7 @@
     <ClInclude Include="HIKARI\Assets\HIKARI_AssetUsageAnalyzer.h" />
     <ClInclude Include="HIKARI\Assets\Geometry\HIKARI_ClusteredGeometryCooker.h" />
     <ClInclude Include="HIKARI\Assets\Geometry\HIKARI_ClusteredGeometryValidator.h" />
+    <ClInclude Include="HIKARI\Assets\Geometry\HIKARI_HcmeshCompatibility.h" />
     <ClInclude Include="HIKARI\Assets\Geometry\HIKARI_HcmeshFormat.h" />
     <ClInclude Include="HIKARI\Assets\Lighting\HIKARI_LightProbeVolumeFormat.h" />
     <ClInclude Include="HIKARI\Assets\Lighting\HIKARI_LightingBakeManifest.h" />
@@ -1175,6 +1177,8 @@
     <None Include="HIKARI\Shaders\Include\HIKARI_ClusterGeometryConfig.h" />
     <None Include="HIKARI\Shaders\Include\Contracts\HIKARI_ShaderResourceBindings.hlsli" />
     <None Include="HIKARI\Shaders\Include\Forward\HIKARI_ForwardCommon.hlsli" />
+    <None Include="HIKARI\Shaders\Include\Forward\HIKARI_SurfaceFeatureCoverage.hlsli" />
+    <None Include="HIKARI\Shaders\Include\Forward\HIKARI_SurfaceFeatureShading.hlsli" />
     <None Include="HIKARI\Shaders\Include\Forward\HIKARI_ShadowSampling.hlsli" />
     <None Include="HIKARI\Shaders\Include\Forward\HIKARI_ForwardVertexMeta.hlsli" />
     <None Include="HIKARI\Shaders\Include\Cluster\HIKARI_ClusterCullContract.hlsli" />
@@ -1184,6 +1188,7 @@
     <None Include="HIKARI\Shaders\Include\HIKARI_MeshMaterialData.hlsli" />
     <None Include="HIKARI\Shaders\Include\HIKARI_MeshObjectData.hlsli" />
     <None Include="HIKARI\Shaders\Include\Meshlet\HIKARI_GpuDrivenWaterDeform.hlsli" />
+    <None Include="HIKARI\Shaders\Include\Meshlet\HIKARI_GpuDrivenSkinning.hlsli" />
     <None Include="HIKARI\Shaders\Include\Meshlet\HIKARI_MeshletASCompaction.hlsli" />
     <None Include="HIKARI\Shaders\Include\Meshlet\HIKARI_MeshletASCulling.hlsli" />
     <None Include="HIKARI\Shaders\Include\Meshlet\HIKARI_MeshletDraw.hlsli" />
@@ -1226,7 +1231,6 @@
     <None Include="HIKARI\Shaders\Render3D_MeshletDepthPS.hlsl" />
     <None Include="HIKARI\Shaders\Render3D_MeshletGeometryAuxMS.hlsl" />
     <None Include="HIKARI\Shaders\Render3D_MeshletGeometryAuxPS.hlsl" />
-    <None Include="HIKARI\Shaders\Render3D_MeshletFxMS.hlsl" />
     <None Include="HIKARI\Shaders\Render3D_MeshletMS.hlsl" />
     <None Include="HIKARI\Shaders\Render3D_MeshletShadowPS.hlsl" />
     <None Include="HIKARI\Shaders\Render3D_FxWaterVS.hlsl" />

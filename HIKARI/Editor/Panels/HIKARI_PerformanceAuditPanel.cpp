@@ -458,6 +458,18 @@ namespace HIKARI {
                     s.mesh.gpuDrivenCommandStreamGpuCommandCount,
                     s.mesh.gpuDrivenCommandStreamTraditionalCommandCount,
                     s.mesh.traditionalCommandStreamOverflowCommandCount);
+                MetricRow("MaterialFX Mesh / Traditional / Blocked", "%u / %u / %u",
+                    s.gpuRegistry.forwardMaterialFxMeshShaderRecordCount,
+                    s.gpuRegistry.forwardMaterialFxTraditionalRecordCount,
+                    s.gpuRegistry.forwardMaterialFxBlockedRecordCount);
+                MetricRow("MaterialFX Shadow Mesh / Traditional", "%u / %u",
+                    s.gpuRegistry.shadowMaterialFxMeshShaderRecordCount,
+                    s.gpuRegistry.shadowMaterialFxTraditionalRecordCount);
+                MetricRow("Skinned Mesh / Traditional (Fwd / Shadow)", "%u / %u | %u / %u",
+                    s.gpuRegistry.forwardSkinnedMeshShaderRecordCount,
+                    s.gpuRegistry.forwardSkinnedTraditionalRecordCount,
+                    s.gpuRegistry.shadowSkinnedMeshShaderRecordCount,
+                    s.gpuRegistry.shadowSkinnedTraditionalRecordCount);
                 MetricRow("Traditional Input KB / Copies / Resident Reuse", "%.2f / %zu / %s",
                     static_cast<double>(s.mesh.traditionalCommandStreamInputUploadBytes) / 1024.0,
                     s.mesh.traditionalCommandStreamInputUploadCopyCount,
@@ -746,11 +758,12 @@ namespace HIKARI {
                     s.shadow.shadowCacheMissCount,
                     s.shadow.shadowStaticCacheCopyCount,
                     s.shadow.shadowStaticCacheUpdateCount);
-                MetricRow("Shadow Sources Static / Dynamic / Drawn", "%zu / %zu / %s %s %s",
+                MetricRow("Shadow Sources Static / Dynamic / Drawn", "%zu / %zu / %s %s %s %s",
                     s.shadow.shadowStaticSourceInstanceCount,
                     s.shadow.shadowDynamicSourceInstanceCount,
                     s.shadow.shadowStaticRendered ? "static" : "-",
                     s.shadow.shadowDynamicRendered ? "dynamic" : "-",
+                    s.shadow.shadowUnifiedRendered ? "unified" : "-",
                     s.shadow.shadowFallbackRendered ? "fallback" : "-");
                 MetricRow("Shadow Meshlet Dispatch Req / Submitted / Skip", "%zu / %zu / %zu",
                     s.shadow.shadowMeshletRequestedDispatchCount,

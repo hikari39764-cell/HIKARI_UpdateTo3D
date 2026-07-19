@@ -66,6 +66,7 @@ namespace HIKARI::RENDER3D::CLUSTER {
         MeshletPrimitiveTable = 1u << 3,
         MeshletReady = 1u << 4,
         LodRanges = 1u << 5,
+        SkinningData = 1u << 6,
     };
 
     inline uint32_t ToBits(ClusteredGeometryFlags value) {
@@ -87,6 +88,13 @@ namespace HIKARI::RENDER3D::CLUSTER {
         MATH::Vec2 uv0{};
         MATH::Vec2 uv1{};
         MATH::Vec4 color{ 1.0f, 1.0f, 1.0f, 1.0f };
+        uint16_t joints[4]{};
+        float weights[4]{};
+    };
+
+    struct ClusterSkinVertex {
+        uint16_t joints[4]{};
+        float weights[4]{};
     };
 
     struct MeshletPrimitive {
@@ -244,6 +252,9 @@ namespace HIKARI::RENDER3D::CLUSTER {
         std::vector<ClusterPage> pages{};
 
         std::vector<ClusterVertex> packedVertices{};
+        // Skin data is present only for assets that contain skinned surfaces.
+        // Indices remain parallel to packedVertices after meshlet remapping.
+        std::vector<ClusterSkinVertex> packedSkinningVertices{};
         // index は各 meshlet の firstVertex から見たローカル頂点 index。
         std::vector<uint32_t> packedIndices{};
         // Mesh Shader 用に triangle primitive を直接読める形で保持する。
@@ -314,6 +325,7 @@ namespace HIKARI::RENDER3D::CLUSTER {
         uint64_t meshletPrimitiveByteSize = 0;
         uint64_t packedVertexPositionByteSize = 0;
         uint64_t packedVertexAttributeByteSize = 0;
+        uint64_t packedSkinVertexByteSize = 0;
         float averageTrianglesPerCluster = 0.0f;
         float triangleInflationRatio = 0.0f;
         float vertexInflationRatio = 0.0f;

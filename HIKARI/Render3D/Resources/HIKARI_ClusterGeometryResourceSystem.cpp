@@ -10,6 +10,7 @@
 #include <d3dx12.h>
 
 #include "Assets/Geometry/HIKARI_HcmeshFormat.h"
+#include "Core/HIKARI_Logger.h"
 #include "Gfx/HIKARI_DXCheck.h"
 #include "Gfx/HIKARI_GpuDeferredReleaseQueue.h"
 #include "Render3D/Resources/HIKARI_RenderResourceDescriptorPool.h"
@@ -446,6 +447,9 @@ namespace HIKARI::RENDER3D {
         CLUSTER::ClusterGeometryPackedBytes packed{};
         std::string readMessage{};
         if (!ASSETS::GEOMETRY::ReadHcmeshPackedFile(hcmeshPath, packed, readMessage)) {
+            HIKARI_LOG_WARN(
+                "[ClusterGeometryResourceSystem][Load] " +
+                (readMessage.empty() ? hcmeshPath.generic_string() : readMessage));
             ++state.stats.failedCount;
             RebuildStats();
             return {};

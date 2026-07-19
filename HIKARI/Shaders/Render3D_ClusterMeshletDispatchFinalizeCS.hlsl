@@ -12,7 +12,9 @@ void FinalizeMeshletDispatchCS(uint3 dispatchThreadId : SV_DispatchThreadID)
             uint drawCounterOffset =
                 HikariClusterCullPassDrawCounterOffset(passKind, bucket);
             uint drawCount = gClusterCullCounters.Load(drawCounterOffset);
-            uint clampedDrawCount = min(drawCount, gClusterCullDrawArgumentBucketCapacity);
+            uint clampedDrawCount = min(
+                drawCount,
+                gClusterCullCandidateCommandBucketCapacity);
             uint bucketBase = HikariClusterCullPassBucketBaseIndex(passKind, bucket);
 
             ClusterCullMeshletDispatchArgument meshletArgument;

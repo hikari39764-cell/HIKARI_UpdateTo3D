@@ -17,7 +17,8 @@ namespace HIKARI::SHADOW::RECORD {
     constexpr UINT kShadowStaticRootParamMeshletVisibleRanges = 10;
     constexpr UINT kShadowStaticRootParamMeshletVisibleClusterList = 11;
     constexpr UINT kShadowStaticRootParamCullingCamera = 12;
-    constexpr UINT kShadowSkinnedRootParamJointPalette = 13;
+    constexpr UINT kShadowStaticRootParamDeformationPalettes = 13;
+    constexpr UINT kShadowSkinnedRootParamJointPalette = 14;
 
     bool InitializeShadowRecordExecutor(ID3D12Device* device);
     void ResetShadowRecordExecutor();

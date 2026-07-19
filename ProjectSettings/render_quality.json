@@ -1,14 +1,14 @@
 {
   "renderQuality": {
     "antiAliasingMode": "DLAA",
-    "dlssQualityMode": "Quality",
+    "dlssQualityMode": "UltraPerformance",
     "forwardCostMode": "Full",
     "frameGenerationMode": "DLSS",
     "frameGenerationMultiplier": 2,
-    "geometryPipeline": "TraditionalVsPs",
+    "geometryPipeline": "MeshShader",
     "lightProbeVolumeSampling": "FastSmooth",
     "sceneDepthPrepass": false,
-    "sceneResolution": "2160p",
+    "sceneResolution": "1080p",
     "taaDepthRejection": 0.0024999999441206455,
     "taaHistoryWeight": 0.9200000166893005,
     "taaLuminanceRejection": 0.550000011920929,

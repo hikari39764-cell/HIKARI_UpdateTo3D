@@ -50,6 +50,10 @@ void CullPageTasksCS(
     }
 
     ClusterCullInput input = HikariClusterCullBuildInputFromPageTask(task);
+    const bool vertexDeformed =
+        (input.flags & (
+            HIKARI_SURFACE_GPU_SCENE_FLAG_SKINNED |
+            HIKARI_SURFACE_GPU_SCENE_FLAG_WATER_MATERIAL_FX)) != 0u;
 
     HikariClusterPage page = HikariLoadClusterPage(metadata, header, task.pageIndex);
     uint pageEndCluster = page.firstCluster + page.clusterCount;
@@ -76,14 +80,14 @@ void CullPageTasksCS(
             float4(0.0f, 0.0f, 0.0f, 0.0f),
             page.boundsMin,
             page.boundsMax);
-        if (!HikariClusterCullSphereVisible(pageWorldSphere))
+        if (!vertexDeformed && !HikariClusterCullSphereVisible(pageWorldSphere))
         {
             HikariClusterCullAddDebugCounter(
                 HIKARI_CLUSTER_CULL_COUNTER_PAGE_FRUSTUM_CULLED_COUNT,
                 1u);
             gClusterCullLdsPageCulled = 1u;
         }
-        else if (HikariClusterCullShouldTestPageHzb(pageWorldSphere))
+        else if (!vertexDeformed && HikariClusterCullShouldTestPageHzb(pageWorldSphere))
         {
             bool pageOcclusionTested = false;
             uint pageOcclusionKey = HikariClusterCullBuildOcclusionKey(
@@ -153,7 +157,9 @@ void CullPageTasksCS(
     bool coneSkipMaterial =
         (input.flags & (
             HIKARI_SURFACE_GPU_SCENE_FLAG_ALPHA_MASKED |
-            HIKARI_SURFACE_GPU_SCENE_FLAG_TRANSPARENT)) != 0u;
+            HIKARI_SURFACE_GPU_SCENE_FLAG_TRANSPARENT |
+            HIKARI_SURFACE_GPU_SCENE_FLAG_SKINNED |
+            HIKARI_SURFACE_GPU_SCENE_FLAG_WATER_MATERIAL_FX)) != 0u;
 
     // run-merge の状態は thread0 のレジスタにのみ意味を持つ。
     bool hasRun = false;
@@ -200,7 +206,7 @@ void CullPageTasksCS(
                     cluster.boundsMin,
                     cluster.boundsMax);
                 bool clusterVisible = true;
-                if (!HikariClusterCullSphereVisible(clusterWorldSphere))
+                if (!vertexDeformed && !HikariClusterCullSphereVisible(clusterWorldSphere))
                 {
                     HikariClusterCullAddDebugCounter(
                         HIKARI_CLUSTER_CULL_COUNTER_CLUSTER_FRUSTUM_CULLED_COUNT,
@@ -208,7 +214,7 @@ void CullPageTasksCS(
                     clusterVisible = false;
                 }
 
-                if (clusterVisible &&
+                if (!vertexDeformed && clusterVisible &&
                     HikariClusterCullShouldTestClusterHzb(clusterWorldSphere))
                 {
                     bool clusterOcclusionTested = false;

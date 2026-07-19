@@ -56,7 +56,6 @@ $entries = @(
     @{ Shader = "HIKARI/Shaders/Render3D_GpuTraditionalCommandCompactCS.hlsl"; Entry = "CompactGpuTraditionalCommandStreamCS"; Target = "cs_6_0" },
     @{ Shader = "HIKARI/Shaders/Render3D_MeshletAS.hlsl"; Entry = "main"; Target = "as_6_5" },
     @{ Shader = "HIKARI/Shaders/Render3D_MeshletMS.hlsl"; Entry = "main"; Target = "ms_6_5" },
-    @{ Shader = "HIKARI/Shaders/Render3D_MeshletFxMS.hlsl"; Entry = "main"; Target = "ms_6_5" },
     @{ Shader = "HIKARI/Shaders/Render3D_MeshletDepthMS.hlsl"; Entry = "main"; Target = "ms_6_5" },
     @{ Shader = "HIKARI/Shaders/Render3D_MeshletDepthPS.hlsl"; Entry = "main"; Target = "ps_6_0" },
     @{ Shader = "HIKARI/Shaders/Render3D_MeshletGeometryAuxMS.hlsl"; Entry = "main"; Target = "ms_6_5" },

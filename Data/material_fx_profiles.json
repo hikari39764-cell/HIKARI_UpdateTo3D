@@ -5,7 +5,7 @@
       "displayName": "Rim Dissolve Energy",
       "shaderProfileId": "StaticFx",
        "pixelShaderId": "Render3D_StaticFxPS",
-      "featureBits": 1,
+      "featureBits": 0,
       "depthTest": true,
       "depthWrite": true,
       "doubleSided": false,

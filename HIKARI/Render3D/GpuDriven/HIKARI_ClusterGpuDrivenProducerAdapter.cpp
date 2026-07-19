@@ -63,7 +63,7 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
             GpuDrivenCommandPassLayout& layout =
                 commands.layout.GetPass(pass);
             layout.commandBucketCapacity =
-                cullingPass.GetDrawArgumentBucketCapacity();
+                cullingPass.GetCandidateCommandBucketCapacity();
             constexpr CLUSTER::GeometryCullModeBucket sourceBuckets[] = {
                 CLUSTER::GeometryCullModeBucket::BackFace,
                 CLUSTER::GeometryCullModeBucket::DoubleSided,
@@ -81,11 +81,11 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
                         clusterPass,
                         sourceBucket);
                 bucketLayout.counterOffset =
-                    cullingPass.GetDrawCommandCounterOffset(
+                    cullingPass.GetCandidateCommandCounterOffset(
                         clusterPass,
                         sourceBucket);
                 bucketVisibility.commandCapacity =
-                    cullingPass.GetDrawArgumentBucketCapacity();
+                    cullingPass.GetCandidateCommandBucketCapacity();
                 bucketVisibility.commandCounterOffset =
                     bucketLayout.counterOffset;
                 bucketVisibility.gpuCounterBacked =
@@ -260,8 +260,7 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
             rangeCount != 0 ? ranges.data() : nullptr,
             rangeCount,
             depthOcclusion,
-            context.collectCounterReadback,
-            false);
+            context.collectCounterReadback);
         return result;
     }
 

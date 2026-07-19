@@ -74,7 +74,11 @@ void ExpandPageTasksCS(uint3 dispatchThreadId : SV_DispatchThreadID)
             float4(0.0f, 0.0f, 0.0f, 0.0f),
             section.boundsMin,
             section.boundsMax);
-        if (!HikariClusterCullSphereVisible(sectionWorldSphere))
+        const bool vertexDeformed =
+            (instance.flags & (
+                HIKARI_SURFACE_GPU_SCENE_FLAG_SKINNED |
+                HIKARI_SURFACE_GPU_SCENE_FLAG_WATER_MATERIAL_FX)) != 0u;
+        if (!vertexDeformed && !HikariClusterCullSphereVisible(sectionWorldSphere))
         {
             if (gClusterCullEnableDebugCounters != 0u)
             {

@@ -16,6 +16,7 @@ namespace HIKARI::RENDER3D::CLUSTER {
         uint32_t clusterCount = 0;
         uint32_t pageCount = 0;
         uint32_t vertexCount = 0;
+        uint32_t skinVertexCount = 0;
         uint32_t indexCount = 0;
         uint32_t meshletPrimitiveCount = 0;
         uint32_t materialSlotCount = 0;
@@ -26,6 +27,7 @@ namespace HIKARI::RENDER3D::CLUSTER {
         uint32_t clusterOffsetBytes = 0;
         uint32_t pageOffsetBytes = 0;
         uint32_t vertexOffsetBytes = 0;
+        uint32_t skinVertexOffsetBytes = 0;
         uint32_t indexOffsetBytes = 0;
         uint32_t meshletPrimitiveOffsetBytes = 0;
         uint32_t materialSlotOffsetBytes = 0;

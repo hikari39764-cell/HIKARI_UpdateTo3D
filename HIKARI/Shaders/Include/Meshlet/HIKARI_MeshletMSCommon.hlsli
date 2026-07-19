@@ -15,6 +15,7 @@ cbuffer CameraCB : register(b0)
 #define HIKARI_SURFACE_GPU_SCENE_SKIP_CONTROL_HELPERS 1
 #include "Include/HIKARI_SurfaceGpuScene.hlsli"
 #include "Include/Cluster/HIKARI_ClusterGpuData.hlsli"
+#include "Include/Meshlet/HIKARI_GpuDrivenSkinning.hlsli"
 #include "Include/HIKARI_RenderDescriptorLayout.hlsli"
 
 static const uint HIKARI_CLUSTER_SRV_POOL_BEGIN = HIKARI_RENDER_SYSTEM_SRV_DYNAMIC_BEGIN;

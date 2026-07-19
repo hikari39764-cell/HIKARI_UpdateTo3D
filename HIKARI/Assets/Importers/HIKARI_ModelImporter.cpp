@@ -839,6 +839,7 @@ namespace HIKARI {
                     { "meshletPrimitiveBytes", clusteredReport->meshletPrimitiveByteSize },
                     { "packedVertexPositionBytes", clusteredReport->packedVertexPositionByteSize },
                     { "packedVertexAttributeBytes", clusteredReport->packedVertexAttributeByteSize },
+                    { "packedSkinVertexBytes", clusteredReport->packedSkinVertexByteSize },
                     { "averageTrianglesPerCluster", clusteredReport->averageTrianglesPerCluster },
                     { "triangleInflationRatio", clusteredReport->triangleInflationRatio },
                     { "vertexInflationRatio", clusteredReport->vertexInflationRatio },
@@ -1231,7 +1232,7 @@ namespace HIKARI {
     }
 
     uint32_t ModelImporter::GetImporterVersion() const {
-        return 32;
+        return 33;
     }
 
     bool ModelImporter::CanImport(const std::filesystem::path& sourcePath) const {
