@@ -372,6 +372,10 @@ namespace HIKARI {
         return sourceMetaRoot_;
     }
 
+    uint64_t AssetDatabase::GetContentRevision() const noexcept {
+        return contentRevision_;
+    }
+
     AssetImporterRegistry& AssetDatabase::GetImporterRegistry() {
         return importerRegistry_;
     }
@@ -469,6 +473,7 @@ namespace HIKARI {
         }
 
         SortAndUniqueDirectories();
+        AdvanceContentRevision();
         HIKARI_LOG_INFO("[AssetDatabase] scanned assets. count=" + std::to_string(records_.size()));
         return true;
     }
@@ -559,6 +564,9 @@ namespace HIKARI {
 
         WriteImportReport(*record, result);
         RefreshRecordState(*record);
+        if (result.success) {
+            AdvanceContentRevision();
+        }
         return result.success;
     }
 
@@ -633,6 +641,15 @@ namespace HIKARI {
             outMessage = "failed to update model artifact manifest";
             return false;
         }
+        if (collision.removeExisting) {
+            std::error_code removeEc{};
+            std::filesystem::remove(collision.path, removeEc);
+            if (removeEc) {
+                HIKARI_LOG_WARN(
+                    "[AssetDatabase] obsolete collision artifact could not be removed: " +
+                    removeEc.message());
+            }
+        }
 
         record->artifactManifest.manifestVersion =
             kArtifactManifestVersion;
@@ -651,7 +668,15 @@ namespace HIKARI {
         record->artifactManifest.artifacts =
             manifestUpdate.artifacts;
         RefreshRecordState(*record);
+        AdvanceContentRevision();
         return true;
+    }
+
+    void AssetDatabase::AdvanceContentRevision() noexcept {
+        ++contentRevision_;
+        if (contentRevision_ == 0u) {
+            contentRevision_ = 1u;
+        }
     }
 
     AssetImportBatchResult AssetDatabase::ImportAssets(const std::vector<AssetGuid>& guids) {

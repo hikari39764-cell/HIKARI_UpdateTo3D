@@ -34,7 +34,7 @@ namespace HIKARI::PHYSICS {
         std::string_view GetBackendName() const noexcept;
         PhysicsBackendCapabilities GetCapabilities() const noexcept;
 
-        PhysicsBodyHandle CreateBody(
+        PhysicsBodyCreateResult CreateBody(
             const PhysicsBodyCreateInfo& createInfo);
         bool DestroyBody(PhysicsBodyHandle body);
         bool SetBodyPose(
@@ -52,7 +52,8 @@ namespace HIKARI::PHYSICS {
             PhysicsBodyHandle body,
             PhysicsBodyState& outState) const;
 
-        void Step(float fixedDeltaSeconds);
+        PhysicsStepResult Step(float fixedDeltaSeconds);
+        PhysicsBackendStatistics GetStatistics() const noexcept;
         std::vector<PhysicsContactEvent> ConsumeContactEvents();
 
         bool Raycast(

@@ -3,6 +3,7 @@
 #include <cstdint>
 #include <limits>
 #include <memory>
+#include <string>
 #include <vector>
 
 #include "Render3D/HIKARI_Math3D.h"
@@ -28,6 +29,30 @@ namespace HIKARI::PHYSICS {
         Begin,
         Persist,
         End,
+    };
+
+    enum class PhysicsErrorCode : uint8_t {
+        None,
+        WorldUnavailable,
+        TransformInvalid,
+        NoEnabledShapes,
+        CollisionAssetMissing,
+        CollisionAssetInvalid,
+        UnsupportedScale,
+        UnsupportedMotionShape,
+        FullyLockedDynamicBody,
+        InvalidBodyDefinition,
+        BackendShapeCreationFailed,
+        BackendCapacityExceeded,
+        BackendStepFailed,
+        BackendFailure,
+    };
+
+    enum class PhysicsBodyRuntimeState : uint8_t {
+        Ready,
+        RetainedPrevious,
+        PendingRetry,
+        Invalid,
     };
 
     struct PhysicsBodyHandle {
@@ -72,7 +97,23 @@ namespace HIKARI::PHYSICS {
         std::vector<uint32_t> indices{};
     };
 
+    // Stable within the authored collision definition. Asset shapes retain
+    // their persistent authoring ID; manual shapes use their component order.
+    struct PhysicsShapeKey {
+        uint64_t sourceShapeId = 0u;
+        uint32_t componentOrdinal = 0u;
+
+        bool IsValid() const noexcept {
+            return sourceShapeId != 0u || componentOrdinal != 0u;
+        }
+
+        friend bool operator==(
+            const PhysicsShapeKey&,
+            const PhysicsShapeKey&) = default;
+    };
+
     struct PhysicsShapeDesc {
+        PhysicsShapeKey key{};
         PhysicsShapeType type = PhysicsShapeType::Box;
         MATH::Vec3 localCenter{};
         MATH::Quat localRotation = MATH::Quat::Identity();
@@ -85,6 +126,7 @@ namespace HIKARI::PHYSICS {
         uint32_t vertexCount = 0u;
         uint32_t indexOffset = 0u;
         uint32_t indexCount = 0u;
+        uint64_t geometryContentRevision = 0u;
         bool isTrigger = false;
         PhysicsMaterialDesc material{};
         PhysicsCollisionFilter filter{};
@@ -122,6 +164,54 @@ namespace HIKARI::PHYSICS {
         bool awake = true;
     };
 
+    struct PhysicsBodyCreateResult {
+        PhysicsBodyHandle handle{};
+        PhysicsMotionType effectiveMotionType =
+            PhysicsMotionType::Static;
+        PhysicsErrorCode error = PhysicsErrorCode::None;
+        std::string message{};
+        bool recoverable = false;
+
+        bool Succeeded() const noexcept {
+            return handle.IsValid() && error == PhysicsErrorCode::None;
+        }
+    };
+
+    struct PhysicsStepResult {
+        PhysicsErrorCode error = PhysicsErrorCode::None;
+        std::string message{};
+
+        bool Succeeded() const noexcept {
+            return error == PhysicsErrorCode::None;
+        }
+    };
+
+    struct PhysicsBackendStatistics {
+        uint32_t bodyCount = 0u;
+        uint32_t activeBodyCount = 0u;
+        uint32_t bodyCapacity = 0u;
+        uint32_t bodyPairCapacity = 0u;
+        uint32_t contactConstraintCapacity = 0u;
+        uint64_t temporaryAllocatorBytes = 0u;
+    };
+
+    struct PhysicsBodyRuntimeStatus {
+        RuntimeObjectHandle object{};
+        PhysicsBodyHandle body{};
+        PhysicsMotionType requestedMotionType =
+            PhysicsMotionType::Static;
+        PhysicsMotionType effectiveMotionType =
+            PhysicsMotionType::Static;
+        PhysicsBodyRuntimeState state =
+            PhysicsBodyRuntimeState::Invalid;
+        PhysicsErrorCode error = PhysicsErrorCode::None;
+        uint64_t definitionSignature = 0u;
+        uint64_t sourceRevision = 0u;
+        uint32_t shapeCount = 0u;
+        bool awake = false;
+        std::string message{};
+    };
+
     struct PhysicsQueryFilter {
         uint32_t layerMask = 0xFFFFFFFFu;
         bool includeTriggers = true;
@@ -153,6 +243,7 @@ namespace HIKARI::PHYSICS {
         PhysicsBodyHandle body{};
         RuntimeObjectHandle object{};
         uint32_t shapeIndex = 0;
+        PhysicsShapeKey shapeKey{};
         MATH::Vec3 position{};
         MATH::Vec3 normal{};
         float distance = 0.0f;
@@ -168,6 +259,8 @@ namespace HIKARI::PHYSICS {
         RuntimeObjectHandle objectB{};
         uint32_t shapeIndexA = 0;
         uint32_t shapeIndexB = 0;
+        PhysicsShapeKey shapeKeyA{};
+        PhysicsShapeKey shapeKeyB{};
         MATH::Vec3 position{};
         MATH::Vec3 normal{};
         float penetrationDepth = 0.0f;

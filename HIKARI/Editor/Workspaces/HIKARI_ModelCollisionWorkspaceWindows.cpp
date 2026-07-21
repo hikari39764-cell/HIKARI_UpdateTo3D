@@ -372,6 +372,12 @@ namespace HIKARI::EDITOR {
             ++cameraRevision_;
         }
         const Camera3D& camera = cameraController_.GetCamera();
+        const bool previewingGenerationDraft =
+            generationDraft_.has_value();
+        const ASSETS::COLLISION::ModelCollisionSetup& viewportSetup =
+            previewingGenerationDraft
+                ? generationDraft_->setup
+                : setup_;
 
         ModelCollisionPointerRay pointerRay{};
         const bool pointerRayValid = hovered && !block.pointer &&
@@ -389,24 +395,25 @@ namespace HIKARI::EDITOR {
             !input.orbitMouseCaptured) {
             if (selectionMode_ ==
                     ModelCollisionSelectionMode::CollisionShapes &&
-                showCollision_) {
+                showCollision_ && !previewingGenerationDraft) {
                 hoveredShapeId_ = PickModelCollisionShape(
                     pointerRay,
-                    setup_,
+                    viewportSetup,
                     hiddenShapeIds_,
                     showGeneratedOnly_);
             } else if (selectionMode_ ==
                     ModelCollisionSelectionMode::SourceNodes &&
-                showModel_) {
+                showModel_ && previewScene_.GetModel() != nullptr) {
                 hoveredSourceNodeIndex_ = PickModelCollisionSourceNode(
                     pointerRay,
-                    previewScene_.GetSourceNodes());
+                    previewScene_.GetSourceNodes(),
+                    *previewScene_.GetModel());
             }
         }
 
         if (showCollision_) {
             for (const ASSETS::COLLISION::ModelCollisionShape& shape :
-                    setup_.shapes) {
+                    viewportSetup.shapes) {
                 if (showGeneratedOnly_ && !shape.generated) {
                     continue;
                 }
@@ -421,10 +428,30 @@ namespace HIKARI::EDITOR {
                     canvasSize.x,
                     canvasSize.y,
                     shape,
-                    IsShapeSelected(shape.id),
+                    !previewingGenerationDraft &&
+                        IsShapeSelected(shape.id),
                     shape.id == hoveredShapeId_,
                     IsShapeLocked(shape.id));
             }
+        }
+        if (previewingGenerationDraft) {
+            const char* label =
+                "Generation Draft Preview - Apply or Discard in Auto Generate";
+            const ImVec2 labelPosition{
+                origin.x + 12.0f,
+                origin.y + 12.0f
+            };
+            const ImVec2 labelSize = ImGui::CalcTextSize(label);
+            drawList->AddRectFilled(
+                { labelPosition.x - 7.0f, labelPosition.y - 5.0f },
+                { labelPosition.x + labelSize.x + 7.0f,
+                  labelPosition.y + labelSize.y + 5.0f },
+                IM_COL32(29, 24, 42, 220),
+                4.0f);
+            drawList->AddText(
+                labelPosition,
+                IM_COL32(205, 164, 255, 255),
+                label);
         }
 
         if (showModel_) {
@@ -494,6 +521,7 @@ namespace HIKARI::EDITOR {
         EditorTransformGizmoResult gizmo{};
         if (selectionMode_ ==
                 ModelCollisionSelectionMode::CollisionShapes &&
+            !previewingGenerationDraft &&
             selected != nullptr && showCollision_ && selected->enabled &&
             !IsShapeHidden(selected->id) &&
             !IsShapeLocked(selected->id) &&

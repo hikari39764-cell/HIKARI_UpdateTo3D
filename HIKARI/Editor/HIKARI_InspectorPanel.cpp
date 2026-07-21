@@ -4,6 +4,7 @@
 #include "Render3D/HIKARI_Math3D.h"
 #include "Editor/HIKARI_EditorContext.h"
 #include "Scene/HIKARI_GameObject.h"
+#include "Scene/HIKARI_World.h"
 #include "Scene/Components/HIKARI_ModelComponent.h"
 #if defined(HIKARI_WITH_EDITOR)
 #include "imgui.h"
@@ -95,9 +96,15 @@ namespace HIKARI {
 
         ImGui::SeparatorText("Components");
         ImGuiInspectorBuilder builder{};
+        const World* ownerWorld = object.GetWorld();
+        const RuntimeObjectHandle runtimeObject =
+            object.GetRuntimeHandle();
         builder.SetContext(InspectorContext{
             assetRegistry,
-            assetDatabase
+            assetDatabase,
+            nullptr,
+            ownerWorld != nullptr ? &ownerWorld->Services() : nullptr,
+            &runtimeObject
         });
         const auto& components = object.GetComponents();
         for (size_t componentIndex = 0; componentIndex < components.size(); ++componentIndex) {

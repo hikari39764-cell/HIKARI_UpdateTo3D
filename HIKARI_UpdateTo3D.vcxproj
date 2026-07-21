@@ -332,7 +332,13 @@
     <ClCompile Include="HIKARI\Scene\Features\HIKARI_PhysicsRuntimeFeature.cpp" />
     <ClCompile Include="HIKARI\Scene\Features\HIKARI_GameplayRuntimeFeature.cpp" />
     <ClCompile Include="HIKARI\Scene\Features\HIKARI_SequenceRuntimeFeature.cpp" />
-    <ClCompile Include="HIKARI\Physics\HIKARI_PhysicsSystem.cpp" />
+      <ClCompile Include="HIKARI\Physics\HIKARI_PhysicsSystem.cpp" />
+      <ClCompile Include="HIKARI\Physics\HIKARI_PhysicsSystemBodyLifecycle.cpp" />
+      <ClCompile Include="HIKARI\Physics\HIKARI_PhysicsSystemSynchronization.cpp" />
+    <ClCompile Include="HIKARI\Core\IO\HIKARI_FileReplacementTransaction.cpp" />
+    <ClCompile Include="HIKARI\Physics\HIKARI_PhysicsBodyValidator.cpp" />
+    <ClCompile Include="HIKARI\Physics\HIKARI_PhysicsProjectSettings.cpp" />
+    <ClCompile Include="HIKARI\Physics\HIKARI_PhysicsRuntimeStatusService.cpp" />
     <ClCompile Include="HIKARI\Physics\HIKARI_PhysicsSceneBridge.cpp" />
     <ClCompile Include="HIKARI\Physics\HIKARI_PhysicsWorldService.cpp" />
     <ClCompile Include="HIKARI\Physics\HIKARI_PhysicsCollisionGeometryStore.cpp" />
@@ -487,8 +493,9 @@
     <ClCompile Include="HIKARI\Editor\Workspaces\HIKARI_CinematicsWorkspaceWindows.cpp" />
     <ClCompile Include="HIKARI\Editor\Workspaces\HIKARI_ModelCollisionHistory.cpp" />
     <ClCompile Include="HIKARI\Editor\Workspaces\HIKARI_ModelCollisionPreviewScene.cpp" />
-    <ClCompile Include="HIKARI\Editor\Workspaces\HIKARI_ModelCollisionSourceOutline.cpp" />
-    <ClCompile Include="HIKARI\Editor\Workspaces\HIKARI_ModelCollisionWorkspaceInteraction.cpp" />
+      <ClCompile Include="HIKARI\Editor\Workspaces\HIKARI_ModelCollisionSourceOutline.cpp" />
+      <ClCompile Include="HIKARI\Editor\Workspaces\HIKARI_ModelCollisionRaycast.cpp" />
+      <ClCompile Include="HIKARI\Editor\Workspaces\HIKARI_ModelCollisionWorkspaceInteraction.cpp" />
     <ClCompile Include="HIKARI\Editor\Workspaces\HIKARI_ModelCollisionViewportOverlay.cpp" />
     <ClCompile Include="HIKARI\Editor\Workspaces\HIKARI_ModelCollisionWorkspaceController.cpp" />
     <ClCompile Include="HIKARI\Editor\Workspaces\HIKARI_ModelCollisionWorkspacePanels.cpp" />
@@ -527,6 +534,7 @@
     <ClCompile Include="HIKARI\Scene\Debug\HIKARI_ComponentGizmoRegistry.cpp" />
     <ClCompile Include="HIKARI\Scene\Debug\HIKARI_BuiltInComponentGizmoProviders.cpp" />
     <ClCompile Include="HIKARI\Scene\Debug\HIKARI_ColliderGizmoProvider.cpp" />
+    <ClCompile Include="HIKARI\Scene\Debug\HIKARI_PhysicsShapeDebugDraw.cpp" />
     <ClCompile Include="HIKARI\Editor\HIKARI_SceneObjectAuthoringPanel.cpp" />
     <ClCompile Include="HIKARI\Editor\HIKARI_SelectionSyncService.cpp" />
     <ClCompile Include="HIKARI\Editor\Controllers\HIKARI_DocumentToolbarController.cpp" />
@@ -602,6 +610,7 @@
     <ClCompile Include="HIKARI\Scene\HIKARI_GameObject.cpp" />
     <ClCompile Include="HIKARI\Scene\HIKARI_RenderSubmissionSystem.cpp" />
     <ClCompile Include="HIKARI\Scene\HIKARI_SceneRenderCacheSync.cpp" />
+    <ClCompile Include="HIKARI\Scene\HIKARI_PresentationTransformService.cpp" />
     <ClCompile Include="HIKARI\Scene\HIKARI_SystemScheduler.cpp" />
     <ClCompile Include="HIKARI\Scene\HIKARI_SystemTypeRegistry.cpp" />
     <ClCompile Include="HIKARI\Scene\HIKARI_World.cpp" />
@@ -980,8 +989,9 @@
     <ClInclude Include="HIKARI\Editor\Workspaces\HIKARI_CinematicsWorkspaceController.h" />
     <ClInclude Include="HIKARI\Editor\Workspaces\HIKARI_ModelCollisionHistory.h" />
     <ClInclude Include="HIKARI\Editor\Workspaces\HIKARI_ModelCollisionPreviewScene.h" />
-    <ClInclude Include="HIKARI\Editor\Workspaces\HIKARI_ModelCollisionSourceOutline.h" />
-    <ClInclude Include="HIKARI\Editor\Workspaces\HIKARI_ModelCollisionWorkspaceInteraction.h" />
+      <ClInclude Include="HIKARI\Editor\Workspaces\HIKARI_ModelCollisionSourceOutline.h" />
+      <ClInclude Include="HIKARI\Editor\Workspaces\HIKARI_ModelCollisionRaycast.h" />
+      <ClInclude Include="HIKARI\Editor\Workspaces\HIKARI_ModelCollisionWorkspaceInteraction.h" />
     <ClInclude Include="HIKARI\Editor\Workspaces\HIKARI_ModelCollisionViewportOverlay.h" />
     <ClInclude Include="HIKARI\Editor\Workspaces\HIKARI_ModelCollisionWorkspaceController.h" />
     <ClInclude Include="HIKARI\Editor\HIKARI_EditorStyle.h" />
@@ -1078,6 +1088,7 @@
     <ClInclude Include="HIKARI\Scene\Debug\HIKARI_ViewportDebugState.h" />
     <ClInclude Include="HIKARI\Scene\Debug\HIKARI_BuiltInComponentGizmoProviders.h" />
     <ClInclude Include="HIKARI\Scene\Debug\HIKARI_ColliderGizmoProvider.h" />
+    <ClInclude Include="HIKARI\Scene\Debug\HIKARI_PhysicsShapeDebugDraw.h" />
     <ClInclude Include="HIKARI\Editor\HIKARI_SceneObjectAuthoringPanel.h" />
     <ClInclude Include="HIKARI\Editor\HIKARI_SelectionSyncService.h" />
     <ClInclude Include="HIKARI\Editor\Controllers\HIKARI_DocumentToolbarController.h" />
@@ -1251,7 +1262,11 @@
     <ClInclude Include="HIKARI\Scene\Features\HIKARI_GameplayRuntimeFeature.h" />
     <ClInclude Include="HIKARI\Scene\Features\HIKARI_SequenceRuntimeFeature.h" />
     <ClInclude Include="HIKARI\Physics\HIKARI_IPhysicsWorldBackend.h" />
+    <ClInclude Include="HIKARI\Core\IO\HIKARI_FileReplacementTransaction.h" />
     <ClInclude Include="HIKARI\Physics\HIKARI_PhysicsSceneBridge.h" />
+    <ClInclude Include="HIKARI\Physics\HIKARI_PhysicsBodyValidator.h" />
+    <ClInclude Include="HIKARI\Physics\HIKARI_PhysicsProjectSettings.h" />
+    <ClInclude Include="HIKARI\Physics\HIKARI_PhysicsRuntimeStatusService.h" />
     <ClInclude Include="HIKARI\Physics\HIKARI_PhysicsSystem.h" />
     <ClInclude Include="HIKARI\Physics\HIKARI_PhysicsTypes.h" />
     <ClInclude Include="HIKARI\Physics\HIKARI_PhysicsWorldService.h" />
@@ -1263,12 +1278,14 @@
     <ClInclude Include="HIKARI\Scene\HIKARI_ISystem.h" />
     <ClInclude Include="HIKARI\Scene\HIKARI_RenderSubmissionSystem.h" />
     <ClInclude Include="HIKARI\Scene\HIKARI_SceneRenderCacheSync.h" />
+    <ClInclude Include="HIKARI\Scene\HIKARI_PresentationTransformService.h" />
     <ClInclude Include="HIKARI\Scene\HIKARI_SystemScheduler.h" />
     <ClInclude Include="HIKARI\Scene\HIKARI_SystemTypeRegistry.h" />
     <ClInclude Include="HIKARI\Matrix3x3.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="ProjectSettings\Input\actions.json" />
+    <None Include="ProjectSettings\Physics\collision.json" />
     <None Include="ProjectSettings\Input\editor.inputmap.json" />
     <None Include="ProjectSettings\Input\gameplay.inputmap.json" />
     <None Include="ProjectSettings\Input\global.inputmap.json" />

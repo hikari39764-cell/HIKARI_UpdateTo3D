@@ -2854,6 +2854,16 @@ namespace HIKARI {
     }
 
     bool DocumentSceneBase::ConfigureRuntimeWorldServices() {
+        std::string physicsSettingsMessage{};
+        if (!physicsProjectSettings_.Load(
+                assetDatabase_.GetProjectRoot() /
+                    "ProjectSettings/Physics/collision.json",
+                physicsSettingsMessage)) {
+            HIKARI_LOG_WARN(
+                "[Physics] " + physicsSettingsMessage +
+                "; using built-in defaults");
+            physicsProjectSettings_.ResetToDefaults();
+        }
         runtimePlayStateService_.active = &runtimePlayActive_;
         gameplayCameraService_.camera = &gameplayCamera_;
         gameplayCameraService_.runtimeSceneCameraActive =
@@ -2873,8 +2883,13 @@ namespace HIKARI {
         success = services.Register(sequencePlaybackService_) && success;
         success = services.Register(runtimePlayStateService_) && success;
         success = services.Register(gameplayCameraService_) && success;
+        success = services.Register(presentationTransformService_) &&
+            success;
         success = services.Register(physicsCollisionGeometryStore_) &&
             success;
+        success = services.Register(physicsRuntimeStatusService_) &&
+            success;
+        success = services.Register(physicsProjectSettings_) && success;
         success = services.Register(physicsWorldService_) && success;
         success = runtimeExtensionHost_.RegisterWorldServices(services) &&
             success;

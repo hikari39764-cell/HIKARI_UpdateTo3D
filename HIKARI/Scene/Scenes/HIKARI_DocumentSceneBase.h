@@ -18,6 +18,8 @@
 #include "Render3D/Lighting/HIKARI_SkyManager.h"
 #include "Physics/HIKARI_PhysicsWorldService.h"
 #include "Physics/HIKARI_PhysicsCollisionGeometryStore.h"
+#include "Physics/HIKARI_PhysicsRuntimeStatusService.h"
+#include "Physics/HIKARI_PhysicsProjectSettings.h"
 #if defined(HIKARI_WITH_EDITOR)
 #include "Editor/Gizmos/HIKARI_LightProbeVolumeGizmoRenderer.h"
 #include "Editor/Gizmos/HIKARI_ReflectionProbeGizmoRenderer.h"
@@ -30,6 +32,7 @@
 #include "Scene/HIKARI_SceneDocument.h"
 #include "Scene/HIKARI_SceneRuntimeBuilder.h"
 #include "Scene/HIKARI_RuntimeWorldServices.h"
+#include "Scene/HIKARI_PresentationTransformService.h"
 #include "Scene/HIKARI_SystemScheduler.h"
 #include "Scene/HIKARI_SystemTypeRegistry.h"
 #include "Scene/HIKARI_World.h"
@@ -271,6 +274,10 @@ namespace HIKARI {
         PHYSICS::PhysicsWorldService physicsWorldService_{};
         PHYSICS::PhysicsCollisionGeometryStore
             physicsCollisionGeometryStore_{};
+        PHYSICS::PhysicsRuntimeStatusService
+            physicsRuntimeStatusService_{};
+        PHYSICS::PhysicsProjectSettings physicsProjectSettings_{};
+        PresentationTransformService presentationTransformService_{};
         RuntimeExtensionHost runtimeExtensionHost_{};
         RuntimeFeatureCatalog runtimeFeatureCatalog_{};
         RuntimeFeatureInstallReport runtimeFeatureInstallReport_{};

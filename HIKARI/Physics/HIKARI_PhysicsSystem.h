@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstdint>
+#include <limits>
 #include <unordered_map>
 
 #include "Physics/HIKARI_PhysicsTypes.h"
@@ -8,12 +9,14 @@
 
 namespace HIKARI {
     struct RuntimePlayStateService;
+    class PresentationTransformService;
 }
 
 namespace HIKARI::PHYSICS {
 
     class PhysicsWorldService;
     class PhysicsCollisionGeometryStore;
+    class PhysicsRuntimeStatusService;
 
     class PhysicsSystem final : public ISystem {
     public:
@@ -35,28 +38,72 @@ namespace HIKARI::PHYSICS {
         void PostFixedUpdate(
             World& world,
             const FrameContext& frame) override;
+        void LateUpdate(
+            World& world,
+            const FrameContext& frame) override;
 
     private:
         struct BodyBinding {
             RuntimeObjectHandle object{};
             PhysicsBodyHandle body{};
-            PhysicsMotionType motionType = PhysicsMotionType::Static;
+            PhysicsMotionType requestedMotionType =
+                PhysicsMotionType::Static;
+            PhysicsMotionType effectiveMotionType =
+                PhysicsMotionType::Static;
             uint64_t definitionSignature = 0;
+            uint64_t sourceRevision = 0;
             PhysicsPose lastPushedPose{};
             bool hasLastPushedPose = false;
+            PhysicsBodyState previousFixedState{};
+            PhysicsBodyState currentFixedState{};
+            bool hasFixedState = false;
+        };
+
+        struct ReconcileFailure {
+            PhysicsErrorCode error = PhysicsErrorCode::None;
+            uint64_t definitionSignature = 0u;
+            uint64_t sourceRevision = 0u;
+            uint64_t nextRetryFrame = 0u;
+            uint32_t attempts = 0u;
+            bool recoverable = false;
+            std::string message{};
         };
 
         bool ShouldSimulate() const noexcept;
-        void ReconcileBodies(World& world);
+        void ReconcileBodies(World& world, uint64_t frameIndex);
         void DestroyBindings() noexcept;
         void PushSceneDrivenPoses(World& world);
         void PullDynamicPoses(World& world);
+        void UpdatePresentationPoses(
+            World& world,
+            float interpolationAlpha);
+        void ReportFailure(
+            RuntimeObjectHandle object,
+            const BodyBinding* retainedBinding,
+            PhysicsMotionType requestedMotionType,
+            uint64_t signature,
+            uint64_t sourceRevision,
+            PhysicsErrorCode error,
+            std::string message,
+            bool recoverable);
+        bool ShouldRetryFailure(
+            uint64_t objectKey,
+            uint64_t definitionSignature,
+            uint64_t sourceRevision,
+            uint64_t frameIndex) const noexcept;
 
         PhysicsWorldSettings settings_{};
         PhysicsWorldService* service_ = nullptr;
         PhysicsCollisionGeometryStore* collisionGeometryStore_ = nullptr;
+        PhysicsRuntimeStatusService* runtimeStatus_ = nullptr;
+        ::HIKARI::PresentationTransformService*
+            presentationTransforms_ = nullptr;
         const RuntimePlayStateService* runtimePlayState_ = nullptr;
         std::unordered_map<uint64_t, BodyBinding> bindings_{};
+        std::unordered_map<uint64_t, ReconcileFailure> failures_{};
+        PhysicsStepResult lastStepResult_{};
+        uint64_t lastReconcileFrame_ =
+            (std::numeric_limits<uint64_t>::max)();
     };
 
 } // namespace HIKARI::PHYSICS

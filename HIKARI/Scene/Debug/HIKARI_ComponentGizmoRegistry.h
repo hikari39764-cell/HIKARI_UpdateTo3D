@@ -11,6 +11,7 @@
 namespace HIKARI {
 
     class GameObject;
+    class World;
 
     struct ComponentGizmoState {
         bool showComponentGizmos = true;
@@ -28,6 +29,7 @@ namespace HIKARI {
     struct ComponentGizmoDrawContext {
         SceneObjectId selectedObjectId{};
         float cameraAspect = 1.0f;
+        const World* world = nullptr;
     };
 
     using DrawComponentGizmoFn = std::function<void(

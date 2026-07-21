@@ -5,14 +5,19 @@
 #include <limits>
 #include <string>
 #include <string_view>
+#include <vector>
 
 #include "Assets/HIKARI_AssetRegistry.h"
 #include "Assets/HIKARI_AssetTypes.h"
 #include "Core/HIKARI_JsonRead.h"
 #include "Editor/Inspectors/HIKARI_IInspectorBuilder.h"
+#include "Physics/HIKARI_PhysicsBodyValidator.h"
+#include "Physics/HIKARI_PhysicsProjectSettings.h"
+#include "Physics/HIKARI_PhysicsRuntimeStatusService.h"
 #include "Scene/Components/HIKARI_PhysicsBodyComponent.h"
 #include "Scene/Geometry/HIKARI_GeometryFitProvider.h"
 #include "Scene/HIKARI_GameObject.h"
+#include "Scene/HIKARI_WorldServiceRegistry.h"
 
 namespace HIKARI {
     namespace {
@@ -215,18 +220,127 @@ namespace HIKARI {
             }
         }
         builder.Bool("Is Trigger", trigger_);
+        const InspectorContext& context = builder.GetContext();
+        const auto* projectSettings = context.worldServices != nullptr
+            ? context.worldServices->Find<
+                PHYSICS::PhysicsProjectSettings>()
+            : nullptr;
+        if (projectSettings != nullptr &&
+            !projectSettings->GetMaterialPresets().empty()) {
+            std::vector<const char*> presetNames{ "Custom" };
+            for (const PHYSICS::PhysicsMaterialPreset& preset :
+                    projectSettings->GetMaterialPresets()) {
+                presetNames.push_back(preset.name.c_str());
+            }
+            int selectedPreset = projectSettings->FindMaterialPreset(
+                friction_, restitution_, density_) + 1;
+            if (builder.Choice(
+                    "Material Preset",
+                    selectedPreset,
+                    presetNames) && selectedPreset > 0) {
+                const PHYSICS::PhysicsMaterialPreset& preset =
+                    projectSettings->GetMaterialPresets()[
+                        static_cast<size_t>(selectedPreset - 1)];
+                friction_ = preset.friction;
+                restitution_ = preset.restitution;
+                density_ = preset.density;
+            }
+        }
         builder.Float("Friction", friction_);
         builder.Float("Restitution", restitution_);
         builder.Float("Density", density_);
-        int layer = static_cast<int>(collisionLayer_);
-        int mask = static_cast<int>(collisionMask_);
-        if (builder.Int("Collision Layer", layer)) {
-            collisionLayer_ = static_cast<uint32_t>((std::max)(layer, 0));
-        }
-        if (builder.Int("Collision Mask", mask)) {
-            collisionMask_ = static_cast<uint32_t>(mask);
+        if (projectSettings != nullptr &&
+            !projectSettings->GetLayers().empty()) {
+            std::vector<const char*> layerNames{};
+            for (const PHYSICS::PhysicsCollisionLayerSetting& layer :
+                    projectSettings->GetLayers()) {
+                layerNames.push_back(layer.name.c_str());
+            }
+            int selectedLayer = projectSettings->FindLayerIndex(
+                collisionLayer_);
+            int layerIndexOffset = 0;
+            std::string unmappedLayerName{};
+            if (selectedLayer < 0) {
+                unmappedLayerName = "Unmapped (" +
+                    std::to_string(collisionLayer_) + ")";
+                layerNames.insert(
+                    layerNames.begin(),
+                    unmappedLayerName.c_str());
+                selectedLayer = 0;
+                layerIndexOffset = 1;
+            }
+            if (builder.Choice(
+                    "Collision Layer",
+                    selectedLayer,
+                layerNames)) {
+                const int configuredLayerIndex =
+                    selectedLayer - layerIndexOffset;
+                if (configuredLayerIndex >= 0) {
+                    collisionLayer_ = projectSettings->GetLayers()[
+                        static_cast<size_t>(configuredLayerIndex)].bit;
+                }
+            }
+            const int activeLayerIndex =
+                projectSettings->FindLayerIndex(collisionLayer_);
+            if (activeLayerIndex >= 0) {
+                if (builder.Button("Use Layer Default Mask")) {
+                    collisionMask_ = projectSettings->GetLayers()[
+                        static_cast<size_t>(activeLayerIndex)].defaultMask;
+                }
+            } else {
+                builder.Text(
+                    "This layer is not present in ProjectSettings/Physics/collision.json.");
+            }
+            for (const PHYSICS::PhysicsCollisionLayerSetting& layer :
+                    projectSettings->GetLayers()) {
+                bool enabled = (collisionMask_ & layer.bit) != 0u;
+                if (builder.Bool(
+                        "Collides With " + layer.name,
+                        enabled)) {
+                    if (enabled) {
+                        collisionMask_ |= layer.bit;
+                    } else {
+                        collisionMask_ &= ~layer.bit;
+                    }
+                }
+            }
+        } else {
+            int layer = static_cast<int>(collisionLayer_);
+            int mask = static_cast<int>(collisionMask_);
+            if (builder.Int("Collision Layer", layer)) {
+                collisionLayer_ = static_cast<uint32_t>(
+                    (std::max)(layer, 0));
+            }
+            if (builder.Int("Collision Mask", mask)) {
+                collisionMask_ = static_cast<uint32_t>(mask);
+            }
         }
         ClampSettings();
+
+        const auto* statusService = context.worldServices != nullptr
+            ? context.worldServices->Find<
+                PHYSICS::PhysicsRuntimeStatusService>()
+            : nullptr;
+        const PHYSICS::PhysicsBodyRuntimeStatus* runtimeStatus =
+            statusService != nullptr && context.runtimeObject != nullptr
+            ? statusService->FindBodyStatus(*context.runtimeObject)
+            : nullptr;
+        if (runtimeStatus != nullptr) {
+            std::string runtimeLine = "Runtime: ";
+            runtimeLine += PHYSICS::ToString(runtimeStatus->state);
+            runtimeLine += " | ";
+            runtimeLine += PHYSICS::ToString(
+                runtimeStatus->effectiveMotionType);
+            runtimeLine += " | ";
+            runtimeLine += std::to_string(runtimeStatus->shapeCount);
+            runtimeLine += " shape(s)";
+            builder.Text(runtimeLine);
+            if (runtimeStatus->error != PHYSICS::PhysicsErrorCode::None) {
+                builder.Text(
+                    std::string(PHYSICS::ToString(runtimeStatus->error)) +
+                    ": " + runtimeStatus->message);
+            }
+        }
     }
 
     void ColliderComponent::ClampSettings() noexcept {

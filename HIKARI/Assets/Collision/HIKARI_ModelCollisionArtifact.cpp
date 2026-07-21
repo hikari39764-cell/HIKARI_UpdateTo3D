@@ -6,6 +6,7 @@
 #include "Assets/Collision/HIKARI_HcollisionFormat.h"
 #include "Assets/Collision/HIKARI_ModelCollisionCompiler.h"
 #include "Assets/Collision/HIKARI_ModelCollisionSetup.h"
+#include "Core/IO/HIKARI_FileReplacementTransaction.h"
 
 namespace HIKARI::ASSETS::COLLISION {
     namespace {
@@ -18,23 +19,6 @@ namespace HIKARI::ASSETS::COLLISION {
                 : (projectRoot / path).lexically_normal();
         }
 
-        bool ReplaceWithTemp(
-            const std::filesystem::path& temporary,
-            const std::filesystem::path& finalPath,
-            std::string& outMessage) {
-
-            std::error_code ec{};
-            std::filesystem::remove(finalPath, ec);
-            ec.clear();
-            std::filesystem::rename(temporary, finalPath, ec);
-            if (ec) {
-                std::filesystem::remove(temporary);
-                outMessage = "failed to replace HCOLLISION artifact: " +
-                    ec.message();
-                return false;
-            }
-            return true;
-        }
     }
 
     ModelCollisionArtifactResult BuildModelCollisionArtifact(
@@ -73,9 +57,8 @@ namespace HIKARI::ASSETS::COLLISION {
         if (!load.exists || !hasEnabledShape) {
             std::error_code ec{};
             std::filesystem::remove(tempPath, ec);
-            ec.clear();
-            std::filesystem::remove(finalPath, ec);
             result.success = true;
+            result.removeExisting = true;
             result.message = load.exists
                 ? "collision setup has no enabled shapes"
                 : "model has no collision setup";
@@ -93,11 +76,33 @@ namespace HIKARI::ASSETS::COLLISION {
         std::error_code cleanupEc{};
         std::filesystem::remove(tempPath, cleanupEc);
         std::string writeMessage{};
-        if (!WriteHcollisionFile(tempPath, asset, writeMessage) ||
-            !ReplaceWithTemp(tempPath, finalPath, result.message)) {
-            if (result.message.empty()) {
-                result.message = writeMessage;
-            }
+        if (!WriteHcollisionFile(tempPath, asset, writeMessage)) {
+            result.message = writeMessage;
+            return result;
+        }
+        CollisionGeometryAsset verified{};
+        HcollisionReadInfo readInfo{};
+        if (!ReadHcollisionFile(
+                tempPath,
+                verified,
+                result.message,
+                &readInfo)) {
+            std::filesystem::remove(tempPath, cleanupEc);
+            result.message = "HCOLLISION verification failed: " +
+                result.message;
+            return result;
+        }
+        const IO::FileReplacementOperation operation{
+            finalPath,
+            tempPath,
+            false
+        };
+        if (!IO::CommitFileReplacementTransaction(
+                std::span(&operation, 1u),
+                result.message)) {
+            std::filesystem::remove(tempPath, cleanupEc);
+            result.message = "failed to replace HCOLLISION artifact: " +
+                result.message;
             return result;
         }
 

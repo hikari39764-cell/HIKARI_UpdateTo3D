@@ -2,7 +2,6 @@
 
 #include <algorithm>
 #include <cmath>
-#include <system_error>
 
 #include "Assets/Collision/HIKARI_HcollisionFormat.h"
 #include "Assets/HIKARI_AssetDatabase.h"
@@ -54,9 +53,13 @@ namespace HIKARI::PHYSICS {
             const ASSETS::COLLISION::CollisionGeometryShape& source,
             const ColliderComponent& collider,
             const MATH::Vec3& worldScale,
+            uint32_t componentOrdinal,
+            uint64_t contentRevision,
             std::shared_ptr<const PhysicsGeometryBuffer> geometry) {
             const MATH::Vec3 scale = Absolute(worldScale);
             PhysicsShapeDesc shape{};
+            shape.key.sourceShapeId = source.id;
+            shape.key.componentOrdinal = componentOrdinal;
             shape.type = ToRuntimeShapeType(source.type);
             shape.localCenter = Multiply(source.center, scale);
             shape.localRotation = MATH::NormalizeQ(
@@ -65,7 +68,10 @@ namespace HIKARI::PHYSICS {
                     source.rotationEulerDegrees.y * kDegreesToRadians,
                     source.rotationEulerDegrees.z * kDegreesToRadians));
             shape.halfExtents = Multiply(source.size, scale) * 0.5f;
-            const float radialScale = (std::max)(scale.x, scale.z);
+            const float radialScale = shape.type ==
+                    PhysicsShapeType::Sphere
+                ? (std::max)({ scale.x, scale.y, scale.z })
+                : (std::max)(scale.x, scale.z);
             shape.radius = source.radius * radialScale;
             shape.height = source.height * scale.y;
             shape.localScale = scale;
@@ -74,6 +80,7 @@ namespace HIKARI::PHYSICS {
             shape.vertexCount = source.vertexCount;
             shape.indexOffset = source.indexOffset;
             shape.indexCount = source.indexCount;
+            shape.geometryContentRevision = contentRevision;
             shape.isTrigger = collider.IsTrigger();
             shape.material = PhysicsMaterialDesc{
                 collider.GetFriction(),
@@ -100,6 +107,7 @@ namespace HIKARI::PHYSICS {
 
     void PhysicsCollisionGeometryStore::Clear() noexcept {
         cache_.clear();
+        failures_.clear();
     }
 
     bool PhysicsCollisionGeometryStore::ResolveArtifactPath(
@@ -133,81 +141,141 @@ namespace HIKARI::PHYSICS {
     }
 
     const PhysicsCollisionGeometryStore::CacheEntry*
-        PhysicsCollisionGeometryStore::Load(const std::string& assetId) {
+        PhysicsCollisionGeometryStore::Load(
+            const std::string& assetId,
+            PhysicsErrorCode& outError,
+            std::string& outMessage) {
+        outError = PhysicsErrorCode::None;
+        outMessage.clear();
+        const uint64_t databaseRevision = assetDatabase_ != nullptr
+            ? assetDatabase_->GetContentRevision()
+            : 0u;
+        const auto cachedFailure = failures_.find(assetId);
+        if (cachedFailure != failures_.end() &&
+            cachedFailure->second.artifactPath.empty() &&
+            cachedFailure->second.databaseRevision == databaseRevision) {
+            outError = cachedFailure->second.error;
+            outMessage = cachedFailure->second.message;
+            return nullptr;
+        }
         std::filesystem::path artifactPath{};
         if (!ResolveArtifactPath(assetId, artifactPath)) {
+            outError = PhysicsErrorCode::CollisionAssetMissing;
+            outMessage = "collision artifact is missing from the asset manifest";
+            failures_.insert_or_assign(
+                assetId,
+                FailureEntry{
+                    {}, databaseRevision, outError, outMessage
+                });
             return nullptr;
         }
 
-        std::error_code ec{};
-        const std::filesystem::file_time_type lastWriteTime =
-            std::filesystem::last_write_time(artifactPath, ec);
-        if (ec) {
-            return nullptr;
-        }
-        const uintmax_t fileSize = std::filesystem::file_size(
-            artifactPath,
-            ec);
-        if (ec) {
+        const auto failed = failures_.find(assetId);
+        if (failed != failures_.end() &&
+            failed->second.artifactPath == artifactPath &&
+            failed->second.databaseRevision == databaseRevision) {
+            outError = failed->second.error;
+            outMessage = failed->second.message;
             return nullptr;
         }
 
         auto found = cache_.find(assetId);
         if (found != cache_.end() &&
             found->second.artifactPath == artifactPath &&
-            found->second.lastWriteTime == lastWriteTime &&
-            found->second.fileSize == fileSize) {
+            found->second.databaseRevision == databaseRevision) {
             return &found->second;
         }
 
         ASSETS::COLLISION::CollisionGeometryAsset asset{};
         std::string message{};
+        ASSETS::COLLISION::HcollisionReadInfo readInfo{};
         if (!ASSETS::COLLISION::ReadHcollisionFile(
                 artifactPath,
                 asset,
-                message)) {
+                message,
+                &readInfo)) {
             HIKARI_LOG_ERROR(
                 "[Physics] failed to load collision geometry: " +
                 message);
-            cache_.erase(assetId);
+            outError = PhysicsErrorCode::CollisionAssetInvalid;
+            outMessage = std::move(message);
+            failures_.insert_or_assign(
+                assetId,
+                FailureEntry{
+                    artifactPath,
+                    databaseRevision,
+                    outError,
+                    outMessage
+                });
             return nullptr;
         }
 
         CacheEntry& entry = cache_[assetId];
         entry.artifactPath = std::move(artifactPath);
-        entry.lastWriteTime = lastWriteTime;
-        entry.fileSize = fileSize;
-        entry.asset = std::move(asset);
+        entry.databaseRevision = databaseRevision;
+        entry.contentRevision = readInfo.contentHash;
+        entry.shapes = std::move(asset.shapes);
         auto geometry = std::make_shared<PhysicsGeometryBuffer>();
-        geometry->vertices = entry.asset.vertices;
-        geometry->indices = entry.asset.indices;
+        geometry->vertices = std::move(asset.vertices);
+        geometry->indices = std::move(asset.indices);
         entry.geometry = std::move(geometry);
+        failures_.erase(assetId);
         return &entry;
     }
 
-    bool PhysicsCollisionGeometryStore::AppendShapes(
+    PhysicsCollisionGeometryStore::AppendResult
+        PhysicsCollisionGeometryStore::AppendShapes(
         const ColliderComponent& collider,
         const MATH::Vec3& worldScale,
+        uint32_t componentOrdinal,
         std::vector<PhysicsShapeDesc>& outShapes) {
+        AppendResult result{};
         if (!collider.IsEnabled() ||
             !collider.UsesCollisionGeometryAsset()) {
-            return false;
+            result.error = PhysicsErrorCode::InvalidBodyDefinition;
+            result.message = "collider does not reference collision geometry";
+            return result;
         }
+        PhysicsErrorCode error = PhysicsErrorCode::None;
+        std::string message{};
         const CacheEntry* entry = Load(
-            collider.GetCollisionGeometryAssetId());
-        if (entry == nullptr || !entry->asset.IsUsable()) {
-            return false;
+            collider.GetCollisionGeometryAssetId(),
+            error,
+            message);
+        if (entry == nullptr || entry->shapes.empty() ||
+            !entry->geometry) {
+            result.error = error == PhysicsErrorCode::None
+                ? PhysicsErrorCode::CollisionAssetInvalid
+                : error;
+            result.message = message.empty()
+                ? "collision artifact contains no usable shapes"
+                : std::move(message);
+            return result;
         }
-        outShapes.reserve(outShapes.size() + entry->asset.shapes.size());
+        outShapes.reserve(outShapes.size() + entry->shapes.size());
         for (const ASSETS::COLLISION::CollisionGeometryShape& source :
-                entry->asset.shapes) {
+                entry->shapes) {
             outShapes.push_back(BuildShape(
                 source,
                 collider,
                 worldScale,
+                componentOrdinal,
+                entry->contentRevision,
                 entry->geometry));
         }
-        return true;
+        result.success = true;
+        result.contentRevision = entry->contentRevision;
+        result.appendedShapeCount = static_cast<uint32_t>(
+            entry->shapes.size());
+        result.message = "collision geometry ready";
+        return result;
+    }
+
+    uint64_t PhysicsCollisionGeometryStore::GetSourceRevision()
+        const noexcept {
+        return assetDatabase_ != nullptr
+            ? assetDatabase_->GetContentRevision()
+            : 0u;
     }
 
 } // namespace HIKARI::PHYSICS

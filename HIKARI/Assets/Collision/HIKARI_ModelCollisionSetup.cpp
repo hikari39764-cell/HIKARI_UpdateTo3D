@@ -8,6 +8,7 @@
 #include <json.hpp>
 
 #include "Assets/Collision/HIKARI_ModelCollisionSetupGeometry.h"
+#include "Core/IO/HIKARI_FileReplacementTransaction.h"
 
 namespace HIKARI::ASSETS::COLLISION {
     namespace {
@@ -315,34 +316,75 @@ namespace HIKARI::ASSETS::COLLISION {
                 ec.message();
             return false;
         }
-        if (!SaveModelCollisionSetupGeometry(path, setup, outMessage)) {
+        const std::filesystem::path stagedSetup(
+            path.string() + ".saving");
+        const std::filesystem::path stagedGeometry =
+            GetModelCollisionSetupGeometryPath(stagedSetup);
+        const std::filesystem::path finalGeometry =
+            GetModelCollisionSetupGeometryPath(path);
+        std::filesystem::remove(stagedSetup, ec);
+        ec.clear();
+        std::filesystem::remove(stagedGeometry, ec);
+        ec.clear();
+        if (!SaveModelCollisionSetupGeometry(
+                stagedSetup,
+                setup,
+                outMessage)) {
             return false;
         }
 
-        const std::filesystem::path tempPath =
-            path.parent_path() /
-            (path.filename().string() + ".tmp");
         {
-            std::ofstream stream(tempPath, std::ios::trunc);
+            std::ofstream stream(stagedSetup, std::ios::trunc);
             if (!stream.is_open()) {
+                std::filesystem::remove(stagedGeometry, ec);
                 outMessage = "failed to open collision setup for write";
                 return false;
             }
             stream << SerializeSetup(setup).dump(2) << '\n';
             stream.flush();
             if (!stream.good()) {
+                stream.close();
+                std::filesystem::remove(stagedSetup, ec);
+                ec.clear();
+                std::filesystem::remove(stagedGeometry, ec);
                 outMessage = "failed while writing collision setup";
                 return false;
             }
         }
 
-        std::filesystem::remove(path, ec);
-        ec.clear();
-        std::filesystem::rename(tempPath, path, ec);
-        if (ec) {
-            std::filesystem::remove(tempPath);
-            outMessage = "failed to replace collision setup: " +
-                ec.message();
+        ModelCollisionSetup verified{};
+        const ModelCollisionSetupLoadResult verification =
+            LoadModelCollisionSetup(
+                stagedSetup,
+                setup.modelAssetGuid,
+                verified);
+        if (!verification.success) {
+            std::filesystem::remove(stagedSetup, ec);
+            ec.clear();
+            std::filesystem::remove(stagedGeometry, ec);
+            outMessage = "collision setup verification failed: " +
+                verification.message;
+            return false;
+        }
+
+        const bool hasStagedGeometry = std::filesystem::exists(
+            stagedGeometry,
+            ec);
+        std::vector<IO::FileReplacementOperation> operations{};
+        operations.push_back({ path, stagedSetup, false });
+        operations.push_back({
+            finalGeometry,
+            stagedGeometry,
+            !hasStagedGeometry
+        });
+        if (!IO::CommitFileReplacementTransaction(
+                operations,
+                outMessage)) {
+            std::filesystem::remove(stagedSetup, ec);
+            ec.clear();
+            std::filesystem::remove(stagedGeometry, ec);
+            outMessage = "failed to commit collision setup: " +
+                outMessage;
             return false;
         }
         outMessage = "collision setup saved";

@@ -213,6 +213,8 @@ namespace HIKARI::PHYSICS::JOLT_BACKEND {
             event.objectB = record2->object;
             event.shapeIndexA = shapeIndex1;
             event.shapeIndexB = shapeIndex2;
+            event.shapeKeyA = shape1->key;
+            event.shapeKeyB = shape2->key;
             if (!manifold.mRelativeContactPointsOn1.empty()) {
                 event.position = FromJoltPosition(
                     manifold.GetWorldSpaceContactPointOn1(0));

@@ -102,6 +102,7 @@ namespace HIKARI::EDITOR {
             outMessage = "nothing to undo";
             return false;
         }
+        generationDraft_.reset();
         NormalizeShapeSelection();
         ++editRevision_;
         outMessage = "collision edit undone";
@@ -115,6 +116,7 @@ namespace HIKARI::EDITOR {
             outMessage = "nothing to redo";
             return false;
         }
+        generationDraft_.reset();
         NormalizeShapeSelection();
         ++editRevision_;
         outMessage = "collision edit redone";
@@ -162,6 +164,10 @@ namespace HIKARI::EDITOR {
         }
 
         modelGuid_ = guid;
+        if (generationControl_ != nullptr) {
+            generationControl_->RequestCancel();
+        }
+        generationDraft_.reset();
         pendingModelGuid_ = {};
         modelDisplayName_ = record->displayName;
         setupPath_ = setupPath;
@@ -295,6 +301,7 @@ namespace HIKARI::EDITOR {
     }
 
     void ModelCollisionWorkspaceController::CommitEdit(std::string label) {
+        generationDraft_.reset();
         history_.Commit(setup_, std::move(label));
         ++editRevision_;
     }
@@ -595,7 +602,7 @@ namespace HIKARI::EDITOR {
     }
 
     void ModelCollisionWorkspaceController::GenerateShapes() {
-        if (generationPending_) {
+        if (generationPending_ || generationDraft_.has_value()) {
             return;
         }
         std::shared_ptr<const ModelAsset> model =
@@ -623,14 +630,17 @@ namespace HIKARI::EDITOR {
             request.sourceNodeIndices.begin(),
             request.sourceNodeIndices.end());
         generationStartRevision_ = editRevision_;
-        generationDiscardRequested_ = false;
+        generationControl_ = std::make_shared<
+            ASSETS::COLLISION::ModelCollisionGenerationControl>();
         generationPending_ = true;
         statusMessage_ = "generating collision in background...";
         ASSETS::COLLISION::ModelCollisionSetup setupSnapshot = setup_;
+        const auto generationControl = generationControl_;
         generationFuture_ = std::async(
             std::launch::async,
             [model = std::move(model),
              request = std::move(request),
+             generationControl,
              setup = std::move(setupSnapshot)]() mutable {
                 CollisionGenerationTaskOutput output{};
                 output.setup = std::move(setup);
@@ -638,7 +648,8 @@ namespace HIKARI::EDITOR {
                     ASSETS::COLLISION::GenerateModelCollisionShapes(
                         *model,
                         request,
-                        output.setup);
+                        output.setup,
+                        generationControl.get());
                 return output;
             });
     }
@@ -663,9 +674,8 @@ namespace HIKARI::EDITOR {
             return;
         }
         generationPending_ = false;
-        if (generationDiscardRequested_ ||
-            generationStartRevision_ != editRevision_) {
-            generationDiscardRequested_ = false;
+        generationControl_.reset();
+        if (generationStartRevision_ != editRevision_) {
             statusMessage_ =
                 "generation finished, but its result was discarded because the document changed";
             return;
@@ -674,6 +684,18 @@ namespace HIKARI::EDITOR {
         if (!output.result.success) {
             return;
         }
+        generationDraft_ = std::move(output);
+        statusMessage_ =
+            "generation draft is ready; review the counts, then apply or discard it";
+    }
+
+    void ModelCollisionWorkspaceController::ApplyGenerationDraft() {
+        if (!generationDraft_.has_value()) {
+            return;
+        }
+        CollisionGenerationTaskOutput output =
+            std::move(*generationDraft_);
+        generationDraft_.reset();
         setup_ = std::move(output.setup);
         selectedShapeIds_.clear();
         for (uint64_t shapeId : output.result.generatedShapeIds) {
@@ -684,6 +706,13 @@ namespace HIKARI::EDITOR {
             : output.result.generatedShapeIds.front();
         NormalizeShapeSelection();
         CommitEdit("Generate Collision Shapes");
+        statusMessage_ = output.result.message;
+    }
+
+    void ModelCollisionWorkspaceController::DiscardGenerationDraft()
+        noexcept {
+        generationDraft_.reset();
+        statusMessage_ = "generation draft discarded";
     }
 
 } // namespace HIKARI::EDITOR

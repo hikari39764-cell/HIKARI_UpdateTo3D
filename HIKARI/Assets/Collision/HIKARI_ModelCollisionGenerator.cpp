@@ -141,30 +141,6 @@ namespace HIKARI::ASSETS::COLLISION {
             return shape;
         }
 
-        void SampleConvexPoints(
-            const ModelCollisionMeshData& input,
-            uint32_t maximumVertices,
-            ModelCollisionMeshData& output) {
-
-            output = {};
-            output.sourceNodeIndices = input.sourceNodeIndices;
-            output.bounds = input.bounds;
-            maximumVertices = (std::clamp)(maximumVertices, 16u, 256u);
-            if (input.vertices.size() <= maximumVertices) {
-                output.vertices = input.vertices;
-                return;
-            }
-            const double step = static_cast<double>(input.vertices.size()) /
-                static_cast<double>(maximumVertices);
-            output.vertices.reserve(maximumVertices);
-            for (uint32_t index = 0u; index < maximumVertices; ++index) {
-                const size_t sourceIndex = (std::min)(
-                    static_cast<size_t>(index * step),
-                    input.vertices.size() - 1u);
-                output.vertices.push_back(input.vertices[sourceIndex]);
-            }
-        }
-
         bool GenerateGroupShapes(
             const ModelCollisionMeshData& mesh,
             const ModelCollisionGenerationRequest& request,
@@ -241,23 +217,9 @@ namespace HIKARI::ASSETS::COLLISION {
                         ModelCollisionGenerationMethod::ConvexDecomposition) {
                     return false;
                 }
-                ModelCollisionMeshData sampled{};
-                SampleConvexPoints(
-                    mesh,
-                    request.maximumHullVertices,
-                    sampled);
-                if (sampled.vertices.size() < 4u) {
-                    return false;
-                }
-                outShapes.push_back(MakeGeometryShape(
-                    setup,
-                    CollisionGeometryShapeType::ConvexHull,
-                    std::move(sampled),
-                    "Auto Convex Hull",
-                    "ConvexHullFallback",
-                    0.0f));
-                outMessage.clear();
-                return true;
+                outMessage =
+                    "single convex hull generation failed; no approximate point-sampling fallback was used because it could under-cover the source mesh";
+                return false;
             }
             for (size_t partIndex = 0u;
                 partIndex < convexParts.size();
@@ -312,9 +274,15 @@ namespace HIKARI::ASSETS::COLLISION {
     ModelCollisionGenerationResult GenerateModelCollisionShapes(
         const ModelAsset& model,
         const ModelCollisionGenerationRequest& request,
-        ModelCollisionSetup& setup) {
+        ModelCollisionSetup& setup,
+        const ModelCollisionGenerationControl* control) {
 
         ModelCollisionGenerationResult result{};
+        if (control != nullptr &&
+            control->IsCancellationRequested()) {
+            result.message = "collision generation canceled";
+            return result;
+        }
         if (request.maximumGeneratedShapes == 0u) {
             result.message = "generation shape budget is zero";
             return result;
@@ -355,6 +323,11 @@ namespace HIKARI::ASSETS::COLLISION {
         std::vector<ModelCollisionShape> generated{};
         std::string generationMessage{};
         for (const ModelCollisionSourceGroup& group : groups) {
+            if (control != nullptr &&
+                control->IsCancellationRequested()) {
+                result.message = "collision generation canceled";
+                return result;
+            }
             if (generated.size() >= request.maximumGeneratedShapes) {
                 result.truncated = true;
                 break;
@@ -380,6 +353,11 @@ namespace HIKARI::ASSETS::COLLISION {
                 result.message = generationMessage;
                 return result;
             }
+            if (control != nullptr &&
+                control->IsCancellationRequested()) {
+                result.message = "collision generation canceled";
+                return result;
+            }
             const bool unsafePrimitiveMerge =
                 request.target == ModelCollisionGenerationTarget::
                     SelectedNodesSpatialGroups &&
@@ -390,6 +368,11 @@ namespace HIKARI::ASSETS::COLLISION {
             if (unsafePrimitiveMerge) {
                 groupShapes.clear();
                 for (int32_t nodeIndex : group.nodeIndices) {
+                    if (control != nullptr &&
+                        control->IsCancellationRequested()) {
+                        result.message = "collision generation canceled";
+                        return result;
+                    }
                     ModelCollisionMeshData nodeMesh{};
                     const std::array<int32_t, 1> node{ nodeIndex };
                     if (!ExtractModelCollisionMesh(

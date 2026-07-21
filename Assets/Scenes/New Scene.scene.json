@@ -677,7 +677,7 @@
               "layer": 1,
               "mask": 4294967295
             },
-            "fitMode": "Manual",
+            "fitMode": "CollisionAsset",
             "height": 1.7999999523162842,
             "material": {
               "density": 1.0,

@@ -60,7 +60,8 @@ namespace HIKARI::PHYSICS::JOLT_BACKEND {
 
         JPH::ShapeRefC BuildLeafShape(
             const PhysicsShapeDesc& shape,
-            uint64_t userData) {
+            uint64_t userData,
+            std::string* outError) {
 
             JPH::ShapeSettings::ShapeResult result;
             switch (shape.type) {
@@ -107,6 +108,9 @@ namespace HIKARI::PHYSICS::JOLT_BACKEND {
             case PhysicsShapeType::ConvexHull: {
                 if (!GeometryRangeIsValid(shape) ||
                     shape.vertexCount < 4u) {
+                    if (outError != nullptr) {
+                        *outError = "convex hull geometry range is invalid";
+                    }
                     return {};
                 }
                 JPH::Array<JPH::Vec3> points;
@@ -130,6 +134,9 @@ namespace HIKARI::PHYSICS::JOLT_BACKEND {
                     shape.vertexCount < 3u ||
                     shape.indexCount < 3u ||
                     shape.indexCount % 3u != 0u) {
+                    if (outError != nullptr) {
+                        *outError = "triangle mesh geometry range is invalid";
+                    }
                     return {};
                 }
                 JPH::VertexList vertices;
@@ -155,6 +162,9 @@ namespace HIKARI::PHYSICS::JOLT_BACKEND {
                     if (first >= shape.vertexCount ||
                         second >= shape.vertexCount ||
                         third >= shape.vertexCount) {
+                        if (outError != nullptr) {
+                            *outError = "triangle mesh contains an out-of-range index";
+                        }
                         return {};
                     }
                     triangles.emplace_back(
@@ -175,6 +185,11 @@ namespace HIKARI::PHYSICS::JOLT_BACKEND {
             JPH::ShapeRefC leaf = result.HasError()
                 ? JPH::ShapeRefC{}
                 : JPH::ShapeRefC(result.Get());
+            if (!leaf && outError != nullptr && outError->empty()) {
+                *outError = result.HasError()
+                    ? result.GetError().c_str()
+                    : "Jolt returned an empty collision shape";
+            }
             if (shape.type == PhysicsShapeType::ConvexHull ||
                 shape.type == PhysicsShapeType::TriangleMesh) {
                 return ApplyGeometryScale(shape, std::move(leaf));
@@ -185,9 +200,13 @@ namespace HIKARI::PHYSICS::JOLT_BACKEND {
     } // namespace
 
     JPH::ShapeRefC BuildCompoundShape(
-        std::span<const PhysicsShapeDesc> shapes) {
+        std::span<const PhysicsShapeDesc> shapes,
+        std::string* outError) {
 
         if (shapes.empty()) {
+            if (outError != nullptr) {
+                *outError = "body has no collision shapes";
+            }
             return {};
         }
 
@@ -198,7 +217,8 @@ namespace HIKARI::PHYSICS::JOLT_BACKEND {
         for (size_t index = 0; index < shapes.size(); ++index) {
             JPH::ShapeRefC leaf = BuildLeafShape(
                 shapes[index],
-                static_cast<uint64_t>(index + 1u));
+                static_cast<uint64_t>(index + 1u),
+                outError);
             if (!leaf) {
                 return {};
             }
@@ -210,17 +230,24 @@ namespace HIKARI::PHYSICS::JOLT_BACKEND {
         }
 
         JPH::ShapeSettings::ShapeResult result = compound.Create();
+        if (result.HasError() && outError != nullptr) {
+            *outError = result.GetError().c_str();
+        }
         return result.HasError()
             ? JPH::ShapeRefC{}
             : JPH::ShapeRefC(result.Get());
     }
 
     JPH::ShapeRefC BuildQueryShape(
-        const PhysicsShapeDesc& shape) {
+        const PhysicsShapeDesc& shape,
+        std::string* outError) {
         if (shape.type == PhysicsShapeType::TriangleMesh) {
+            if (outError != nullptr) {
+                *outError = "triangle mesh query shapes are unsupported";
+            }
             return {};
         }
-        return BuildLeafShape(shape, 1u);
+        return BuildLeafShape(shape, 1u, outError);
     }
 
 } // namespace HIKARI::PHYSICS::JOLT_BACKEND

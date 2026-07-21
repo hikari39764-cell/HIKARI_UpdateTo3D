@@ -31,7 +31,8 @@ namespace HIKARI {
 
         const ComponentGizmoDrawContext context{
             selectedObjectId,
-            cameraAspect
+            cameraAspect,
+            &world
         };
         for (const auto& object : world.GetObjects()) {
             if (!object ||

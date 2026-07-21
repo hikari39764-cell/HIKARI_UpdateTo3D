@@ -27,7 +27,7 @@ namespace HIKARI::PHYSICS::JOLT_BACKEND {
         bool Initialize(const PhysicsWorldSettings& settings) override;
         void Shutdown() noexcept override;
 
-        PhysicsBodyHandle CreateBody(
+        PhysicsBodyCreateResult CreateBody(
             const PhysicsBodyCreateInfo& createInfo) override;
         bool DestroyBody(PhysicsBodyHandle body) override;
         bool SetBodyPose(
@@ -45,7 +45,9 @@ namespace HIKARI::PHYSICS::JOLT_BACKEND {
             PhysicsBodyHandle body,
             PhysicsBodyState& outState) const override;
 
-        void Step(float fixedDeltaSeconds) override;
+        PhysicsStepResult Step(float fixedDeltaSeconds) override;
+        PhysicsBackendStatistics GetStatistics()
+            const noexcept override;
         void DrainContactEvents(
             std::vector<PhysicsContactEvent>& outEvents) override;
 

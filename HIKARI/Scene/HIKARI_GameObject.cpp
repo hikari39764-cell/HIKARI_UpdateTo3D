@@ -46,6 +46,14 @@ namespace HIKARI {
         return runtimeHandle_;
     }
 
+    World* GameObject::GetWorld() noexcept {
+        return ownerWorld_;
+    }
+
+    const World* GameObject::GetWorld() const noexcept {
+        return ownerWorld_;
+    }
+
     const Transform3D& GameObject::GetTransform() const noexcept {
         return transform_;
     }

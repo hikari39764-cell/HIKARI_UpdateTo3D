@@ -10,6 +10,8 @@ namespace HIKARI {
     enum class AssetType;
     class AssetDatabase;
     class AssetRegistry;
+    class WorldServiceRegistry;
+    struct RuntimeObjectHandle;
     struct SceneDocument;
     struct SceneObjectId;
 
@@ -17,6 +19,8 @@ namespace HIKARI {
         AssetRegistry* assetRegistry = nullptr;
         AssetDatabase* assetDatabase = nullptr;
         const SceneDocument* sceneDocument = nullptr;
+        const WorldServiceRegistry* worldServices = nullptr;
+        const RuntimeObjectHandle* runtimeObject = nullptr;
     };
 
     class IInspectorBuilder {

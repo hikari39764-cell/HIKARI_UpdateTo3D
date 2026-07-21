@@ -87,11 +87,16 @@ namespace HIKARI::PHYSICS {
             : PhysicsBackendCapabilities{};
     }
 
-    PhysicsBodyHandle PhysicsWorldService::CreateBody(
+    PhysicsBodyCreateResult PhysicsWorldService::CreateBody(
         const PhysicsBodyCreateInfo& createInfo) {
-        return backend_ && world_ != nullptr
-            ? backend_->CreateBody(createInfo)
-            : PhysicsBodyHandle{};
+        if (!backend_ || world_ == nullptr) {
+            PhysicsBodyCreateResult result{};
+            result.error = PhysicsErrorCode::WorldUnavailable;
+            result.message = "physics world is not available";
+            result.recoverable = true;
+            return result;
+        }
+        return backend_->CreateBody(createInfo);
     }
 
     bool PhysicsWorldService::DestroyBody(PhysicsBodyHandle body) {
@@ -132,12 +137,16 @@ namespace HIKARI::PHYSICS {
             backend_->TryGetBodyState(body, outState);
     }
 
-    void PhysicsWorldService::Step(float fixedDeltaSeconds) {
+    PhysicsStepResult PhysicsWorldService::Step(
+        float fixedDeltaSeconds) {
         if (!backend_ || world_ == nullptr ||
             fixedDeltaSeconds <= 0.0f) {
-            return;
+            PhysicsStepResult result{};
+            result.error = PhysicsErrorCode::WorldUnavailable;
+            result.message = "physics world is not available";
+            return result;
         }
-        backend_->Step(fixedDeltaSeconds);
+        PhysicsStepResult result = backend_->Step(fixedDeltaSeconds);
         backend_->DrainContactEvents(contactEvents_);
         if (!settings_.emitPersistContactEvents) {
             contactEvents_.erase(
@@ -150,6 +159,14 @@ namespace HIKARI::PHYSICS {
                     }),
                 contactEvents_.end());
         }
+        return result;
+    }
+
+    PhysicsBackendStatistics
+        PhysicsWorldService::GetStatistics() const noexcept {
+        return backend_ && world_ != nullptr
+            ? backend_->GetStatistics()
+            : PhysicsBackendStatistics{};
     }
 
     std::vector<PhysicsContactEvent>

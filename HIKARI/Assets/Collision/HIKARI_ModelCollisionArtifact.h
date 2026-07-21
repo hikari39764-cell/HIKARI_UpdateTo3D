@@ -10,6 +10,7 @@ namespace HIKARI::ASSETS::COLLISION {
     struct ModelCollisionArtifactResult {
         bool success = false;
         bool ready = false;
+        bool removeExisting = false;
         uint32_t shapeCount = 0u;
         std::filesystem::path path{};
         std::string message{};

@@ -6,14 +6,10 @@
 
 #include "Assets/Collision/HIKARI_ModelCollisionSetup.h"
 #include "Editor/Workspaces/HIKARI_ModelCollisionPreviewScene.h"
+#include "Editor/Workspaces/HIKARI_ModelCollisionRaycast.h"
 #include "Render3D/Core/HIKARI_Camera3D.h"
 
 namespace HIKARI::EDITOR {
-
-    struct ModelCollisionPointerRay {
-        MATH::Vec3 origin{};
-        MATH::Vec3 direction{};
-    };
 
     bool BuildModelCollisionPointerRay(
         const Camera3D& camera,
@@ -32,6 +28,7 @@ namespace HIKARI::EDITOR {
 
     int32_t PickModelCollisionSourceNode(
         const ModelCollisionPointerRay& ray,
-        const std::vector<ModelCollisionPreviewNode>& nodes) noexcept;
+        const std::vector<ModelCollisionPreviewNode>& nodes,
+        const ModelAsset& model) noexcept;
 
 } // namespace HIKARI::EDITOR

@@ -7,6 +7,7 @@
 #include "Scene/Components/HIKARI_ColliderComponent.h"
 #include "Scene/Components/HIKARI_PhysicsBodyComponent.h"
 #include "Scene/HIKARI_GameObject.h"
+#include "Physics/HIKARI_PhysicsBodyValidator.h"
 #include "Physics/HIKARI_PhysicsCollisionGeometryStore.h"
 
 namespace HIKARI::PHYSICS {
@@ -30,43 +31,6 @@ namespace HIKARI::PHYSICS {
                 std::abs(value.y),
                 std::abs(value.z)
             };
-        }
-
-        PhysicsShapeDesc BuildShape(
-            const ColliderComponent& collider,
-            const MATH::Vec3& worldScale) {
-            const MATH::Vec3 absoluteScale = Absolute(worldScale);
-            const ResolvedColliderShape resolved =
-                collider.ResolveShape();
-            PhysicsShapeDesc shape{};
-            shape.type = resolved.type;
-            shape.localCenter = Multiply(
-                resolved.center, absoluteScale);
-            const MATH::Vec3 rotationDegrees =
-                resolved.rotationEulerDegrees;
-            shape.localRotation = MATH::NormalizeQ(
-                MATH::Quat::FromEulerXYZ(
-                    rotationDegrees.x * kDegreesToRadians,
-                    rotationDegrees.y * kDegreesToRadians,
-                    rotationDegrees.z * kDegreesToRadians));
-            shape.halfExtents = Multiply(
-                resolved.size, absoluteScale) * 0.5f;
-            const float radialScale = (std::max)(
-                absoluteScale.x,
-                absoluteScale.z);
-            shape.radius = resolved.radius * radialScale;
-            shape.height = resolved.height * absoluteScale.y;
-            shape.isTrigger = collider.IsTrigger();
-            shape.material = PhysicsMaterialDesc{
-                collider.GetFriction(),
-                collider.GetRestitution(),
-                collider.GetDensity()
-            };
-            shape.filter = PhysicsCollisionFilter{
-                collider.GetCollisionLayer(),
-                collider.GetCollisionMask()
-            };
-            return shape;
         }
 
         PhysicsBodyDesc BuildBody(
@@ -126,6 +90,49 @@ namespace HIKARI::PHYSICS {
         }
     }
 
+    PhysicsShapeDesc BuildPhysicsShapeDesc(
+        const ColliderComponent& collider,
+        const MATH::Vec3& worldScale,
+        uint32_t componentOrdinal) {
+        const MATH::Vec3 absoluteScale = Absolute(worldScale);
+        const ResolvedColliderShape resolved = collider.ResolveShape();
+        PhysicsShapeDesc shape{};
+        shape.key.componentOrdinal = componentOrdinal;
+        shape.type = resolved.type;
+        shape.localCenter = Multiply(resolved.center, absoluteScale);
+        const MATH::Vec3 rotationDegrees =
+            resolved.rotationEulerDegrees;
+        shape.localRotation = MATH::NormalizeQ(
+            MATH::Quat::FromEulerXYZ(
+                rotationDegrees.x * kDegreesToRadians,
+                rotationDegrees.y * kDegreesToRadians,
+                rotationDegrees.z * kDegreesToRadians));
+        shape.halfExtents = Multiply(
+            resolved.size, absoluteScale) * 0.5f;
+        const float radialScale = resolved.type ==
+                PhysicsShapeType::Sphere
+            ? (std::max)({
+                absoluteScale.x,
+                absoluteScale.y,
+                absoluteScale.z
+            })
+            : (std::max)(absoluteScale.x, absoluteScale.z);
+        shape.radius = resolved.radius * radialScale;
+        shape.height = resolved.height * absoluteScale.y;
+        shape.localScale = absoluteScale;
+        shape.isTrigger = collider.IsTrigger();
+        shape.material = PhysicsMaterialDesc{
+            collider.GetFriction(),
+            collider.GetRestitution(),
+            collider.GetDensity()
+        };
+        shape.filter = PhysicsCollisionFilter{
+            collider.GetCollisionLayer(),
+            collider.GetCollisionMask()
+        };
+        return shape;
+    }
+
     bool TryGetPhysicsWorldPoseAndScale(
         const GameObject& object,
         PhysicsPose& outPose,
@@ -137,17 +144,32 @@ namespace HIKARI::PHYSICS {
             outScale);
     }
 
-    bool BuildPhysicsBodyCreateInfo(
+    PhysicsBodyBuildResult BuildPhysicsBodyCreateInfo(
         const GameObject& object,
         PhysicsBodyCreateInfo& outCreateInfo,
         MATH::Vec3& outWorldScale,
         PhysicsCollisionGeometryStore* collisionGeometryStore) {
+        PhysicsBodyBuildResult result{};
         PhysicsPose pose{};
         if (!TryGetPhysicsWorldPoseAndScale(
                 object,
                 pose,
                 outWorldScale)) {
-            return false;
+            result.error = PhysicsErrorCode::TransformInvalid;
+            result.message =
+                "object world transform cannot be decomposed";
+            return result;
+        }
+        if (!std::isfinite(outWorldScale.x) ||
+            !std::isfinite(outWorldScale.y) ||
+            !std::isfinite(outWorldScale.z) ||
+            outWorldScale.x <= 0.0f ||
+            outWorldScale.y <= 0.0f ||
+            outWorldScale.z <= 0.0f) {
+            result.error = PhysicsErrorCode::UnsupportedScale;
+            result.message =
+                "physics requires positive world scale; bake mirrored scale into the model before adding collision";
+            return result;
         }
 
         outCreateInfo = {};
@@ -161,25 +183,66 @@ namespace HIKARI::PHYSICS {
             outCreateInfo.initialAngularVelocity =
                 bodyComponent->GetInitialAngularVelocity();
         }
+        uint32_t componentOrdinal = 0u;
+        bool appendFailed = false;
         object.ForEachComponent<ColliderComponent>(
             [&](const ColliderComponent& collider) {
+                ++componentOrdinal;
                 if (!collider.IsEnabled()) {
                     return;
                 }
+                result.hasDefinition = true;
                 if (collider.UsesCollisionGeometryAsset()) {
-                    if (collisionGeometryStore != nullptr) {
-                        (void)collisionGeometryStore->AppendShapes(
+                    if (collisionGeometryStore == nullptr) {
+                        appendFailed = true;
+                        result.error =
+                            PhysicsErrorCode::CollisionAssetMissing;
+                        result.message =
+                            "collision geometry store is unavailable";
+                        return;
+                    }
+                    const auto append =
+                        collisionGeometryStore->AppendShapes(
                             collider,
                             outWorldScale,
+                            componentOrdinal,
                             outCreateInfo.shapes);
+                    if (!append.success) {
+                        appendFailed = true;
+                        result.error = append.error;
+                        result.message = append.message;
                     }
+                    result.sourceRevision ^= append.contentRevision +
+                        0x9E3779B97F4A7C15ull +
+                        (result.sourceRevision << 6u) +
+                        (result.sourceRevision >> 2u);
                     return;
                 }
-                outCreateInfo.shapes.push_back(BuildShape(
+                outCreateInfo.shapes.push_back(BuildPhysicsShapeDesc(
                     collider,
-                    outWorldScale));
+                    outWorldScale,
+                    componentOrdinal));
             });
-        return !outCreateInfo.shapes.empty();
+        if (collisionGeometryStore != nullptr) {
+            result.sourceRevision ^=
+                collisionGeometryStore->GetSourceRevision();
+        }
+        if (!result.hasDefinition) {
+            result.error = PhysicsErrorCode::NoEnabledShapes;
+            result.message = "object has no enabled colliders";
+            return result;
+        }
+        if (appendFailed) {
+            outCreateInfo.shapes.clear();
+            return result;
+        }
+
+        const PhysicsBodyValidationResult validation =
+            ValidatePhysicsBodyCreateInfo(outCreateInfo);
+        result.success = validation.valid;
+        result.error = validation.error;
+        result.message = validation.message;
+        return result;
     }
 
     uint64_t ComputePhysicsBodyDefinitionSignature(
@@ -205,12 +268,20 @@ namespace HIKARI::PHYSICS {
         HashVec3(signature, createInfo.initialAngularVelocity);
         HashValue(signature, createInfo.shapes.size());
         for (const PhysicsShapeDesc& shape : createInfo.shapes) {
+            HashValue(signature, shape.key.sourceShapeId);
+            HashValue(signature, shape.key.componentOrdinal);
             HashValue(signature, static_cast<uint64_t>(shape.type));
             HashVec3(signature, shape.localCenter);
             HashQuat(signature, shape.localRotation);
             HashVec3(signature, shape.halfExtents);
             HashFloat(signature, shape.radius);
             HashFloat(signature, shape.height);
+            HashVec3(signature, shape.localScale);
+            HashValue(signature, shape.vertexOffset);
+            HashValue(signature, shape.vertexCount);
+            HashValue(signature, shape.indexOffset);
+            HashValue(signature, shape.indexCount);
+            HashValue(signature, shape.geometryContentRevision);
             HashValue(signature, shape.isTrigger);
             HashFloat(signature, shape.material.friction);
             HashFloat(signature, shape.material.restitution);

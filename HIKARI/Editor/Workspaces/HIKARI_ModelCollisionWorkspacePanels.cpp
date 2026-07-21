@@ -409,15 +409,48 @@ namespace HIKARI::EDITOR {
                 ImVec4(0.40f, 0.82f, 0.92f, 1.0f),
                 "Generating collision...");
             ImGui::TextDisabled(
-                "The editor remains usable while geometry is processed.");
-            if (!generationDiscardRequested_ &&
-                ImGui::Button("Discard Result When Finished")) {
-                generationDiscardRequested_ = true;
+                "The editor remains usable. Cancellation takes effect between processing batches.");
+            const bool cancelRequested = generationControl_ != nullptr &&
+                generationControl_->IsCancellationRequested();
+            ImGui::BeginDisabled(cancelRequested);
+            if (ImGui::Button(
+                    cancelRequested
+                        ? "Cancel Requested"
+                        : "Cancel Generation")) {
+                generationControl_->RequestCancel();
                 statusMessage_ =
-                    "generation is still finishing safely; its result will be discarded";
+                    "cancel requested; the current geometry batch will finish safely";
             }
+            ImGui::EndDisabled();
             if (!statusMessage_.empty()) {
                 ImGui::TextWrapped("%s", statusMessage_.c_str());
+            }
+            ImGui::End();
+            return;
+        }
+        if (generationDraft_.has_value()) {
+            const auto& result = generationDraft_->result;
+            ImGui::TextColored(
+                ImVec4(0.42f, 0.90f, 0.58f, 1.0f),
+                "Generation Draft Ready");
+            ImGui::Text(
+                "%u generated | %u source groups | %u replaced",
+                result.generatedCount,
+                result.candidateCount,
+                result.removedGeneratedCount);
+            if (result.truncated) {
+                ImGui::TextColored(
+                    ImVec4(1.0f, 0.68f, 0.28f, 1.0f),
+                    "The draft reached the configured shape budget.");
+            }
+            ImGui::TextWrapped(
+                "The viewport is previewing this draft. The current document has not changed. Apply records one undoable edit; Discard leaves it untouched.");
+            if (ImGui::Button("Apply Draft", ImVec2(135.0f, 32.0f))) {
+                ApplyGenerationDraft();
+            }
+            ImGui::SameLine();
+            if (ImGui::Button("Discard Draft", ImVec2(135.0f, 32.0f))) {
+                DiscardGenerationDraft();
             }
             ImGui::End();
             return;

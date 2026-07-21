@@ -945,6 +945,9 @@
     <ClCompile Include="HIKARI\Editor\Workspaces\HIKARI_ModelCollisionWorkspaceInteraction.cpp">
       <Filter>Source Files\Editor\Workspaces</Filter>
     </ClCompile>
+    <ClCompile Include="HIKARI\Editor\Workspaces\HIKARI_ModelCollisionRaycast.cpp">
+      <Filter>Source Files\Editor\Workspaces</Filter>
+    </ClCompile>
     <ClCompile Include="HIKARI\Editor\Workspaces\HIKARI_ModelCollisionViewportOverlay.cpp">
       <Filter>Source Files\Editor\Workspaces</Filter>
     </ClCompile>
@@ -1054,6 +1057,9 @@
       <Filter>Source Files\Scene\Debug</Filter>
     </ClCompile>
     <ClCompile Include="HIKARI\Scene\Debug\HIKARI_ColliderGizmoProvider.cpp">
+      <Filter>Source Files\Scene\Debug</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Scene\Debug\HIKARI_PhysicsShapeDebugDraw.cpp">
       <Filter>Source Files\Scene\Debug</Filter>
     </ClCompile>
     <ClCompile Include="HIKARI\Editor\HIKARI_SelectionSyncService.cpp">
@@ -1590,6 +1596,9 @@
     <ClCompile Include="HIKARI\Scene\HIKARI_SceneRenderCacheSync.cpp">
       <Filter>Source Files\Scene\Systems</Filter>
     </ClCompile>
+    <ClCompile Include="HIKARI\Scene\HIKARI_PresentationTransformService.cpp">
+      <Filter>Source Files\Scene\Systems</Filter>
+    </ClCompile>
     <ClCompile Include="HIKARI\Scene\HIKARI_SystemScheduler.cpp">
       <Filter>Source Files\Scene\Systems</Filter>
     </ClCompile>
@@ -1681,6 +1690,24 @@
       <Filter>Source Files\Scene\Components</Filter>
     </ClCompile>
     <ClCompile Include="HIKARI\Physics\HIKARI_PhysicsSystem.cpp">
+      <Filter>Source Files\Physics</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Physics\HIKARI_PhysicsSystemBodyLifecycle.cpp">
+      <Filter>Source Files\Physics</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Physics\HIKARI_PhysicsSystemSynchronization.cpp">
+      <Filter>Source Files\Physics</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Core\IO\HIKARI_FileReplacementTransaction.cpp">
+      <Filter>Source Files\Core</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Physics\HIKARI_PhysicsBodyValidator.cpp">
+      <Filter>Source Files\Physics</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Physics\HIKARI_PhysicsProjectSettings.cpp">
+      <Filter>Source Files\Physics</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Physics\HIKARI_PhysicsRuntimeStatusService.cpp">
       <Filter>Source Files\Physics</Filter>
     </ClCompile>
     <ClCompile Include="HIKARI\Physics\HIKARI_PhysicsSceneBridge.cpp">
@@ -2368,6 +2395,9 @@
     <ClInclude Include="HIKARI\Editor\Workspaces\HIKARI_ModelCollisionWorkspaceInteraction.h">
       <Filter>Header Files\Editor\Workspaces</Filter>
     </ClInclude>
+    <ClInclude Include="HIKARI\Editor\Workspaces\HIKARI_ModelCollisionRaycast.h">
+      <Filter>Header Files\Editor\Workspaces</Filter>
+    </ClInclude>
     <ClInclude Include="HIKARI\Editor\Workspaces\HIKARI_ModelCollisionViewportOverlay.h">
       <Filter>Header Files\Editor\Workspaces</Filter>
     </ClInclude>
@@ -2519,6 +2549,9 @@
       <Filter>Header Files\Scene\Debug</Filter>
     </ClInclude>
     <ClInclude Include="HIKARI\Scene\Debug\HIKARI_ColliderGizmoProvider.h">
+      <Filter>Header Files\Scene\Debug</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Scene\Debug\HIKARI_PhysicsShapeDebugDraw.h">
       <Filter>Header Files\Scene\Debug</Filter>
     </ClInclude>
     <ClInclude Include="HIKARI\Editor\HIKARI_SelectionSyncService.h">
@@ -2929,6 +2962,9 @@
     <ClInclude Include="HIKARI\Scene\HIKARI_SceneRenderCacheSync.h">
       <Filter>Header Files\Scene\Systems</Filter>
     </ClInclude>
+    <ClInclude Include="HIKARI\Scene\HIKARI_PresentationTransformService.h">
+      <Filter>Header Files\Scene\Systems</Filter>
+    </ClInclude>
     <ClInclude Include="HIKARI\Scene\HIKARI_SystemScheduler.h">
       <Filter>Header Files\Scene\Systems</Filter>
     </ClInclude>
@@ -3040,7 +3076,19 @@
     <ClInclude Include="HIKARI\Physics\HIKARI_IPhysicsWorldBackend.h">
       <Filter>Header Files\Physics</Filter>
     </ClInclude>
+    <ClInclude Include="HIKARI\Core\IO\HIKARI_FileReplacementTransaction.h">
+      <Filter>Header Files\Core</Filter>
+    </ClInclude>
     <ClInclude Include="HIKARI\Physics\HIKARI_PhysicsSceneBridge.h">
+      <Filter>Header Files\Physics</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Physics\HIKARI_PhysicsBodyValidator.h">
+      <Filter>Header Files\Physics</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Physics\HIKARI_PhysicsProjectSettings.h">
+      <Filter>Header Files\Physics</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Physics\HIKARI_PhysicsRuntimeStatusService.h">
       <Filter>Header Files\Physics</Filter>
     </ClInclude>
     <ClInclude Include="HIKARI\Physics\HIKARI_PhysicsSystem.h">

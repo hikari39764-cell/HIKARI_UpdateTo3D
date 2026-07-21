@@ -94,6 +94,8 @@ namespace HIKARI::EDITOR {
         void SetSelectedShapesLocked(bool locked) noexcept;
         void GenerateShapes();
         void PollGenerationTask();
+        void ApplyGenerationDraft();
+        void DiscardGenerationDraft() noexcept;
 
         void DrawPreviewWindow(
             DocumentSceneBase& scene,
@@ -155,10 +157,12 @@ namespace HIKARI::EDITOR {
         int generationHullVertexBudget_ = 128;
         int generationTriangleBudget_ = 1000000;
         std::future<CollisionGenerationTaskOutput> generationFuture_{};
+        std::shared_ptr<ASSETS::COLLISION::ModelCollisionGenerationControl>
+            generationControl_{};
+        std::optional<CollisionGenerationTaskOutput> generationDraft_{};
         uint64_t editRevision_ = 1u;
         uint64_t generationStartRevision_ = 0u;
         bool generationPending_ = false;
-        bool generationDiscardRequested_ = false;
         std::unordered_set<int32_t> selectedSourceNodes_{};
         std::array<char, 128> sourceSearch_{};
         std::string statusMessage_{};

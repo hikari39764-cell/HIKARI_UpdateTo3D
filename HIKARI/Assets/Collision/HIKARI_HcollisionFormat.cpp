@@ -3,6 +3,7 @@
 #include <array>
 #include <fstream>
 #include <limits>
+#include <new>
 #include <type_traits>
 
 namespace HIKARI::ASSETS::COLLISION {
@@ -18,6 +19,14 @@ namespace HIKARI::ASSETS::COLLISION {
         constexpr uint32_t kMaximumIndices = 192u * 1024u * 1024u;
         constexpr uint64_t kFnvOffset = 1469598103934665603ull;
         constexpr uint64_t kFnvPrime = 1099511628211ull;
+        constexpr uint64_t kHeaderBytes = 68u;
+        // id/type/reserved (16) + transform/size (36) + radius/height (8)
+        // + four geometry ranges (16).
+        constexpr uint64_t kSerializedShapeBytes = 76u;
+        constexpr uint64_t kSerializedVertexBytes = 12u;
+        constexpr uint64_t kSerializedIndexBytes = 4u;
+        constexpr uint64_t kMaximumPayloadBytes = 2ull * 1024ull *
+            1024ull * 1024ull;
 
         template<class TValue>
         bool WritePod(std::ostream& stream, const TValue& value) {
@@ -83,37 +92,25 @@ namespace HIKARI::ASSETS::COLLISION {
             HashPod(hash, value.z);
         }
 
-        uint64_t ComputeContentHash(
-            const CollisionGeometryAsset& asset) noexcept {
-
-            uint64_t hash = kFnvOffset;
-            HashBytes(
-                hash,
-                asset.sourceAssetGuid.data(),
-                asset.sourceAssetGuid.size());
-            HashVec3(hash, asset.localBounds.min);
-            HashVec3(hash, asset.localBounds.max);
-            for (const CollisionGeometryShape& shape : asset.shapes) {
-                HashPod(hash, shape.id);
-                const uint8_t type = static_cast<uint8_t>(shape.type);
-                HashPod(hash, type);
-                HashVec3(hash, shape.center);
-                HashVec3(hash, shape.rotationEulerDegrees);
-                HashVec3(hash, shape.size);
-                HashPod(hash, shape.radius);
-                HashPod(hash, shape.height);
-                HashPod(hash, shape.vertexOffset);
-                HashPod(hash, shape.vertexCount);
-                HashPod(hash, shape.indexOffset);
-                HashPod(hash, shape.indexCount);
+        bool TryComputeExpectedFileSize(
+            uint32_t guidBytes,
+            uint32_t shapeCount,
+            uint32_t vertexCount,
+            uint32_t indexCount,
+            uint64_t& outSize) noexcept {
+            const uint64_t size = kHeaderBytes +
+                static_cast<uint64_t>(guidBytes) +
+                static_cast<uint64_t>(shapeCount) *
+                    kSerializedShapeBytes +
+                static_cast<uint64_t>(vertexCount) *
+                    kSerializedVertexBytes +
+                static_cast<uint64_t>(indexCount) *
+                    kSerializedIndexBytes;
+            if (size > kMaximumPayloadBytes) {
+                return false;
             }
-            for (const MATH::Vec3& vertex : asset.vertices) {
-                HashVec3(hash, vertex);
-            }
-            for (uint32_t index : asset.indices) {
-                HashPod(hash, index);
-            }
-            return hash;
+            outSize = size;
+            return true;
         }
 
         bool WriteShape(
@@ -161,6 +158,38 @@ namespace HIKARI::ASSETS::COLLISION {
             shape.type = static_cast<CollisionGeometryShapeType>(type);
             return true;
         }
+    }
+
+    uint64_t ComputeCollisionGeometryContentHash(
+        const CollisionGeometryAsset& asset) noexcept {
+        uint64_t hash = kFnvOffset;
+        HashBytes(
+            hash,
+            asset.sourceAssetGuid.data(),
+            asset.sourceAssetGuid.size());
+        HashVec3(hash, asset.localBounds.min);
+        HashVec3(hash, asset.localBounds.max);
+        for (const CollisionGeometryShape& shape : asset.shapes) {
+            HashPod(hash, shape.id);
+            const uint8_t type = static_cast<uint8_t>(shape.type);
+            HashPod(hash, type);
+            HashVec3(hash, shape.center);
+            HashVec3(hash, shape.rotationEulerDegrees);
+            HashVec3(hash, shape.size);
+            HashPod(hash, shape.radius);
+            HashPod(hash, shape.height);
+            HashPod(hash, shape.vertexOffset);
+            HashPod(hash, shape.vertexCount);
+            HashPod(hash, shape.indexOffset);
+            HashPod(hash, shape.indexCount);
+        }
+        for (const MATH::Vec3& vertex : asset.vertices) {
+            HashVec3(hash, vertex);
+        }
+        for (uint32_t index : asset.indices) {
+            HashPod(hash, index);
+        }
+        return hash;
     }
 
     bool WriteHcollisionFile(
@@ -213,7 +242,8 @@ namespace HIKARI::ASSETS::COLLISION {
             asset.vertices.size());
         const uint32_t indexCount = static_cast<uint32_t>(
             asset.indices.size());
-        const uint64_t contentHash = ComputeContentHash(asset);
+        const uint64_t contentHash =
+            ComputeCollisionGeometryContentHash(asset);
 
         stream.write(kMagic.data(), static_cast<std::streamsize>(kMagic.size()));
         bool ok = stream.good() &&
@@ -255,15 +285,29 @@ namespace HIKARI::ASSETS::COLLISION {
     bool ReadHcollisionFile(
         const std::filesystem::path& path,
         CollisionGeometryAsset& outAsset,
-        std::string& outMessage) {
+        std::string& outMessage,
+        HcollisionReadInfo* outInfo) {
 
         outAsset = {};
+        if (outInfo != nullptr) {
+            *outInfo = {};
+        }
         std::ifstream stream(path, std::ios::binary);
         if (!stream.is_open()) {
             outMessage = "[HCOLLISION] failed to open: " +
                 path.generic_string();
             return false;
         }
+
+        stream.seekg(0, std::ios::end);
+        const std::streamoff fileEnd = stream.tellg();
+        if (fileEnd < 0) {
+            outMessage = "[HCOLLISION] failed to inspect file size: " +
+                path.generic_string();
+            return false;
+        }
+        const uint64_t fileSize = static_cast<uint64_t>(fileEnd);
+        stream.seekg(0, std::ios::beg);
 
         std::array<char, 8> magic{};
         stream.read(magic.data(), static_cast<std::streamsize>(magic.size()));
@@ -299,26 +343,50 @@ namespace HIKARI::ASSETS::COLLISION {
             return false;
         }
 
-        outAsset.sourceAssetGuid.resize(guidBytes);
+        uint64_t expectedFileSize = 0u;
+        if (!TryComputeExpectedFileSize(
+                guidBytes,
+                shapeCount,
+                vertexCount,
+                indexCount,
+                expectedFileSize) ||
+            fileSize != expectedFileSize) {
+            outMessage =
+                "[HCOLLISION] file size does not match its header: " +
+                path.generic_string();
+            outAsset = {};
+            return false;
+        }
+
+        try {
+            outAsset.sourceAssetGuid.resize(guidBytes);
+            outAsset.shapes.resize(shapeCount);
+            outAsset.vertices.resize(vertexCount);
+            outAsset.indices.resize(indexCount);
+        } catch (const std::bad_alloc&) {
+            outMessage =
+                "[HCOLLISION] payload allocation failed: " +
+                path.generic_string();
+            outAsset = {};
+            return false;
+        }
         if (guidBytes > 0u) {
             stream.read(
                 outAsset.sourceAssetGuid.data(),
                 static_cast<std::streamsize>(guidBytes));
             ok = stream.good();
         }
-        outAsset.shapes.resize(shapeCount);
         for (CollisionGeometryShape& shape : outAsset.shapes) {
             ok = ok && ReadShape(stream, shape);
         }
-        outAsset.vertices.resize(vertexCount);
         for (MATH::Vec3& vertex : outAsset.vertices) {
             ok = ok && ReadVec3(stream, vertex);
         }
-        outAsset.indices.resize(indexCount);
         for (uint32_t& index : outAsset.indices) {
             ok = ok && ReadPod(stream, index);
         }
-        if (!ok || ComputeContentHash(outAsset) != storedHash) {
+        if (!ok ||
+            ComputeCollisionGeometryContentHash(outAsset) != storedHash) {
             outMessage =
                 "[HCOLLISION] payload is truncated or corrupted: " +
                 path.generic_string();
@@ -334,6 +402,10 @@ namespace HIKARI::ASSETS::COLLISION {
                 : "[HCOLLISION] " + validation.messages.front();
             outAsset = {};
             return false;
+        }
+        if (outInfo != nullptr) {
+            outInfo->contentHash = storedHash;
+            outInfo->fileSize = fileSize;
         }
         outMessage = "[HCOLLISION] read " + path.generic_string();
         return true;

@@ -1,5 +1,6 @@
 #pragma once
 
+#include <atomic>
 #include <cstdint>
 #include <string>
 #include <vector>
@@ -11,6 +12,23 @@ namespace HIKARI {
 }
 
 namespace HIKARI::ASSETS::COLLISION {
+
+    class ModelCollisionGenerationControl {
+    public:
+        void RequestCancel() noexcept {
+            cancellationRequested_.store(
+                true,
+                std::memory_order_relaxed);
+        }
+
+        bool IsCancellationRequested() const noexcept {
+            return cancellationRequested_.load(
+                std::memory_order_relaxed);
+        }
+
+    private:
+        std::atomic_bool cancellationRequested_{ false };
+    };
 
     enum class ModelCollisionGenerationTarget : uint8_t {
         WholeModel,
@@ -56,7 +74,8 @@ namespace HIKARI::ASSETS::COLLISION {
     ModelCollisionGenerationResult GenerateModelCollisionShapes(
         const ModelAsset& model,
         const ModelCollisionGenerationRequest& request,
-        ModelCollisionSetup& setup);
+        ModelCollisionSetup& setup,
+        const ModelCollisionGenerationControl* control = nullptr);
 
     ModelCollisionShape CreateFittedCollisionShape(
         ModelCollisionSetup& setup,

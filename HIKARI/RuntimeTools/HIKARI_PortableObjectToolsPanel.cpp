@@ -380,9 +380,14 @@ namespace HIKARI::RUNTIME_TOOLS {
             }
 
             PortableImGuiInspectorBuilder builder{};
+            const RuntimeObjectHandle runtimeObject =
+                object.GetRuntimeHandle();
             builder.SetContext(InspectorContext{
                 &scene.GetAssetRegistry(),
-                &scene.GetAssetDatabase()
+                &scene.GetAssetDatabase(),
+                nullptr,
+                &scene.GetWorld().Services(),
+                &runtimeObject
             });
 
             for (const auto& component : components) {

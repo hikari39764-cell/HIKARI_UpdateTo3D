@@ -13,6 +13,7 @@
 #include "Scene/Components/HIKARI_ModelComponent.h"
 #include "Scene/Components/HIKARI_ProceduralMeshComponent.h"
 #include "Scene/HIKARI_GameObject.h"
+#include "Scene/HIKARI_PresentationTransformService.h"
 #include "Scene/HIKARI_World.h"
 
 namespace HIKARI {
@@ -122,7 +123,8 @@ namespace HIKARI {
             const GameObject& object,
             ModelComponent& model,
             RENDER3D::RUNTIME::RenderModelCache& renderModelCache,
-            ClusteredGeometryPathResolver& clusteredGeometryPaths) {
+            ClusteredGeometryPathResolver& clusteredGeometryPaths,
+            const PresentationTransformService* presentationTransforms) {
 
             RENDER3D::RUNTIME::SceneRenderObjectDesc desc{};
             desc.id = ResolveSceneRenderObjectId(object);
@@ -139,6 +141,14 @@ namespace HIKARI {
             }
 
             desc.worldTransform = object.GetTransform();
+            MATH::Mat4 presentationWorld{};
+            if (presentationTransforms != nullptr &&
+                presentationTransforms->TryGetWorldMatrix(
+                    object.GetRuntimeHandle(),
+                    presentationWorld)) {
+                desc.worldTransform.useExplicitMatrix = true;
+                desc.worldTransform.explicitMatrix = presentationWorld;
+            }
             desc.localBounds = ResolveLocalBounds(desc.model, desc.renderModel);
             desc.worldBounds = BOUNDS::TransformBounds(
                 desc.localBounds,
@@ -185,13 +195,16 @@ namespace HIKARI {
         ClusteredGeometryPathResolver clusteredGeometryPaths(
             assetRegistry,
             std::move(projectRoot));
+        const PresentationTransformService* presentationTransforms =
+            world.Services().Find<PresentationTransformService>();
 
         world.ForEachObjectWith<ModelComponent>([&](GameObject& object, ModelComponent& model) {
             sceneRenderCache.Upsert(BuildSceneRenderObjectDesc(
                 object,
                 model,
                 renderModelCache,
-                clusteredGeometryPaths));
+                clusteredGeometryPaths,
+                presentationTransforms));
         });
 
         sceneRenderCache.EndSync();
@@ -215,6 +228,8 @@ namespace HIKARI {
         ClusteredGeometryPathResolver clusteredGeometryPaths(
             assetRegistry,
             std::move(projectRoot));
+        const PresentationTransformService* presentationTransforms =
+            world.Services().Find<PresentationTransformService>();
 
         for (GameObject* object : world.GetRenderDirtyObjects()) {
             if (object == nullptr) {
@@ -232,7 +247,8 @@ namespace HIKARI {
                 *object,
                 *model,
                 renderModelCache,
-                clusteredGeometryPaths));
+                clusteredGeometryPaths,
+                presentationTransforms));
         }
 
         sceneRenderCache.EndPatchSync();

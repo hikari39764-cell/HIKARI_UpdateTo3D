@@ -1,7 +1,6 @@
 #include "Editor/Workspaces/HIKARI_ModelCollisionWorkspaceInteraction.h"
 
 #include <algorithm>
-#include <array>
 #include <cmath>
 #include <limits>
 
@@ -25,13 +24,8 @@ namespace HIKARI::EDITOR {
             float y,
             float z,
             MATH::Vec3& outPoint) noexcept {
-
-            const MATH::Vec4 world = inverseViewProjection.TransformPoint({
-                x,
-                y,
-                z,
-                1.0f
-            });
+            const MATH::Vec4 world =
+                inverseViewProjection.TransformPoint({ x, y, z, 1.0f });
             if (!std::isfinite(world.x) ||
                 !std::isfinite(world.y) ||
                 !std::isfinite(world.z) ||
@@ -47,62 +41,6 @@ namespace HIKARI::EDITOR {
             };
             return BOUNDS::IsFinite(outPoint);
         }
-
-        bool IntersectRayBounds(
-            const ModelCollisionPointerRay& ray,
-            const Bounds& bounds,
-            float& outDistance) noexcept {
-
-            if (!BOUNDS::IsUsable(bounds)) {
-                return false;
-            }
-            float minimumDistance = 0.0f;
-            float maximumDistance =
-                (std::numeric_limits<float>::max)();
-            const std::array<float, 3> origins{
-                ray.origin.x, ray.origin.y, ray.origin.z
-            };
-            const std::array<float, 3> directions{
-                ray.direction.x, ray.direction.y, ray.direction.z
-            };
-            const std::array<float, 3> minimums{
-                bounds.min.x, bounds.min.y, bounds.min.z
-            };
-            const std::array<float, 3> maximums{
-                bounds.max.x, bounds.max.y, bounds.max.z
-            };
-            for (size_t axis = 0; axis < 3u; ++axis) {
-                if (std::abs(directions[axis]) <= 1.0e-7f) {
-                    if (origins[axis] < minimums[axis] ||
-                        origins[axis] > maximums[axis]) {
-                        return false;
-                    }
-                    continue;
-                }
-                const float inverseDirection = 1.0f / directions[axis];
-                float first =
-                    (minimums[axis] - origins[axis]) * inverseDirection;
-                float second =
-                    (maximums[axis] - origins[axis]) * inverseDirection;
-                if (first > second) {
-                    std::swap(first, second);
-                }
-                minimumDistance = (std::max)(minimumDistance, first);
-                maximumDistance = (std::min)(maximumDistance, second);
-                if (minimumDistance > maximumDistance) {
-                    return false;
-                }
-            }
-            outDistance = minimumDistance;
-            return std::isfinite(outDistance);
-        }
-
-        float BoundsVolume(const Bounds& bounds) noexcept {
-            const MATH::Vec3 size = bounds.max - bounds.min;
-            return (std::max)(
-                0.0f,
-                size.x * size.y * size.z);
-        }
     }
 
     bool BuildModelCollisionPointerRay(
@@ -110,7 +48,6 @@ namespace HIKARI::EDITOR {
         float normalizedViewportX,
         float normalizedViewportY,
         ModelCollisionPointerRay& outRay) noexcept {
-
         const float clipX = normalizedViewportX * 2.0f - 1.0f;
         const float clipY = 1.0f - normalizedViewportY * 2.0f;
         const MATH::Mat4 inverseViewProjection =
@@ -142,7 +79,6 @@ namespace HIKARI::EDITOR {
 
     Bounds ComputeModelCollisionShapeBounds(
         const ASSETS::COLLISION::ModelCollisionShape& shape) noexcept {
-
         if (shape.type == ASSETS::COLLISION::
                 CollisionGeometryShapeType::ConvexHull ||
             shape.type == ASSETS::COLLISION::
@@ -201,23 +137,29 @@ namespace HIKARI::EDITOR {
         const ASSETS::COLLISION::ModelCollisionSetup& setup,
         const std::unordered_set<uint64_t>& hiddenShapeIds,
         bool generatedOnly) noexcept {
-
         float bestDistance = (std::numeric_limits<float>::max)();
         float bestVolume = (std::numeric_limits<float>::max)();
         uint64_t bestShapeId = 0u;
         for (const ASSETS::COLLISION::ModelCollisionShape& shape :
-            setup.shapes) {
-
+                setup.shapes) {
             if (hiddenShapeIds.contains(shape.id) ||
                 (generatedOnly && !shape.generated)) {
                 continue;
             }
             const Bounds bounds = ComputeModelCollisionShapeBounds(shape);
             float distance = 0.0f;
-            if (!IntersectRayBounds(ray, bounds, distance)) {
+            if (!DETAIL::IntersectModelCollisionBounds(
+                    ray,
+                    bounds,
+                    distance) ||
+                !DETAIL::IntersectModelCollisionShapeExact(
+                    ray,
+                    shape,
+                    distance)) {
                 continue;
             }
-            const float volume = BoundsVolume(bounds);
+            const float volume =
+                DETAIL::ComputeModelCollisionBoundsVolume(bounds);
             const float distanceTolerance = (std::max)(
                 0.001f,
                 bestDistance * 0.002f);
@@ -234,17 +176,26 @@ namespace HIKARI::EDITOR {
 
     int32_t PickModelCollisionSourceNode(
         const ModelCollisionPointerRay& ray,
-        const std::vector<ModelCollisionPreviewNode>& nodes) noexcept {
-
+        const std::vector<ModelCollisionPreviewNode>& nodes,
+        const ModelAsset& model) noexcept {
         float bestDistance = (std::numeric_limits<float>::max)();
         float bestVolume = (std::numeric_limits<float>::max)();
         int32_t bestNodeIndex = -1;
         for (const ModelCollisionPreviewNode& node : nodes) {
             float distance = 0.0f;
-            if (!IntersectRayBounds(ray, node.bounds, distance)) {
+            if (!DETAIL::IntersectModelCollisionBounds(
+                    ray,
+                    node.bounds,
+                    distance) ||
+                !DETAIL::IntersectModelCollisionSourceNodeExact(
+                    ray,
+                    node,
+                    model,
+                    distance)) {
                 continue;
             }
-            const float volume = BoundsVolume(node.bounds);
+            const float volume =
+                DETAIL::ComputeModelCollisionBoundsVolume(node.bounds);
             const float distanceTolerance = (std::max)(
                 0.001f,
                 bestDistance * 0.002f);

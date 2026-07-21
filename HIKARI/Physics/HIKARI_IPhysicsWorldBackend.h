@@ -20,7 +20,7 @@ namespace HIKARI::PHYSICS {
             const PhysicsWorldSettings& settings) = 0;
         virtual void Shutdown() noexcept = 0;
 
-        virtual PhysicsBodyHandle CreateBody(
+        virtual PhysicsBodyCreateResult CreateBody(
             const PhysicsBodyCreateInfo& createInfo) = 0;
         virtual bool DestroyBody(PhysicsBodyHandle body) = 0;
         virtual bool SetBodyPose(
@@ -38,7 +38,9 @@ namespace HIKARI::PHYSICS {
             PhysicsBodyHandle body,
             PhysicsBodyState& outState) const = 0;
 
-        virtual void Step(float fixedDeltaSeconds) = 0;
+        virtual PhysicsStepResult Step(float fixedDeltaSeconds) = 0;
+        virtual PhysicsBackendStatistics GetStatistics()
+            const noexcept = 0;
         virtual void DrainContactEvents(
             std::vector<PhysicsContactEvent>& outEvents) = 0;
 

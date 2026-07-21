@@ -127,6 +127,7 @@ namespace HIKARI::PHYSICS::JOLT_BACKEND {
             outHit.body = handle;
             outHit.object = record->object;
             outHit.shapeIndex = shapeIndex;
+            outHit.shapeKey = record->shapes[shapeIndex].key;
             outHit.position = FromJoltPosition(position);
             outHit.normal = FromJolt(
                 joltBody.GetWorldSpaceSurfaceNormal(
@@ -207,6 +208,7 @@ namespace HIKARI::PHYSICS::JOLT_BACKEND {
             outHit.body = handle;
             outHit.object = record->object;
             outHit.shapeIndex = shapeIndex;
+            outHit.shapeKey = record->shapes[shapeIndex].key;
             outHit.position = FromJolt(result.mContactPointOn2);
             outHit.normal = NormalFromPenetrationAxis(
                 result.mPenetrationAxis);
@@ -275,6 +277,7 @@ namespace HIKARI::PHYSICS::JOLT_BACKEND {
             hit.body = handle;
             hit.object = record->object;
             hit.shapeIndex = shapeIndex;
+            hit.shapeKey = record->shapes[shapeIndex].key;
             hit.position = FromJolt(result.mContactPointOn2);
             hit.normal = NormalFromPenetrationAxis(
                 result.mPenetrationAxis);

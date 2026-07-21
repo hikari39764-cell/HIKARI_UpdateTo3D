@@ -9,10 +9,12 @@
 #include <Jolt/Core/Memory.h>
 #include <Jolt/Physics/Body/AllowedDOFs.h>
 #include <Jolt/Physics/Body/BodyCreationSettings.h>
+#include <Jolt/Physics/EPhysicsUpdateError.h>
 #include <Jolt/RegisterTypes.h>
 
 #include "Physics/Backends/Jolt/HIKARI_JoltConversions.h"
 #include "Physics/Backends/Jolt/HIKARI_JoltShapeFactory.h"
+#include "Physics/HIKARI_PhysicsBodyValidator.h"
 
 namespace HIKARI::PHYSICS::JOLT_BACKEND {
     namespace {
@@ -285,24 +287,35 @@ namespace HIKARI::PHYSICS::JOLT_BACKEND {
         return FindRecord(HandleFromUserData(value));
     }
 
-    PhysicsBodyHandle JoltPhysicsBackend::CreateBody(
+    PhysicsBodyCreateResult JoltPhysicsBackend::CreateBody(
         const PhysicsBodyCreateInfo& createInfo) {
+        PhysicsBodyCreateResult createResult{};
+        createResult.effectiveMotionType = createInfo.body.motionType;
         if (!initialized_ || !physicsSystem_ || createInfo.shapes.empty()) {
-            return {};
+            createResult.error = PhysicsErrorCode::WorldUnavailable;
+            createResult.message = "Jolt physics world is not initialized";
+            createResult.recoverable = true;
+            return createResult;
         }
-        if (createInfo.body.motionType != PhysicsMotionType::Static &&
-            std::any_of(
-                createInfo.shapes.begin(),
-                createInfo.shapes.end(),
-                [](const PhysicsShapeDesc& candidate) {
-                    return candidate.type == PhysicsShapeType::TriangleMesh;
-                })) {
-            return {};
+        const PhysicsBodyValidationResult validation =
+            ValidatePhysicsBodyCreateInfo(createInfo);
+        if (!validation.valid) {
+            createResult.error = validation.error;
+            createResult.message = validation.message;
+            return createResult;
         }
 
-        JPH::ShapeRefC shape = BuildCompoundShape(createInfo.shapes);
+        std::string shapeError{};
+        JPH::ShapeRefC shape = BuildCompoundShape(
+            createInfo.shapes,
+            &shapeError);
         if (!shape) {
-            return {};
+            createResult.error =
+                PhysicsErrorCode::BackendShapeCreationFailed;
+            createResult.message = shapeError.empty()
+                ? "Jolt failed to create the collision shape"
+                : "Jolt shape creation failed: " + shapeError;
+            return createResult;
         }
 
         PhysicsBodyHandle handle{};
@@ -315,10 +328,6 @@ namespace HIKARI::PHYSICS::JOLT_BACKEND {
             createInfo.body.motionType);
         const JPH::EAllowedDOFs allowedDofs = BuildAllowedDofs(
             createInfo.body);
-        if (motionType == JPH::EMotionType::Dynamic &&
-            allowedDofs == JPH::EAllowedDOFs::None) {
-            motionType = JPH::EMotionType::Kinematic;
-        }
         const JPH::ObjectLayer layer =
             motionType == JPH::EMotionType::Static
             ? kStaticLayer
@@ -330,9 +339,7 @@ namespace HIKARI::PHYSICS::JOLT_BACKEND {
             motionType,
             layer);
         settings.mUserData = handle.ToValue();
-        settings.mAllowedDOFs = allowedDofs == JPH::EAllowedDOFs::None
-            ? JPH::EAllowedDOFs::All
-            : allowedDofs;
+        settings.mAllowedDOFs = allowedDofs;
         settings.mAllowSleeping = createInfo.body.allowSleeping &&
             settings_.allowSleeping;
         settings.mLinearDamping = (std::max)(
@@ -376,7 +383,12 @@ namespace HIKARI::PHYSICS::JOLT_BACKEND {
         if (bodyId.IsInvalid()) {
             std::scoped_lock lock(recordsMutex_);
             freeSlots_.push_back(handle.slot);
-            return {};
+            createResult.error =
+                PhysicsErrorCode::BackendCapacityExceeded;
+            createResult.message =
+                "Jolt body creation failed; the body capacity may be exhausted";
+            createResult.recoverable = true;
+            return createResult;
         }
 
         std::scoped_lock lock(recordsMutex_);
@@ -387,7 +399,10 @@ namespace HIKARI::PHYSICS::JOLT_BACKEND {
         record.motionType = createInfo.body.motionType;
         record.shapes = createInfo.shapes;
         record.hasPendingKinematicTarget = false;
-        return handle;
+        createResult.handle = handle;
+        createResult.error = PhysicsErrorCode::None;
+        createResult.message = "Jolt body created";
+        return createResult;
     }
 
     bool JoltPhysicsBackend::DestroyBody(PhysicsBodyHandle body) {
@@ -517,10 +532,14 @@ namespace HIKARI::PHYSICS::JOLT_BACKEND {
         return true;
     }
 
-    void JoltPhysicsBackend::Step(float fixedDeltaSeconds) {
+    PhysicsStepResult JoltPhysicsBackend::Step(
+        float fixedDeltaSeconds) {
+        PhysicsStepResult result{};
         if (!initialized_ || !physicsSystem_ ||
             fixedDeltaSeconds <= 0.0f) {
-            return;
+            result.error = PhysicsErrorCode::WorldUnavailable;
+            result.message = "Jolt physics world is not initialized";
+            return result;
         }
         std::vector<std::pair<JPH::BodyID, PhysicsPose>> targets{};
         {
@@ -545,11 +564,44 @@ namespace HIKARI::PHYSICS::JOLT_BACKEND {
                 ToJolt(pose.rotation),
                 fixedDeltaSeconds);
         }
-        physicsSystem_->Update(
+        const JPH::EPhysicsUpdateError updateError = physicsSystem_->Update(
             fixedDeltaSeconds,
             1,
             tempAllocator_.get(),
             jobSystem_.get());
+        if (updateError == JPH::EPhysicsUpdateError::None) {
+            return result;
+        }
+        result.error = PhysicsErrorCode::BackendStepFailed;
+        result.message = "Jolt step dropped contacts:";
+        const auto hasError = [updateError](JPH::EPhysicsUpdateError flag) {
+            return static_cast<uint32_t>(updateError & flag) != 0u;
+        };
+        if (hasError(JPH::EPhysicsUpdateError::ManifoldCacheFull)) {
+            result.message += " manifold cache full;";
+        }
+        if (hasError(JPH::EPhysicsUpdateError::BodyPairCacheFull)) {
+            result.message += " body pair cache full;";
+        }
+        if (hasError(JPH::EPhysicsUpdateError::ContactConstraintsFull)) {
+            result.message += " contact constraints full;";
+        }
+        return result;
+    }
+
+    PhysicsBackendStatistics
+        JoltPhysicsBackend::GetStatistics() const noexcept {
+        PhysicsBackendStatistics result{};
+        result.bodyCapacity = kMaximumBodies;
+        result.bodyPairCapacity = kMaximumBodyPairs;
+        result.contactConstraintCapacity = kMaximumContactConstraints;
+        result.temporaryAllocatorBytes = kTemporaryAllocatorBytes;
+        if (initialized_ && physicsSystem_) {
+            result.bodyCount = physicsSystem_->GetNumBodies();
+            result.activeBodyCount = physicsSystem_->GetNumActiveBodies(
+                JPH::EBodyType::RigidBody);
+        }
+        return result;
     }
 
     std::unique_ptr<IPhysicsWorldBackend> CreateJoltPhysicsBackend() {

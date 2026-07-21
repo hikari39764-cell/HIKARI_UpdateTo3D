@@ -46,6 +46,7 @@ namespace HIKARI {
         const std::filesystem::path& GetAssetsRoot() const;
         const std::filesystem::path& GetLibraryRoot() const;
         const std::filesystem::path& GetSourceMetaRoot() const;
+        uint64_t GetContentRevision() const noexcept;
 
         AssetImporterRegistry& GetImporterRegistry();
         const AssetImporterRegistry& GetImporterRegistry() const;
@@ -104,6 +105,7 @@ namespace HIKARI {
         std::filesystem::path NormalizeProjectPath(const std::filesystem::path& path) const;
         std::string MakePathKey(const std::filesystem::path& path) const;
         bool IsPathUnderDirectory(const std::filesystem::path& path, const std::filesystem::path& directory) const;
+        void AdvanceContentRevision() noexcept;
 
         std::filesystem::path projectRoot_{};
         std::filesystem::path assetsRoot_{};
@@ -116,6 +118,7 @@ namespace HIKARI {
         std::vector<std::filesystem::path> directories_{};
         std::unordered_map<std::string, size_t> recordsByGuid_{};
         std::unordered_map<std::string, size_t> guidByNormalizedPath_{};
+        uint64_t contentRevision_ = 1u;
     };
 
 } // namespace HIKARI

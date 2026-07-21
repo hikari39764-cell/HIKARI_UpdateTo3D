@@ -23,6 +23,8 @@ namespace HIKARI {
         void SetDocumentId(SceneObjectId id);
         SceneObjectId GetDocumentId() const;
         RuntimeObjectHandle GetRuntimeHandle() const noexcept;
+        World* GetWorld() noexcept;
+        const World* GetWorld() const noexcept;
 
         const Transform3D& GetTransform() const noexcept;
         bool SetLocalTransform(const Transform3D& transform);
