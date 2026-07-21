@@ -1,8 +1,10 @@
 #include "Editor/Controllers/HIKARI_DocumentSceneEditorController.h"
 
 #include "Editor/Authoring/HIKARI_EditorObjectFactory.h"
+#include "Editor/Authoring/HIKARI_EditorObjectPlacement.h"
 #include "Editor/DragDrop/HIKARI_EditorAssetDragDrop.h"
 #include "Editor/History/HIKARI_CinematicsHistoryCommand.h"
+#include "Editor/History/HIKARI_SceneObjectsHistoryCommand.h"
 #include "Editor/History/HIKARI_SceneSystemsHistoryCommand.h"
 #include "Editor/SystemAuthoring/HIKARI_BuiltInSystemAuthoring.h"
 #include "Editor/Menus/HIKARI_EditorDocumentMenu.h"
@@ -58,14 +60,6 @@ namespace HIKARI {
                 }
             }
             return false;
-        }
-
-        MATH::Vec3 ComputeDebugCameraForward(const DebugCameraController3D& camera) {
-            const float cp = std::cos(camera.GetPitch());
-            const float sp = std::sin(camera.GetPitch());
-            const float cy = std::cos(camera.GetYaw());
-            const float sy = std::sin(camera.GetYaw());
-            return MATH::Normalize({ sy * cp, sp, cy * cp });
         }
 
         std::string SummarizeRuntimeRefreshReport(const RuntimeResourceRefreshReport& report) {
@@ -729,6 +723,14 @@ namespace HIKARI {
         DocumentSceneBase& scene) {
 
         if (workspaceHost_.IsActive(
+                EDITOR::EditorWorkspaceId::ModelCollision)) {
+            (void)modelCollisionWorkspaceController_.SaveDocument(
+                scene,
+                viewportDropMessage_);
+            return;
+        }
+
+        if (workspaceHost_.IsActive(
                 EDITOR::EditorWorkspaceId::Cinematics) &&
             cinematicsWorkspaceController_.IsEditingSequenceAsset()) {
             (void)cinematicsWorkspaceController_.SaveSequenceDocument(
@@ -753,6 +755,18 @@ namespace HIKARI {
     void DocumentSceneEditorController::ExecuteDocumentHistory(
         DocumentSceneBase& scene,
         bool redo) {
+
+        if (workspaceHost_.IsActive(
+                EDITOR::EditorWorkspaceId::ModelCollision)) {
+            if (redo) {
+                (void)modelCollisionWorkspaceController_.Redo(
+                    viewportDropMessage_);
+            } else {
+                (void)modelCollisionWorkspaceController_.Undo(
+                    viewportDropMessage_);
+            }
+            return;
+        }
 
         if (workspaceHost_.IsActive(
                 EDITOR::EditorWorkspaceId::Cinematics) &&
@@ -798,6 +812,14 @@ namespace HIKARI {
                 EDITOR::EditorDocumentImpact::Systems)) {
             sceneSystemsPanel_.SetRuntimeApplyStatus(
                 scene.ApplySystemRuntimeChanges());
+        }
+        if (HasImpact(
+                result.impact,
+                EDITOR::EditorDocumentImpact::RuntimeWorld)) {
+            selectionSync_.RebuildRuntimeWorldWithSelectionSync(
+                scene,
+                context_.selection,
+                context_.nextSceneObjectId);
         }
 
         const bool dirty =
@@ -857,7 +879,18 @@ namespace HIKARI {
             workspaceHost_.IsActive(
                 EDITOR::EditorWorkspaceId::Cinematics) &&
             cinematicsWorkspaceController_.IsEditingSequenceAsset();
-        if (sequenceAssetDocument) {
+        const bool modelCollisionDocument =
+            workspaceHost_.IsActive(
+                EDITOR::EditorWorkspaceId::ModelCollision) &&
+            modelCollisionWorkspaceController_.IsEditingModel();
+        if (modelCollisionDocument) {
+            documentMenu.canUndo =
+                modelCollisionWorkspaceController_.CanUndo();
+            documentMenu.canRedo =
+                modelCollisionWorkspaceController_.CanRedo();
+            documentMenu.undoLabel = "Edit Model Collision";
+            documentMenu.redoLabel = "Edit Model Collision";
+        } else if (sequenceAssetDocument) {
             documentMenu.canUndo =
                 cinematicsWorkspaceController_.CanUndoSequenceDocument();
             documentMenu.canRedo =
@@ -902,6 +935,34 @@ namespace HIKARI {
                 *activation,
                 context_,
                 workspaceHost_);
+            modelCollisionWorkspaceController_.ApplyWorkspaceActivation(
+                scene,
+                *activation,
+                workspaceHost_);
+        }
+
+        if (workspaceHost_.IsActive(
+                EDITOR::EditorWorkspaceId::ModelCollision)) {
+            modelCollisionWorkspaceController_.DrawDockSpace(
+                workspaceHost_.ConsumeReset(
+                    EDITOR::EditorWorkspaceId::ModelCollision));
+            const EDITOR::ModelCollisionWorkspaceResult result =
+                modelCollisionWorkspaceController_.Draw(
+                    scene,
+                    workspaceHost_);
+            if (result.exitToSceneRequested) {
+                EDITOR::EditorWorkspaceOpenRequest request{};
+                request.workspaceId = EDITOR::EditorWorkspaceId::Scene;
+                (void)workspaceHost_.RequestOpen(std::move(request));
+            }
+            if (!result.statusMessage.empty()) {
+                viewportDropMessage_ = result.statusMessage;
+            }
+            DrawPendingSceneOpenModal(scene);
+            if (renderQualitySavePending_ && !ImGui::IsAnyItemActive()) {
+                (void)SaveRenderQualityProfile(scene);
+            }
+            return;
         }
 
         if (workspaceHost_.IsActive(EDITOR::EditorWorkspaceId::Cinematics)) {
@@ -971,6 +1032,20 @@ namespace HIKARI {
         if (context_.windows.authoring.showSceneWorkspace) {
             DrawSceneWorkspaceWindow(scene);
         }
+        if (std::optional<SceneObjectAuthoringHistoryRequest> history =
+                sceneObjectAuthoringPanel_.ConsumeHistoryRequest()) {
+            historyExternalDirty_ |=
+                history->dirtyBefore && !documentHistory_.IsDirty();
+            documentHistory_.RecordApplied(
+                EDITOR::MakeSceneObjectsHistoryCommand(
+                    std::move(history->label),
+                    std::move(history->beforeObjects),
+                    std::move(history->afterObjects),
+                    std::move(history->beforeCamera),
+                    std::move(history->afterCamera)));
+            context_.sceneDirty = true;
+            scene.SetUnsavedSceneChanges(true);
+        }
         if (const std::optional<SceneObjectId> cameraRequest =
                 sceneObjectAuthoringPanel_.ConsumeOpenCinematicsWorkspaceCameraRequest()) {
             EDITOR::EditorWorkspaceOpenRequest request{};
@@ -992,6 +1067,17 @@ namespace HIKARI {
                 scene.GetSceneDocument(),
                 context_.selection,
                 resourceContext);
+
+            const std::string activatedModelCollisionGuid =
+                resourceWorkspacePanel_.ConsumeActivatedModelCollisionGuid();
+            if (!activatedModelCollisionGuid.empty()) {
+                EDITOR::EditorWorkspaceOpenRequest request{};
+                request.workspaceId =
+                    EDITOR::EditorWorkspaceId::ModelCollision;
+                request.modelAssetGuid =
+                    AssetGuid{ activatedModelCollisionGuid };
+                (void)workspaceHost_.RequestOpen(std::move(request));
+            }
 
             const std::string saveSceneAsGuid = resourceWorkspacePanel_.ConsumeSaveSceneAsGuid();
             if (!saveSceneAsGuid.empty()) {
@@ -1688,12 +1774,13 @@ namespace HIKARI {
 
         switch (payload.record->type) {
         case AssetType::Model: {
-            const MATH::Vec3 forward = ComputeDebugCameraForward(scene.GetDebugCamera());
             EDITOR::CreateObjectRequest request{};
             request.name = payload.record->displayName.empty()
                 ? payload.record->sourcePath.stem().string()
                 : payload.record->displayName;
-            request.position = scene.GetDebugCamera().GetPosition() + forward * 5.0f;
+            request.position = EDITOR::ComputeObjectPlacementInView(
+                scene.GetCamera(),
+                1.0f);
 
             GameObject* object = EDITOR::CreateModelObject(scene, payload.guid, request);
             context_.selection.selectedObject = object;

@@ -402,6 +402,24 @@ namespace HIKARI {
                 }
             }
 
+            if (diagnostics.contains("collisionGeometry") &&
+                diagnostics["collisionGeometry"].is_object()) {
+                const nlohmann::json& collision =
+                    diagnostics["collisionGeometry"];
+                ImGui::SeparatorText("Model Collision");
+                ImGui::Text(
+                    "Runtime artifact: %s",
+                    collision.value("ready", false) ? "Ready" : "None");
+                ImGui::Text(
+                    "Shapes: %d",
+                    collision.value("shapeCount", 0));
+                ImGui::Text(
+                    "Message: %s",
+                    collision.value("message", "").c_str());
+                ImGui::TextDisabled(
+                    "Author in the Model Collision workspace.");
+            }
+
             if (diagnostics.contains("textures") &&
                 diagnostics["textures"].is_array() &&
                 ImGui::BeginTable("ModelDiagnosticTextures", 4, ImGuiTableFlags_RowBg | ImGuiTableFlags_BordersInnerV)) {

@@ -25,6 +25,19 @@ namespace HIKARI::EDITOR {
         cinematicsOverviewView_.purpose = RENDER3D::RenderViewPurpose::EditorScene;
         cinematicsOverviewView_.cameraBinding.kind = EditorViewCameraSourceKind::OwnedEditorCamera;
         cinematicsOverviewView_.execution = EditorViewExecutionMode::LightweightEditorOverview;
+
+        modelCollisionPreviewView_.renderViewId =
+            kModelCollisionPreviewRenderViewId;
+        modelCollisionPreviewView_.role = EditorViewRole::Director;
+        modelCollisionPreviewView_.purpose =
+            RENDER3D::RenderViewPurpose::EditorScene;
+        modelCollisionPreviewView_.cameraBinding.kind =
+            EditorViewCameraSourceKind::OwnedEditorCamera;
+        modelCollisionPreviewView_.execution =
+            EditorViewExecutionMode::SecondaryEditorScene;
+        modelCollisionPreviewView_.visualization.shadingMode =
+            EditorViewShadingMode::Neutral;
+        modelCollisionPreviewView_.visualization.displayExposure = 1.0f;
     }
 
     bool EditorWorkspaceHost::RequestOpen(EditorWorkspaceOpenRequest request) {
@@ -49,6 +62,7 @@ namespace HIKARI::EDITOR {
         activation.current = request.workspaceId;
         activation.targetCameraObjectId = request.targetCameraObjectId;
         activation.sequenceAssetGuid = request.sequenceAssetGuid;
+        activation.modelAssetGuid = request.modelAssetGuid;
         activeWorkspace_ = request.workspaceId;
 
         return activation;
@@ -63,7 +77,9 @@ namespace HIKARI::EDITOR {
     }
 
     void EditorWorkspaceHost::RequestResetActiveLayout() noexcept {
-        if (activeWorkspace_ == EditorWorkspaceId::Cinematics) {
+        if (activeWorkspace_ == EditorWorkspaceId::ModelCollision) {
+            resetModelCollisionLayoutRequested_ = true;
+        } else if (activeWorkspace_ == EditorWorkspaceId::Cinematics) {
             resetCinematicsLayoutRequested_ = true;
         } else {
             resetSceneLayoutRequested_ = true;
@@ -71,9 +87,12 @@ namespace HIKARI::EDITOR {
     }
 
     bool EditorWorkspaceHost::ConsumeReset(EditorWorkspaceId workspaceId) noexcept {
-        bool* requested = workspaceId == EditorWorkspaceId::Cinematics
-            ? &resetCinematicsLayoutRequested_
-            : &resetSceneLayoutRequested_;
+        bool* requested = &resetSceneLayoutRequested_;
+        if (workspaceId == EditorWorkspaceId::Cinematics) {
+            requested = &resetCinematicsLayoutRequested_;
+        } else if (workspaceId == EditorWorkspaceId::ModelCollision) {
+            requested = &resetModelCollisionLayoutRequested_;
+        }
         const bool result = *requested;
         *requested = false;
         return result;
@@ -101,6 +120,14 @@ namespace HIKARI::EDITOR {
 
     const EditorViewInstance& EditorWorkspaceHost::GetCinematicsOverviewView() const noexcept {
         return cinematicsOverviewView_;
+    }
+
+    EditorViewInstance& EditorWorkspaceHost::GetModelCollisionPreviewView() noexcept {
+        return modelCollisionPreviewView_;
+    }
+
+    const EditorViewInstance& EditorWorkspaceHost::GetModelCollisionPreviewView() const noexcept {
+        return modelCollisionPreviewView_;
     }
 
 } // namespace HIKARI::EDITOR

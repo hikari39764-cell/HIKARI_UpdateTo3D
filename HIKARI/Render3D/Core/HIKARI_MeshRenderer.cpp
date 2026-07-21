@@ -31,6 +31,7 @@
 #include "Render3D/GpuDriven/HIKARI_GpuSceneSurfaceRecord.h"
 #include "Render3D/GpuDriven/HIKARI_GpuDrivenWorkBuilder.h"
 #include "Render3D/Pipeline/HIKARI_RenderFramePipeline.h"
+#include "Render3D/Resources/HIKARI_RenderResourceDescriptorPool.h"
 #include "Render3D/Resources/HIKARI_TextureResourceSystem.h"
 #include "Render3D/ScreenSpace/HIKARI_ScreenSpaceGeometryAux.h"
 #include "Render3D/ScreenSpace/HIKARI_ScreenSpacePasses.h"
@@ -57,6 +58,8 @@ namespace HIKARI::MESHRENDERER {
             D3D12_GPU_VIRTUAL_ADDRESS lightAddress = 0;
             D3D12_GPU_VIRTUAL_ADDRESS shadowAddress = 0;
             D3D12_GPU_VIRTUAL_ADDRESS skyEnvironmentAddress = 0;
+            RENDER3D::GPUDRIVEN::SurfaceGpuSceneFrameBuffer*
+                surfaceGpuSceneFrameBuffer = nullptr;
             RENDER3D::GPUDRIVEN::GpuTraditionalCommandStreamBuffer*
                 traditionalCommandStreamBuffer = nullptr;
         };
@@ -277,8 +280,18 @@ namespace HIKARI::MESHRENDERER {
                 }
                 frame = {};
             }
-            g.editorInteractive.traditionalCommandStreamBuffer = {};
             g.editorInteractive.gpuDrivenLayer = {};
+            g.editorInteractive.traditionalCommandStreamBuffer = {};
+            g.editorInteractive.surfaceGpuSceneBuffer = {};
+            g.editorInteractive.sceneResidency.Reset();
+            for (RENDER3D::RenderResourceView& view :
+                g.editorInteractive.surfaceGpuSceneViews) {
+
+                if (view.IsValid()) {
+                    (void)RENDER3D::ReleaseRenderResourceDescriptor(view);
+                }
+                view = {};
+            }
             g.editorInteractive.initialized = false;
         }
 
@@ -318,6 +331,36 @@ namespace HIKARI::MESHRENDERER {
                 }
             }
 
+            RENDER3D::UpdateRenderResourceDescriptorPoolContext(SERVICES::gCtx);
+            std::array<
+                D3D12_CPU_DESCRIPTOR_HANDLE,
+                GFX::kFrameResourceCount> sceneSrvCpu{};
+            std::array<
+                D3D12_GPU_DESCRIPTOR_HANDLE,
+                GFX::kFrameResourceCount> sceneSrvGpu{};
+            for (uint32_t frameIndex = 0;
+                frameIndex < GFX::kFrameResourceCount;
+                ++frameIndex) {
+
+                RENDER3D::RenderResourceView& view =
+                    g.editorInteractive.surfaceGpuSceneViews[frameIndex];
+                view = RENDER3D::AllocateRenderResourceDescriptor();
+                if (!view.IsValid()) {
+                    ResetEditorInteractiveResources();
+                    return false;
+                }
+                sceneSrvCpu[frameIndex] = view.cpu;
+                sceneSrvGpu[frameIndex] = view.gpu;
+            }
+            if (!g.editorInteractive.surfaceGpuSceneBuffer.Initialize(
+                    device,
+                    sceneSrvCpu,
+                    sceneSrvGpu)) {
+
+                ResetEditorInteractiveResources();
+                return false;
+            }
+
             if (!g.editorInteractive.traditionalCommandStreamBuffer.Initialize(
                     device,
                     GetStaticRootSignature(g.pipelines),
@@ -335,7 +378,7 @@ namespace HIKARI::MESHRENDERER {
             }
 
             g.editorInteractive.gpuDrivenLayer.Attach(
-                &g.surfaceGpuSceneBuffer,
+                &g.editorInteractive.surfaceGpuSceneBuffer,
                 &g.editorInteractive.traditionalCommandStreamBuffer,
                 nullptr);
             if (!g.editorInteractive.gpuDrivenLayer.Initialize(
@@ -1670,9 +1713,14 @@ namespace HIKARI::MESHRENDERER {
             ctx.gpuMaterialRegistry = &g.gpuMaterialRegistry;
             ctx.objectDataSrv = frame.objectDataSrvGpu;
             ctx.materialDataSrv = frame.materialDataSrvGpu;
-            ctx.surfaceGpuSceneSrv = g.surfaceGpuSceneBuffer.GetSrv();
-            ctx.surfaceGpuSceneFrameBuffer = &g.surfaceGpuSceneBuffer;
 #if defined(HIKARI_WITH_EDITOR)
+            ctx.surfaceGpuSceneFrameBuffer =
+                overrides != nullptr &&
+                    overrides->surfaceGpuSceneFrameBuffer != nullptr
+                    ? overrides->surfaceGpuSceneFrameBuffer
+                    : &g.surfaceGpuSceneBuffer;
+            ctx.surfaceGpuSceneSrv =
+                ctx.surfaceGpuSceneFrameBuffer->GetSrv();
             ctx.traditionalCommandStreamBuffer =
                 overrides != nullptr &&
                     overrides->traditionalCommandStreamBuffer != nullptr
@@ -1706,6 +1754,8 @@ namespace HIKARI::MESHRENDERER {
                         ? frame.skyEnvironmentCB->GetGPUVirtualAddress()
                         : 0);
 #else
+            ctx.surfaceGpuSceneSrv = g.surfaceGpuSceneBuffer.GetSrv();
+            ctx.surfaceGpuSceneFrameBuffer = &g.surfaceGpuSceneBuffer;
             ctx.traditionalCommandStreamBuffer = &g.traditionalCommandStreamBuffer;
             ctx.cameraAddress = ResolveCameraAddressForPass(passKind);
             ctx.cullingCameraAddress = ResolveCullingCameraAddress();
@@ -1877,11 +1927,12 @@ namespace HIKARI::MESHRENDERER {
 
 #if defined(HIKARI_WITH_EDITOR)
         bool RenderEditorInteractiveMainlineStatic(
+            const RENDER3D::GPUDRIVEN::GpuDrivenSceneSource& sceneSource,
             const MeshPassResources& passResources,
             const MeshFrameBindingOverrides& overrides) {
 
             const RENDER3D::GPUDRIVEN::GpuDrivenPassSource& pass =
-                g.gpuDrivenSceneSource.GetPass(
+                sceneSource.GetPass(
                     RENDER3D::GPUDRIVEN::GpuDrivenPassKind::ForwardOpaque);
             if (pass.instances == nullptr ||
                 pass.materialSources == nullptr ||
@@ -2421,9 +2472,23 @@ namespace HIKARI::MESHRENDERER {
             editorFrame.shadowMapped->enabled = 0;
         }
 
+        const RENDER3D::GPUDRIVEN::GpuDrivenSceneSource& sceneSource =
+            settings.sceneSourceOverride != nullptr
+                ? *settings.sceneSourceOverride
+                : g.gpuDrivenSceneSource;
         RENDER3D::GPUDRIVEN::GpuDrivenLayer& layer =
             g.editorInteractive.gpuDrivenLayer;
-        layer.BeginFrame(&g.gpuDrivenSceneSource);
+        layer.BeginFrame(&sceneSource);
+        RENDER3D::GPUDRIVEN::GpuDrivenSceneUploadDesc uploadDesc{};
+        uploadDesc.commandList = SERVICES::gCtx.cmdList;
+        uploadDesc.residency = &g.editorInteractive.sceneResidency;
+        uploadDesc.frameIndex = SERVICES::gCtx.frameIndex;
+        const RENDER3D::GPUDRIVEN::GpuDrivenSceneUploadStats& uploadStats =
+            layer.UploadSceneFrame(uploadDesc);
+        if (sceneSource.CountGpuSceneInstances() != 0u &&
+            !uploadStats.sceneResident) {
+            return false;
+        }
         RENDER3D::GPUDRIVEN::GpuDrivenBackendAvailability availability{};
         availability.traditionalIndirectPipelineReady =
             GetStaticRootSignature(g.pipelines) != nullptr &&
@@ -2448,8 +2513,9 @@ namespace HIKARI::MESHRENDERER {
         SERVICES::gCtx.cmdList->IASetPrimitiveTopology(
             D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
-        if (!HasGpuDrivenPassSource(
-                RENDER3D::GPUDRIVEN::GpuDrivenPassKind::ForwardOpaque)) {
+        if (!sceneSource.GetPass(
+                RENDER3D::GPUDRIVEN::GpuDrivenPassKind::ForwardOpaque)
+                .HasGpuSceneRange()) {
             return true;
         }
 
@@ -2463,6 +2529,8 @@ namespace HIKARI::MESHRENDERER {
             editorFrame.shadowCB->GetGPUVirtualAddress();
         overrides.skyEnvironmentAddress =
             editorFrame.skyEnvironmentCB->GetGPUVirtualAddress();
+        overrides.surfaceGpuSceneFrameBuffer =
+            &g.editorInteractive.surfaceGpuSceneBuffer;
         overrides.traditionalCommandStreamBuffer =
             &g.editorInteractive.traditionalCommandStreamBuffer;
 
@@ -2470,6 +2538,7 @@ namespace HIKARI::MESHRENDERER {
         passResources.fallbackAoTextureHandle = g.fallbackTextureHandle;
         const bool mainlineRendered =
             RenderEditorInteractiveMainlineStatic(
+                sceneSource,
                 passResources,
                 overrides);
         const bool sidecarRendered = ExecuteTraditionalDrawFrame(

@@ -150,6 +150,31 @@ namespace HIKARI {
 #endif
     }
 
+    bool ImGuiInspectorBuilder::FloatRange(
+        std::string_view label,
+        float& value,
+        float minimum,
+        float maximum,
+        float speed) {
+#if defined(HIKARI_WITH_EDITOR)
+        return ImGui::DragFloat(
+            std::string(label).c_str(),
+            &value,
+            speed,
+            minimum,
+            maximum,
+            "%.3f",
+            ImGuiSliderFlags_AlwaysClamp);
+#else
+        (void)label;
+        (void)value;
+        (void)minimum;
+        (void)maximum;
+        (void)speed;
+        return false;
+#endif
+    }
+
     bool ImGuiInspectorBuilder::Choice(
         std::string_view label,
         int& selectedIndex,

@@ -2864,6 +2864,7 @@ namespace HIKARI {
         success = services.Register(sequencePlaybackService_) && success;
         success = services.Register(runtimePlayStateService_) && success;
         success = services.Register(gameplayCameraService_) && success;
+        success = services.Register(physicsWorldService_) && success;
         success = runtimeExtensionHost_.RegisterWorldServices(services) &&
             success;
         return success;

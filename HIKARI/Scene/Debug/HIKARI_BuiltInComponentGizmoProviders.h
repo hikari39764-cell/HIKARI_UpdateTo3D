@@ -2,6 +2,8 @@
 
 #include <string_view>
 
+#include "Scene/Debug/HIKARI_ColliderGizmoProvider.h"
+
 namespace HIKARI {
 
     class ComponentGizmoRegistry;
@@ -12,7 +14,6 @@ namespace HIKARI {
         "SpawnPoints";
     inline constexpr std::string_view kPlayerBoundsGizmoProviderId =
         "PlayerBounds";
-
     void RegisterBuiltInComponentGizmoProviders(
         ComponentGizmoRegistry& registry);
 

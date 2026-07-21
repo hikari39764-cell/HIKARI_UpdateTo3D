@@ -2,13 +2,15 @@
 
 #include <algorithm>
 #include <cctype>
+#include <cfloat>
 #include <cstdio>
 #include <string_view>
+#include <utility>
 
 #include "HIKARI_EditorContext.h"
 #include "HIKARI_SelectionSyncService.h"
 #include "Editor/Authoring/HIKARI_EditorObjectFactory.h"
-#include "Render3D/HIKARI_Math3D.h"
+#include "Editor/Authoring/HIKARI_EditorObjectPlacement.h"
 #include "Scene/HIKARI_ComponentRegistry.h"
 #include "Scene/HIKARI_GameObject.h"
 #include "Scene/Prefab/HIKARI_PrefabDocument.h"
@@ -35,42 +37,6 @@ namespace HIKARI {
                 return "NewPrefab";
             }
             return sanitized;
-        }
-
-        void SyncRuntimeTransformToDocument(SceneObjectData& target, const EditorContext& context) {
-            if (!context.selection.selectedObject ||
-                context.selection.selectedObject->GetDocumentId() != target.id) {
-                return;
-            }
-
-            const Transform3D& transform =
-                context.selection.selectedObject->GetTransform();
-            target.transform.position = transform.position;
-            target.transform.scale = transform.scale;
-            target.transform.rotationEulerDeg = MATH::EulerXYZDegreesFromQuat(transform.rotation);
-        }
-
-        bool ApplyDocumentComponentToRuntime(
-            const SceneComponentData& componentData,
-            size_t componentIndex,
-            const EditorContext& context) {
-
-            if (!context.selection.selectedObject) {
-                return false;
-            }
-
-            const auto& runtimeComponents = context.selection.selectedObject->GetComponents();
-            if (componentIndex >= runtimeComponents.size() || !runtimeComponents[componentIndex]) {
-                return false;
-            }
-
-            IComponent* runtimeComponent = runtimeComponents[componentIndex].get();
-            if (std::string(runtimeComponent->GetTypeName()) != componentData.type) {
-                return false;
-            }
-
-            runtimeComponent->Deserialize(componentData.properties);
-            return true;
         }
 
 #if defined(HIKARI_WITH_EDITOR)
@@ -203,8 +169,17 @@ namespace HIKARI {
     void SceneObjectAuthoringPanel::DrawContents(DocumentSceneBase& scene, EditorContext& context, const SelectionSyncService& selectionSync) {
 #if defined(HIKARI_WITH_EDITOR)
 
-        if (ImGui::Button("Create Object")) {
+        ImGui::SeparatorText("Quick Create");
+        if (ImGui::Button("Empty Object")) {
+            const bool dirtyBefore =
+                context.sceneDirty || scene.HasUnsavedSceneChanges();
+            const std::vector<SceneObjectData> beforeObjects =
+                scene.GetSceneDocument().objects;
+            const SceneCameraSettings beforeCamera =
+                scene.GetSceneDocument().camera;
             EDITOR::CreateObjectRequest request{};
+            request.position = EDITOR::ComputeObjectPlacementInView(
+                scene.GetCamera());
             GameObject* object = EDITOR::CreateEmptyObject(scene, request);
             context.selection.selectedObject = object;
             context.selection.selectedAsset = nullptr;
@@ -212,13 +187,139 @@ namespace HIKARI {
             context.selection.selectedAssetPath.clear();
             context.sceneDirty = true;
             selectionSync.SyncNextSceneObjectId(scene, context.nextSceneObjectId);
+            historyRequest_ = SceneObjectAuthoringHistoryRequest{
+                "Create Empty Object",
+                beforeObjects,
+                scene.GetSceneDocument().objects,
+                beforeCamera,
+                scene.GetSceneDocument().camera,
+                dirtyBefore
+            };
+        }
+
+        const struct {
+            const char* label;
+            ProceduralMeshKind kind;
+        } primitiveButtons[] = {
+            { "Plane", ProceduralMeshKind::Plane },
+            { "Grid Plane", ProceduralMeshKind::GridPlane },
+            { "Box", ProceduralMeshKind::Box },
+            { "Sphere", ProceduralMeshKind::Sphere },
+            { "Cylinder", ProceduralMeshKind::Cylinder },
+            { "Capsule", ProceduralMeshKind::Capsule }
+        };
+        if (ImGui::BeginTable("PrimitiveQuickCreate", 3)) {
+            for (const auto& primitive : primitiveButtons) {
+                ImGui::TableNextColumn();
+                if (ImGui::Button(
+                        primitive.label,
+                        ImVec2(-FLT_MIN, 0.0f))) {
+                    primitiveCreationDialog_.Open(primitive.kind);
+                }
+            }
+            ImGui::EndTable();
+        }
+
+        EDITOR::CreatePrimitiveRequest primitiveRequest{};
+        if (primitiveCreationDialog_.Draw(primitiveRequest)) {
+            const bool dirtyBefore =
+                context.sceneDirty || scene.HasUnsavedSceneChanges();
+            const std::vector<SceneObjectData> beforeObjects =
+                scene.GetSceneDocument().objects;
+            const SceneCameraSettings beforeCamera =
+                scene.GetSceneDocument().camera;
+            primitiveRequest.object.position =
+                EDITOR::ComputePrimitivePlacementInView(
+                    scene.GetCamera(),
+                    primitiveRequest.mesh);
+            GameObject* object = EDITOR::CreatePrimitiveObject(
+                scene, primitiveRequest);
+            context.selection.selectedObject = object;
+            context.selection.selectedAsset = nullptr;
+            context.selection.selectedAssetGuid.clear();
+            context.selection.selectedAssetPath.clear();
+            context.sceneDirty = true;
+            selectionSync.SyncNextSceneObjectId(
+                scene, context.nextSceneObjectId);
+            historyRequest_ = SceneObjectAuthoringHistoryRequest{
+                std::string("Create ") + ToString(primitiveRequest.mesh.kind),
+                beforeObjects,
+                scene.GetSceneDocument().objects,
+                beforeCamera,
+                scene.GetSceneDocument().camera,
+                dirtyBefore
+            };
+        }
+
+        SceneObjectId collisionSelectedObject{};
+        if (context.selection.selectedObject != nullptr) {
+            collisionSelectedObject =
+                context.selection.selectedObject->GetDocumentId();
+        }
+        if (ImGui::Button("Collision Setup...")) {
+            collisionAuthoringDialog_.Open(
+                collisionSelectedObject);
+        }
+        EDITOR::CollisionAuthoringRequest collisionRequest{};
+        if (collisionAuthoringDialog_.Draw(collisionRequest)) {
+            const bool dirtyBefore =
+                context.sceneDirty ||
+                scene.HasUnsavedSceneChanges();
+            const std::vector<SceneObjectData> beforeObjects =
+                scene.GetSceneDocument().objects;
+            const SceneCameraSettings beforeCamera =
+                scene.GetSceneDocument().camera;
+            const EDITOR::CollisionAuthoringResult result =
+                collisionAuthoringService_.Apply(
+                    scene.GetComponentRegistry(),
+                    scene.GetSceneDocument(),
+                    collisionRequest);
+            context.componentAddStatusMessage = result.message;
+            context.componentAddStatusIsError = !result.success;
+            if (result.documentChanged) {
+                context.sceneDirty = true;
+                selectionSync.RebuildRuntimeWorldWithSelectionSync(
+                    scene,
+                    context.selection,
+                    context.nextSceneObjectId);
+                historyRequest_ = SceneObjectAuthoringHistoryRequest{
+                    collisionRequest.scope ==
+                            EDITOR::CollisionAuthoringScope::SceneGeometry
+                        ? "Setup Scene Collision"
+                        : "Setup Object Collision",
+                    beforeObjects,
+                    scene.GetSceneDocument().objects,
+                    beforeCamera,
+                    scene.GetSceneDocument().camera,
+                    dirtyBefore
+                };
+            }
+        }
+        if (!context.componentAddStatusMessage.empty()) {
+            if (context.componentAddStatusIsError) {
+                ImGui::TextColored(
+                    ImVec4(1.0f, 0.35f, 0.35f, 1.0f),
+                    "%s",
+                    context.componentAddStatusMessage.c_str());
+            } else {
+                ImGui::TextColored(
+                    ImVec4(0.45f, 1.0f, 0.45f, 1.0f),
+                    "%s",
+                    context.componentAddStatusMessage.c_str());
+            }
         }
 
         if (context.selection.selectedObject != nullptr) {
-            ImGui::SameLine();
+            ImGui::SeparatorText("Selected Object");
             if (ImGui::Button("Delete Selected")) {
                 SceneObjectData* target = selectionSync.FindDocumentObjectByRuntime(scene, context.selection.selectedObject);
                 if (target != nullptr) {
+                    const bool dirtyBefore =
+                        context.sceneDirty || scene.HasUnsavedSceneChanges();
+                    const std::vector<SceneObjectData> beforeObjects =
+                        scene.GetSceneDocument().objects;
+                    const SceneCameraSettings beforeCamera =
+                        scene.GetSceneDocument().camera;
                     const SceneObjectId targetId = target->id;
                     if (scene.GetSceneDocument().camera.defaultCameraObjectId == targetId) {
                         scene.ClearGameDefaultCamera();
@@ -236,17 +337,40 @@ namespace HIKARI {
                     context.selection.selectedAsset = nullptr;
                     context.sceneDirty = true;
                     selectionSync.RebuildRuntimeWorldWithSelectionSync(scene, context.selection, context.nextSceneObjectId);
+                    historyRequest_ = SceneObjectAuthoringHistoryRequest{
+                        "Delete Object",
+                        beforeObjects,
+                        scene.GetSceneDocument().objects,
+                        beforeCamera,
+                        scene.GetSceneDocument().camera,
+                        dirtyBefore
+                    };
                 }
             }
 
+            ImGui::SameLine();
             if (ImGui::Button("Duplicate Selected")) {
                 if (SceneObjectData* target = selectionSync.FindDocumentObjectByRuntime(scene, context.selection.selectedObject)) {
+                    const bool dirtyBefore =
+                        context.sceneDirty || scene.HasUnsavedSceneChanges();
+                    const std::vector<SceneObjectData> beforeObjects =
+                        scene.GetSceneDocument().objects;
+                    const SceneCameraSettings beforeCamera =
+                        scene.GetSceneDocument().camera;
                     SceneObjectData duplicate = *target;
                     duplicate.id = SceneObjectId{ context.nextSceneObjectId++ };
                     duplicate.name = duplicate.name + "_Copy";
                     scene.GetSceneDocument().objects.push_back(std::move(duplicate));
                     context.sceneDirty = true;
                     selectionSync.RebuildRuntimeWorldWithSelectionSync(scene, context.selection, context.nextSceneObjectId);
+                    historyRequest_ = SceneObjectAuthoringHistoryRequest{
+                        "Duplicate Object",
+                        beforeObjects,
+                        scene.GetSceneDocument().objects,
+                        beforeCamera,
+                        scene.GetSceneDocument().camera,
+                        dirtyBefore
+                    };
                 }
             }
 
@@ -290,6 +414,12 @@ namespace HIKARI {
                     if (ImGui::Button("Instantiate Prefab")) {
                         PrefabDocument prefab{};
                         if (prefabRegistry_.Load(context.prefabNameBuffer, prefab, prefabSerializer_)) {
+                            const bool dirtyBefore =
+                                context.sceneDirty || scene.HasUnsavedSceneChanges();
+                            const std::vector<SceneObjectData> beforeObjects =
+                                scene.GetSceneDocument().objects;
+                            const SceneCameraSettings beforeCamera =
+                                scene.GetSceneDocument().camera;
                             SceneObjectData instance = prefab.rootObject;
                             instance.id = SceneObjectId{ context.nextSceneObjectId++ };
                             instance.parent.reset();
@@ -300,6 +430,14 @@ namespace HIKARI {
                             scene.GetSceneDocument().objects.push_back(std::move(instance));
                             context.sceneDirty = true;
                             selectionSync.RebuildRuntimeWorldWithSelectionSync(scene, context.selection, context.nextSceneObjectId);
+                            historyRequest_ = SceneObjectAuthoringHistoryRequest{
+                                "Instantiate Prefab",
+                                beforeObjects,
+                                scene.GetSceneDocument().objects,
+                                beforeCamera,
+                                scene.GetSceneDocument().camera,
+                                dirtyBefore
+                            };
                         }
                     }
                 }
@@ -341,6 +479,12 @@ namespace HIKARI {
                         }
                         ImGui::PopID();
                         if (selected) {
+                            const bool dirtyBefore =
+                                context.sceneDirty || scene.HasUnsavedSceneChanges();
+                            const std::vector<SceneObjectData> beforeObjects =
+                                scene.GetSceneDocument().objects;
+                            const SceneCameraSettings beforeCamera =
+                                scene.GetSceneDocument().camera;
                             ComponentAddResult addResult = componentAuthoringService_.AddComponent(
                                 scene.GetComponentRegistry(),
                                 *target,
@@ -350,6 +494,14 @@ namespace HIKARI {
                             if (addResult.success && addResult.documentChanged) {
                                 context.sceneDirty = true;
                                 needsRebuildAfterAdd = true;
+                                historyRequest_ = SceneObjectAuthoringHistoryRequest{
+                                    "Add " + typeInfo->presentation.displayName,
+                                    beforeObjects,
+                                    scene.GetSceneDocument().objects,
+                                    beforeCamera,
+                                    scene.GetSceneDocument().camera,
+                                    dirtyBefore
+                                };
                             }
                         }
                     }
@@ -359,64 +511,19 @@ namespace HIKARI {
                     selectionSync.RebuildRuntimeWorldWithSelectionSync(scene, context.selection, context.nextSceneObjectId);
                 }
 
-                if (!context.componentAddStatusMessage.empty()) {
-                    if (context.componentAddStatusIsError) {
-                        ImGui::TextColored(ImVec4(1.0f, 0.35f, 0.35f, 1.0f), "%s", context.componentAddStatusMessage.c_str());
-                    } else {
-                        ImGui::TextColored(ImVec4(0.45f, 1.0f, 0.45f, 1.0f), "%s", context.componentAddStatusMessage.c_str());
-                    }
-                }
-
                 DrawCameraAuthoring(
                     scene,
                     context,
                     *target,
                     openCinematicsWorkspaceCameraRequest_);
-
-                ImGui::SeparatorText("Document Components");
-                bool needsRebuild = false;
-                const InspectorContext inspectorContext{
-                    &scene.GetAssetRegistry(),
-                    &scene.GetAssetDatabase(),
-                    &scene.GetSceneDocument()
-                };
-
-                for (size_t componentIndex = 0; componentIndex < target->components.size(); ++componentIndex) {
-                    SceneComponentData& component = target->components[componentIndex];
-                    ImGui::PushID(static_cast<int>(componentIndex));
-                    if (!ImGui::TreeNode(component.type.c_str())) {
-                        ImGui::PopID();
-                        continue;
-                    }
-
-                    if (componentDocumentEditor_.DrawComponent(scene.GetComponentRegistry(), component, componentInspectorBuilder_, inspectorContext)) {
-                        context.sceneDirty = true;
-                        const bool appliedToRuntime =
-                            ApplyDocumentComponentToRuntime(component, componentIndex, context);
-                        if (!appliedToRuntime) {
-                            needsRebuild = true;
-                        } else if (component.type == "CameraComponent") {
-                            (void)scene.ApplyCameraRuntimeChanges();
-                        }
-                    }
-
-                    ImGui::TreePop();
-                    ImGui::PopID();
-                }
-
-                const bool editingComponentParameter = ImGui::IsAnyItemActive();
-                if (needsRebuild) {
-                    if (editingComponentParameter) {
-                        deferredComponentRebuild_ = true;
-                    } else {
-                        SyncRuntimeTransformToDocument(*target, context);
-                        selectionSync.RebuildRuntimeWorldWithSelectionSync(scene, context.selection, context.nextSceneObjectId);
-                        deferredComponentRebuild_ = false;
-                    }
-                } else if (deferredComponentRebuild_ && !editingComponentParameter) {
-                    SyncRuntimeTransformToDocument(*target, context);
-                    selectionSync.RebuildRuntimeWorldWithSelectionSync(scene, context.selection, context.nextSceneObjectId);
-                    deferredComponentRebuild_ = false;
+                if (std::optional<SceneObjectAuthoringHistoryRequest>
+                        componentHistory =
+                            componentAuthoringSection_.Draw(
+                                scene,
+                                context,
+                                selectionSync,
+                                *target)) {
+                    historyRequest_ = std::move(componentHistory);
                 }
             }
         }
@@ -431,6 +538,14 @@ namespace HIKARI {
         SceneObjectAuthoringPanel::ConsumeOpenCinematicsWorkspaceCameraRequest() {
         std::optional<SceneObjectId> request = openCinematicsWorkspaceCameraRequest_;
         openCinematicsWorkspaceCameraRequest_.reset();
+        return request;
+    }
+
+    std::optional<SceneObjectAuthoringHistoryRequest>
+        SceneObjectAuthoringPanel::ConsumeHistoryRequest() {
+        std::optional<SceneObjectAuthoringHistoryRequest> request =
+            std::move(historyRequest_);
+        historyRequest_.reset();
         return request;
     }
 

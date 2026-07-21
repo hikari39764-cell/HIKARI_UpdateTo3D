@@ -42,6 +42,15 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
             D3D12_GPU_DESCRIPTOR_HANDLE srvGpu,
             UINT descriptorSize,
             size_t capacity = kDefaultSurfaceGpuSceneInstanceCapacity);
+        bool Initialize(
+            ID3D12Device* device,
+            const std::array<
+                D3D12_CPU_DESCRIPTOR_HANDLE,
+                GFX::kFrameResourceCount>& srvCpu,
+            const std::array<
+                D3D12_GPU_DESCRIPTOR_HANDLE,
+                GFX::kFrameResourceCount>& srvGpu,
+            size_t capacity = kDefaultSurfaceGpuSceneInstanceCapacity);
 
         void BeginFrame(uint32_t frameIndex);
         void ResetFrame();

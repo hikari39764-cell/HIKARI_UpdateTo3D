@@ -16,6 +16,7 @@
 #include "Render3D/Core/HIKARI_ModelManager.h"
 #include "Render3D/Lighting/HIKARI_SceneEnvironment.h"
 #include "Render3D/Lighting/HIKARI_SkyManager.h"
+#include "Physics/HIKARI_PhysicsWorldService.h"
 #if defined(HIKARI_WITH_EDITOR)
 #include "Editor/Gizmos/HIKARI_LightProbeVolumeGizmoRenderer.h"
 #include "Editor/Gizmos/HIKARI_ReflectionProbeGizmoRenderer.h"
@@ -266,6 +267,7 @@ namespace HIKARI {
         FixedStepClock fixedStepClock_{};
         RuntimePlayStateService runtimePlayStateService_{};
         GameplayCameraService gameplayCameraService_{};
+        PHYSICS::PhysicsWorldService physicsWorldService_{};
         RuntimeExtensionHost runtimeExtensionHost_{};
         RuntimeFeatureCatalog runtimeFeatureCatalog_{};
         RuntimeFeatureInstallReport runtimeFeatureInstallReport_{};

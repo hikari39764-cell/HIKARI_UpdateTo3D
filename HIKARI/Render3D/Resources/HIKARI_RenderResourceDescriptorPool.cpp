@@ -80,6 +80,10 @@ namespace HIKARI::RENDER3D {
         state = {};
     }
 
+    RenderResourceView AllocateRenderResourceDescriptor() {
+        return AllocateDescriptor(State());
+    }
+
     RenderResourceView AllocateBufferSrvDescriptor(
         ID3D12Resource* resource,
         DXGI_FORMAT format,

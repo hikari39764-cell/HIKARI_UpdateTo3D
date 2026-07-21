@@ -19,6 +19,9 @@
     <Filter Include="Header Files\Assets\Geometry">
       <UniqueIdentifier>{2A7B6D31-7E7D-43F7-BE56-FA1348F2D1EF}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Header Files\Assets\Collision">
+      <UniqueIdentifier>{4C69CC9D-567B-47B7-9416-0DD4B91DB49D}</UniqueIdentifier>
+    </Filter>
     <Filter Include="Header Files\Assets\Material">
       <UniqueIdentifier>{2C8932E7-7A66-4B6D-9E91-1B7ED8D7F2F1}</UniqueIdentifier>
     </Filter>
@@ -36,6 +39,9 @@
     </Filter>
     <Filter Include="Header Files\Core">
       <UniqueIdentifier>{7D3F4CC6-EB90-59C6-9530-4E5F0F14A647}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\Physics">
+      <UniqueIdentifier>{0B8F4F3E-6D38-4D9A-A189-C520842E87B0}</UniqueIdentifier>
     </Filter>
     <Filter Include="Header Files\Input">
       <UniqueIdentifier>{7AC8F034-595C-48A0-9B9C-A1D4B921D001}</UniqueIdentifier>
@@ -211,6 +217,9 @@
     <Filter Include="Header Files\Scene\Components">
       <UniqueIdentifier>{F00B23EA-3B1C-53CB-B0AC-2F0ECD5136A2}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Header Files\Scene\Geometry">
+      <UniqueIdentifier>{EAF125D5-C82B-4AD8-8D15-BB91BC817B75}</UniqueIdentifier>
+    </Filter>
     <Filter Include="Header Files\Scene\Debug">
       <UniqueIdentifier>{4C3EB3DD-15E0-5D1C-85D7-4AA8807C63FE}</UniqueIdentifier>
     </Filter>
@@ -345,6 +354,9 @@
     </Filter>
     <Filter Include="Source Files\Assets\Geometry">
       <UniqueIdentifier>{887BC03A-331F-42B2-8F04-25D88029705F}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Assets\Collision">
+      <UniqueIdentifier>{693E00D9-5F18-4616-BB80-884F824607D2}</UniqueIdentifier>
     </Filter>
     <Filter Include="Source Files\Assets\Material">
       <UniqueIdentifier>{7D0947F2-F49E-46F2-BC96-43F427AB6C60}</UniqueIdentifier>
@@ -552,6 +564,9 @@
     </Filter>
     <Filter Include="Source Files\Scene\Features">
       <UniqueIdentifier>{F68D8E93-A8B1-4E63-B526-53B12EF19020}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Physics">
+      <UniqueIdentifier>{7AFC7B6E-C2AB-4694-9DC2-0A53D8E4C11B}</UniqueIdentifier>
     </Filter>
     <Filter Include="Source Files\ThirdParty">
       <UniqueIdentifier>{9B81F76E-095D-5DA3-BAAA-BC8D214BCAA0}</UniqueIdentifier>
@@ -825,6 +840,9 @@
     <ClCompile Include="HIKARI\Editor\History\HIKARI_CinematicsHistoryCommand.cpp">
       <Filter>Source Files\Editor\History</Filter>
     </ClCompile>
+    <ClCompile Include="HIKARI\Editor\History\HIKARI_SceneObjectsHistoryCommand.cpp">
+      <Filter>Source Files\Editor\History</Filter>
+    </ClCompile>
     <ClCompile Include="HIKARI\Editor\History\HIKARI_SceneSystemsHistoryCommand.cpp">
       <Filter>Source Files\Editor\History</Filter>
     </ClCompile>
@@ -915,6 +933,27 @@
     <ClCompile Include="HIKARI\Editor\Workspaces\HIKARI_CinematicsWorkspaceWindows.cpp">
       <Filter>Source Files\Editor\Workspaces</Filter>
     </ClCompile>
+    <ClCompile Include="HIKARI\Editor\Workspaces\HIKARI_ModelCollisionHistory.cpp">
+      <Filter>Source Files\Editor\Workspaces</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Editor\Workspaces\HIKARI_ModelCollisionPreviewScene.cpp">
+      <Filter>Source Files\Editor\Workspaces</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Editor\Workspaces\HIKARI_ModelCollisionWorkspaceInteraction.cpp">
+      <Filter>Source Files\Editor\Workspaces</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Editor\Workspaces\HIKARI_ModelCollisionViewportOverlay.cpp">
+      <Filter>Source Files\Editor\Workspaces</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Editor\Workspaces\HIKARI_ModelCollisionWorkspaceController.cpp">
+      <Filter>Source Files\Editor\Workspaces</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Editor\Workspaces\HIKARI_ModelCollisionWorkspacePanels.cpp">
+      <Filter>Source Files\Editor\Workspaces</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Editor\Workspaces\HIKARI_ModelCollisionWorkspaceWindows.cpp">
+      <Filter>Source Files\Editor\Workspaces</Filter>
+    </ClCompile>
     <ClCompile Include="HIKARI\Editor\Export\HIKARI_GameExporter.cpp">
       <Filter>Source Files\Editor\Export</Filter>
     </ClCompile>
@@ -933,7 +972,22 @@
     <ClCompile Include="HIKARI\Editor\HIKARI_EditorViewportInput.cpp">
       <Filter>Source Files\Editor</Filter>
     </ClCompile>
+    <ClCompile Include="HIKARI\Editor\Authoring\HIKARI_CollisionAuthoringDialog.cpp">
+      <Filter>Source Files\Editor\Authoring</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Editor\Authoring\HIKARI_CollisionAuthoringService.cpp">
+      <Filter>Source Files\Editor\Authoring</Filter>
+    </ClCompile>
     <ClCompile Include="HIKARI\Editor\Authoring\HIKARI_EditorObjectFactory.cpp">
+      <Filter>Source Files\Editor\Authoring</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Editor\Authoring\HIKARI_EditorObjectPlacement.cpp">
+      <Filter>Source Files\Editor\Authoring</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Editor\Authoring\HIKARI_PrimitiveCreationDialog.cpp">
+      <Filter>Source Files\Editor\Authoring</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Editor\Authoring\HIKARI_SceneComponentAuthoringSection.cpp">
       <Filter>Source Files\Editor\Authoring</Filter>
     </ClCompile>
     <ClCompile Include="HIKARI\Editor\Authoring\HIKARI_SequencePreviewBindingResolver.cpp">
@@ -996,6 +1050,9 @@
     <ClCompile Include="HIKARI\Scene\Debug\HIKARI_BuiltInComponentGizmoProviders.cpp">
       <Filter>Source Files\Scene\Debug</Filter>
     </ClCompile>
+    <ClCompile Include="HIKARI\Scene\Debug\HIKARI_ColliderGizmoProvider.cpp">
+      <Filter>Source Files\Scene\Debug</Filter>
+    </ClCompile>
     <ClCompile Include="HIKARI\Editor\HIKARI_SelectionSyncService.cpp">
       <Filter>Source Files\Editor</Filter>
     </ClCompile>
@@ -1019,6 +1076,24 @@
     </ClCompile>
     <ClCompile Include="HIKARI\Assets\HIKARI_AssetUsageAnalyzer.cpp">
       <Filter>Source Files\Assets</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Assets\Collision\HIKARI_CollisionGeometryAsset.cpp">
+      <Filter>Source Files\Assets\Collision</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Assets\Collision\HIKARI_HcollisionFormat.cpp">
+      <Filter>Source Files\Assets\Collision</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Assets\Collision\HIKARI_ModelCollisionArtifact.cpp">
+      <Filter>Source Files\Assets\Collision</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Assets\Collision\HIKARI_ModelCollisionCompiler.cpp">
+      <Filter>Source Files\Assets\Collision</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Assets\Collision\HIKARI_ModelCollisionGenerator.cpp">
+      <Filter>Source Files\Assets\Collision</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Assets\Collision\HIKARI_ModelCollisionSetup.cpp">
+      <Filter>Source Files\Assets\Collision</Filter>
     </ClCompile>
     <ClCompile Include="HIKARI\Assets\Geometry\HIKARI_ClusteredGeometryCooker.cpp">
       <Filter>Source Files\Assets\Geometry</Filter>
@@ -1125,6 +1200,9 @@
     <ClCompile Include="HIKARI\Scene\Components\HIKARI_ModelComponent.cpp">
       <Filter>Source Files\Scene\Components</Filter>
     </ClCompile>
+    <ClCompile Include="HIKARI\Scene\Components\HIKARI_ProceduralMeshComponent.cpp">
+      <Filter>Source Files\Scene\Components</Filter>
+    </ClCompile>
     <ClCompile Include="HIKARI\Scene\Components\HIKARI_SpawnPointComponent.cpp">
       <Filter>Source Files\Scene\Components</Filter>
     </ClCompile>
@@ -1132,6 +1210,12 @@
       <Filter>Source Files\Scene\Components</Filter>
     </ClCompile>
     <ClCompile Include="HIKARI\Scene\Components\HIKARI_CameraComponent.cpp">
+      <Filter>Source Files\Scene\Components</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Scene\Components\HIKARI_ColliderComponent.cpp">
+      <Filter>Source Files\Scene\Components</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Scene\Components\HIKARI_PhysicsBodyComponent.cpp">
       <Filter>Source Files\Scene\Components</Filter>
     </ClCompile>
     <ClCompile Include="HIKARI\Scene\Components\HIKARI_PlayerControllerComponent.cpp">
@@ -1566,6 +1650,9 @@
     <ClCompile Include="HIKARI\Scene\Features\HIKARI_CameraRuntimeFeature.cpp">
       <Filter>Source Files\Scene\Features</Filter>
     </ClCompile>
+    <ClCompile Include="HIKARI\Scene\Features\HIKARI_PhysicsRuntimeFeature.cpp">
+      <Filter>Source Files\Scene\Features</Filter>
+    </ClCompile>
     <ClCompile Include="HIKARI\Scene\Features\HIKARI_GameplayRuntimeFeature.cpp">
       <Filter>Source Files\Scene\Features</Filter>
     </ClCompile>
@@ -1574,6 +1661,15 @@
     </ClCompile>
     <ClCompile Include="HIKARI\Scene\Components\HIKARI_AnimatorComponent.cpp">
       <Filter>Source Files\Scene\Components</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Physics\HIKARI_PhysicsSystem.cpp">
+      <Filter>Source Files\Physics</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Physics\HIKARI_PhysicsSceneBridge.cpp">
+      <Filter>Source Files\Physics</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Physics\HIKARI_PhysicsWorldService.cpp">
+      <Filter>Source Files\Physics</Filter>
     </ClCompile>
     <ClCompile Include="HIKARI\Render3D\Render\HIKARI_ModelRenderer.cpp">
       <Filter>Source Files\Render3D\Render</Filter>
@@ -1594,6 +1690,12 @@
       <Filter>Source Files\Render3D\Debug</Filter>
     </ClCompile>
     <ClCompile Include="HIKARI\Render3D\Procedural\HIKARI_ProceduralModelFactory.cpp">
+      <Filter>Source Files\Render3D</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Render3D\Procedural\HIKARI_ProceduralMeshBuilder.cpp">
+      <Filter>Source Files\Render3D</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Render3D\Procedural\HIKARI_ProceduralMeshTypes.cpp">
       <Filter>Source Files\Render3D</Filter>
     </ClCompile>
     <ClCompile Include="HIKARI\Editor\HIKARI_TimePanel.cpp">
@@ -2005,6 +2107,12 @@
     <ClInclude Include="HIKARI\Render3D\Procedural\HIKARI_ProceduralModelFactory.h">
       <Filter>Header Files\Render3D</Filter>
     </ClInclude>
+    <ClInclude Include="HIKARI\Render3D\Procedural\HIKARI_ProceduralMeshBuilder.h">
+      <Filter>Header Files\Render3D</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Render3D\Procedural\HIKARI_ProceduralMeshTypes.h">
+      <Filter>Header Files\Render3D</Filter>
+    </ClInclude>
     <ClInclude Include="HIKARI\Scene\HIKARI_IScene.h">
       <Filter>Header Files\Scene</Filter>
     </ClInclude>
@@ -2038,6 +2146,9 @@
     <ClInclude Include="HIKARI\Scene\Components\HIKARI_ModelComponent.h">
       <Filter>Header Files\Scene\Components</Filter>
     </ClInclude>
+    <ClInclude Include="HIKARI\Scene\Components\HIKARI_ProceduralMeshComponent.h">
+      <Filter>Header Files\Scene\Components</Filter>
+    </ClInclude>
     <ClInclude Include="HIKARI\Scene\Components\HIKARI_SpawnPointComponent.h">
       <Filter>Header Files\Scene\Components</Filter>
     </ClInclude>
@@ -2045,6 +2156,15 @@
       <Filter>Header Files\Scene\Components</Filter>
     </ClInclude>
     <ClInclude Include="HIKARI\Scene\Components\HIKARI_CameraComponent.h">
+      <Filter>Header Files\Scene\Components</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Scene\Components\HIKARI_ColliderComponent.h">
+      <Filter>Header Files\Scene\Components</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Scene\Geometry\HIKARI_GeometryFitProvider.h">
+      <Filter>Header Files\Scene\Geometry</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Scene\Components\HIKARI_PhysicsBodyComponent.h">
       <Filter>Header Files\Scene\Components</Filter>
     </ClInclude>
     <ClInclude Include="HIKARI\Scene\Components\HIKARI_PlayerControllerComponent.h">
@@ -2102,6 +2222,9 @@
       <Filter>Header Files\Editor\History</Filter>
     </ClInclude>
     <ClInclude Include="HIKARI\Editor\History\HIKARI_CinematicsHistoryCommand.h">
+      <Filter>Header Files\Editor\History</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Editor\History\HIKARI_SceneObjectsHistoryCommand.h">
       <Filter>Header Files\Editor\History</Filter>
     </ClInclude>
     <ClInclude Include="HIKARI\Editor\History\HIKARI_SceneSystemsHistoryCommand.h">
@@ -2200,13 +2323,46 @@
     <ClInclude Include="HIKARI\Editor\Workspaces\HIKARI_CinematicsWorkspaceController.h">
       <Filter>Header Files\Editor\Workspaces</Filter>
     </ClInclude>
+    <ClInclude Include="HIKARI\Editor\Workspaces\HIKARI_ModelCollisionHistory.h">
+      <Filter>Header Files\Editor\Workspaces</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Editor\Workspaces\HIKARI_ModelCollisionPreviewScene.h">
+      <Filter>Header Files\Editor\Workspaces</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Editor\Workspaces\HIKARI_ModelCollisionWorkspaceInteraction.h">
+      <Filter>Header Files\Editor\Workspaces</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Editor\Workspaces\HIKARI_ModelCollisionViewportOverlay.h">
+      <Filter>Header Files\Editor\Workspaces</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Editor\Workspaces\HIKARI_ModelCollisionWorkspaceController.h">
+      <Filter>Header Files\Editor\Workspaces</Filter>
+    </ClInclude>
     <ClInclude Include="HIKARI\Editor\HIKARI_EditorStyle.h">
       <Filter>Header Files\Editor</Filter>
     </ClInclude>
     <ClInclude Include="HIKARI\Editor\HIKARI_EditorViewportInput.h">
       <Filter>Header Files\Editor</Filter>
     </ClInclude>
+    <ClInclude Include="HIKARI\Editor\Authoring\HIKARI_CollisionAuthoringDialog.h">
+      <Filter>Header Files\Editor\Authoring</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Editor\Authoring\HIKARI_CollisionAuthoringService.h">
+      <Filter>Header Files\Editor\Authoring</Filter>
+    </ClInclude>
     <ClInclude Include="HIKARI\Editor\Authoring\HIKARI_EditorObjectFactory.h">
+      <Filter>Header Files\Editor\Authoring</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Editor\Authoring\HIKARI_EditorObjectPlacement.h">
+      <Filter>Header Files\Editor\Authoring</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Editor\Authoring\HIKARI_PrimitiveCreationDialog.h">
+      <Filter>Header Files\Editor\Authoring</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Editor\Authoring\HIKARI_SceneComponentAuthoringSection.h">
+      <Filter>Header Files\Editor\Authoring</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Editor\Authoring\HIKARI_SceneObjectAuthoringTypes.h">
       <Filter>Header Files\Editor\Authoring</Filter>
     </ClInclude>
     <ClInclude Include="HIKARI\Editor\Authoring\HIKARI_SequencePreviewBindingResolver.h">
@@ -2326,6 +2482,9 @@
     <ClInclude Include="HIKARI\Scene\Debug\HIKARI_BuiltInComponentGizmoProviders.h">
       <Filter>Header Files\Scene\Debug</Filter>
     </ClInclude>
+    <ClInclude Include="HIKARI\Scene\Debug\HIKARI_ColliderGizmoProvider.h">
+      <Filter>Header Files\Scene\Debug</Filter>
+    </ClInclude>
     <ClInclude Include="HIKARI\Editor\HIKARI_SelectionSyncService.h">
       <Filter>Header Files\Editor</Filter>
     </ClInclude>
@@ -2367,6 +2526,24 @@
     </ClInclude>
     <ClInclude Include="HIKARI\Assets\HIKARI_AssetUsageAnalyzer.h">
       <Filter>Header Files\Assets</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Assets\Collision\HIKARI_CollisionGeometryAsset.h">
+      <Filter>Header Files\Assets\Collision</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Assets\Collision\HIKARI_HcollisionFormat.h">
+      <Filter>Header Files\Assets\Collision</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Assets\Collision\HIKARI_ModelCollisionArtifact.h">
+      <Filter>Header Files\Assets\Collision</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Assets\Collision\HIKARI_ModelCollisionCompiler.h">
+      <Filter>Header Files\Assets\Collision</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Assets\Collision\HIKARI_ModelCollisionGenerator.h">
+      <Filter>Header Files\Assets\Collision</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Assets\Collision\HIKARI_ModelCollisionSetup.h">
+      <Filter>Header Files\Assets\Collision</Filter>
     </ClInclude>
     <ClInclude Include="HIKARI\Assets\Geometry\HIKARI_ClusteredGeometryCooker.h">
       <Filter>Header Files\Assets\Geometry</Filter>
@@ -2797,6 +2974,9 @@
     <ClInclude Include="HIKARI\Scene\Features\HIKARI_CameraRuntimeFeature.h">
       <Filter>Header Files\Scene\Features</Filter>
     </ClInclude>
+    <ClInclude Include="HIKARI\Scene\Features\HIKARI_PhysicsRuntimeFeature.h">
+      <Filter>Header Files\Scene\Features</Filter>
+    </ClInclude>
     <ClInclude Include="HIKARI\Scene\Features\HIKARI_GameplayRuntimeFeature.h">
       <Filter>Header Files\Scene\Features</Filter>
     </ClInclude>
@@ -2805,6 +2985,21 @@
     </ClInclude>
     <ClInclude Include="HIKARI\Scene\Components\HIKARI_AnimatorComponent.h">
       <Filter>Header Files\Scene\Components</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Physics\HIKARI_IPhysicsWorldBackend.h">
+      <Filter>Header Files\Physics</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Physics\HIKARI_PhysicsSceneBridge.h">
+      <Filter>Header Files\Physics</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Physics\HIKARI_PhysicsSystem.h">
+      <Filter>Header Files\Physics</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Physics\HIKARI_PhysicsTypes.h">
+      <Filter>Header Files\Physics</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Physics\HIKARI_PhysicsWorldService.h">
+      <Filter>Header Files\Physics</Filter>
     </ClInclude>
     <ClInclude Include="HIKARI\Render3D\Render\HIKARI_ModelRenderer.h">
       <Filter>Header Files\Render3D\Render</Filter>

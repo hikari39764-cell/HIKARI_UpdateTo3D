@@ -5,7 +5,7 @@
 #include <filesystem>
 #include <string>
 
-#include "Scene/Components/HIKARI_ModelComponent.h"
+#include "Render3D/Procedural/HIKARI_ProceduralMeshTypes.h"
 
 namespace HIKARI {
     class ModelAsset;
@@ -21,9 +21,9 @@ namespace HIKARI::PROCEDURAL {
         size_t generatedIndexCount = 0;
     };
 
-    const ModelAsset* GetOrCreateModel(const ProceduralModelSettings& settings);
+    const ModelAsset* GetOrCreateModel(const ProceduralMeshSettings& settings);
     std::string GetOrCreateClusteredGeometryPath(
-        const ProceduralModelSettings& settings,
+        const ProceduralMeshSettings& settings,
         const std::filesystem::path& projectRoot);
     void ClearCache();
     const ProceduralModelDebugStats& GetDebugStats();

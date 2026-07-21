@@ -44,6 +44,7 @@ namespace HIKARI {
             const AssetBrowserContext* context = nullptr) const;
         std::string ConsumeActivatedSceneGuid() const;
         std::string ConsumeActivatedSequenceGuid() const;
+        std::string ConsumeActivatedModelCollisionGuid() const;
         std::string ConsumeSaveSceneAsGuid() const;
         std::string ConsumeRefreshRuntimeAssetGuid() const;
         std::string ConsumeReimportAndRefreshRuntimeAssetGuid() const;
@@ -61,11 +62,10 @@ namespace HIKARI {
         mutable std::string lastOperationMessage_{};
         mutable std::string activatedSceneGuid_{};
         mutable std::string activatedSequenceGuid_{};
+        mutable std::string activatedModelCollisionGuid_{};
         mutable std::string saveSceneAsGuid_{};
         mutable std::string refreshRuntimeAssetGuid_{};
         mutable std::string reimportAndRefreshRuntimeAssetGuid_{};
-        mutable std::string modelCookSettingsGuid_{};
-        mutable std::string modelCookSettingsOriginalJson_{};
         mutable std::string renameSceneGuid_{};
         mutable std::string deleteSceneGuid_{};
         mutable std::array<char, 128> renameSceneNameBuffer_{};

@@ -38,6 +38,48 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
             return false;
         }
 
+        std::array<
+            D3D12_CPU_DESCRIPTOR_HANDLE,
+            GFX::kFrameResourceCount> srvCpuFrames{};
+        std::array<
+            D3D12_GPU_DESCRIPTOR_HANDLE,
+            GFX::kFrameResourceCount> srvGpuFrames{};
+        for (uint32_t slotIndex = 0;
+            slotIndex < GFX::kFrameResourceCount;
+            ++slotIndex) {
+
+            srvCpuFrames[slotIndex] = srvCpu;
+            srvCpuFrames[slotIndex].ptr +=
+                static_cast<SIZE_T>(descriptorSize) * slotIndex;
+            srvGpuFrames[slotIndex] = srvGpu;
+            srvGpuFrames[slotIndex].ptr +=
+                static_cast<UINT64>(descriptorSize) * slotIndex;
+        }
+        return Initialize(device, srvCpuFrames, srvGpuFrames, capacity);
+    }
+
+    bool SurfaceGpuSceneFrameBuffer::Initialize(
+        ID3D12Device* device,
+        const std::array<
+            D3D12_CPU_DESCRIPTOR_HANDLE,
+            GFX::kFrameResourceCount>& srvCpu,
+        const std::array<
+            D3D12_GPU_DESCRIPTOR_HANDLE,
+            GFX::kFrameResourceCount>& srvGpu,
+        size_t capacity) {
+
+        if (device == nullptr || capacity == 0) {
+            return false;
+        }
+        for (uint32_t slotIndex = 0;
+            slotIndex < GFX::kFrameResourceCount;
+            ++slotIndex) {
+
+            if (srvCpu[slotIndex].ptr == 0 || srvGpu[slotIndex].ptr == 0) {
+                return false;
+            }
+        }
+
         for (FrameSlot& slot : slots_) {
             slot = {};
         }
@@ -58,10 +100,8 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
             for (uint32_t slotIndex = 0; slotIndex < GFX::kFrameResourceCount; ++slotIndex) {
                 FrameSlot& slot = slots_[slotIndex];
                 slot = {};
-                slot.srvCpu = srvCpu;
-                slot.srvCpu.ptr += static_cast<SIZE_T>(descriptorSize) * slotIndex;
-                slot.srvGpu = srvGpu;
-                slot.srvGpu.ptr += static_cast<UINT64>(descriptorSize) * slotIndex;
+                slot.srvCpu = srvCpu[slotIndex];
+                slot.srvGpu = srvGpu[slotIndex];
 
                 auto uploadHeap = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
                 if (FAILED(device->CreateCommittedResource(

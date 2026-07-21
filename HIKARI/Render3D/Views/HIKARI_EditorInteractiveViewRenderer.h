@@ -12,6 +12,10 @@ namespace HIKARI {
     struct SceneEnvironment;
 }
 
+namespace HIKARI::RENDER3D::GPUDRIVEN {
+    struct GpuDrivenSceneSource;
+}
+
 namespace HIKARI::RENDER3D::EDITORVIEW {
 
     enum class EditorInteractiveShadingMode : uint8_t {
@@ -31,6 +35,7 @@ namespace HIKARI::RENDER3D::EDITORVIEW {
         EditorInteractiveShadingMode shadingMode =
             EditorInteractiveShadingMode::Lit;
         float displayExposure = 1.0f;
+        const GPUDRIVEN::GpuDrivenSceneSource* sceneSourceOverride = nullptr;
     };
 
     struct EditorInteractiveViewOutput {

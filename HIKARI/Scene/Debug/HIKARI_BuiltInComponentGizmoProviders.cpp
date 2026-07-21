@@ -187,6 +187,7 @@ namespace HIKARI {
                 transform.position + MATH::Vec3{ 0.0f, 0.8f, 0.0f },
                 kSpawnColor);
         }
+
     }
 
     void RegisterBuiltInComponentGizmoProviders(
@@ -210,6 +211,7 @@ namespace HIKARI {
             true,
             DrawPlayerBounds
         });
+        RegisterColliderGizmoProvider(registry);
     }
 
 } // namespace HIKARI

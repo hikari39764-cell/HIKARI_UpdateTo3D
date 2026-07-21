@@ -118,5 +118,6 @@ namespace HIKARI::EDITOR {
 
     inline constexpr RENDER3D::RenderViewId kEditorDirectorRenderViewId{ 2 };
     inline constexpr RENDER3D::RenderViewId kEditorOverviewRenderViewId{ 3 };
+    inline constexpr RENDER3D::RenderViewId kModelCollisionPreviewRenderViewId{ 4 };
 
 } // namespace HIKARI::EDITOR

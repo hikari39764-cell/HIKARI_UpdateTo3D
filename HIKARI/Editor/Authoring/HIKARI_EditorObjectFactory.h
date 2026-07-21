@@ -4,6 +4,7 @@
 
 #include "Assets/HIKARI_AssetGuid.h"
 #include "Render3D/HIKARI_Math3D.h"
+#include "Render3D/Procedural/HIKARI_ProceduralMeshTypes.h"
 
 namespace HIKARI {
 
@@ -19,6 +20,12 @@ namespace EDITOR {
         MATH::Vec3 scale{ 1.0f, 1.0f, 1.0f };
     };
 
+    struct CreatePrimitiveRequest {
+        CreateObjectRequest object{};
+        ProceduralMeshSettings mesh{};
+        bool addCollider = true;
+    };
+
     GameObject* CreateEmptyObject(
         DocumentSceneBase& scene,
         const CreateObjectRequest& request);
@@ -27,6 +34,10 @@ namespace EDITOR {
         DocumentSceneBase& scene,
         const AssetGuid& modelGuid,
         const CreateObjectRequest& request);
+
+    GameObject* CreatePrimitiveObject(
+        DocumentSceneBase& scene,
+        const CreatePrimitiveRequest& request);
 
 } // namespace EDITOR
 } // namespace HIKARI

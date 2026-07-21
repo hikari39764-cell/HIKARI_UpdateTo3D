@@ -14,7 +14,7 @@
 
 namespace HIKARI {
 
-    inline constexpr uint32_t kCurrentSceneDocumentVersion = 2;
+    inline constexpr uint32_t kCurrentSceneDocumentVersion = 3;
 
     struct TransformData {
         MATH::Vec3 position{ 0.0f, 0.0f, 0.0f };

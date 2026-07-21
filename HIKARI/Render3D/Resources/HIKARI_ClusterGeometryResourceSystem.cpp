@@ -319,6 +319,44 @@ namespace HIKARI::RENDER3D {
             }
         }
 
+        void RetireReplacedClusterGeometryRecord(
+            const ClusterGeometryResourceRecord& record,
+            Microsoft::WRL::ComPtr<ID3D12Resource> geometryBuffer) {
+
+            const RenderResourceView srv = record.srv;
+            const RenderResourceView metadataSrv = record.metadataSrv;
+            Microsoft::WRL::ComPtr<ID3D12Resource> metadataBuffer =
+                record.metadataBuffer;
+            ClusterGeometryResourceSystemState& state = State();
+            if (state.context.deferredReleaseQueue != nullptr &&
+                state.context.currentFrameRetireFenceValue != 0) {
+                state.context.deferredReleaseQueue->Enqueue(
+                    state.context.currentFrameRetireFenceValue,
+                    [srv,
+                     metadataSrv,
+                     geometryBuffer = std::move(geometryBuffer),
+                     metadataBuffer = std::move(metadataBuffer)]() mutable {
+                        if (srv.IsValid()) {
+                            ReleaseRenderResourceDescriptor(srv);
+                        }
+                        if (metadataSrv.IsValid()) {
+                            ReleaseRenderResourceDescriptor(metadataSrv);
+                        }
+                        geometryBuffer.Reset();
+                        metadataBuffer.Reset();
+                    },
+                    "Replaced Cluster Geometry");
+                return;
+            }
+
+            if (srv.IsValid()) {
+                ReleaseRenderResourceDescriptor(srv);
+            }
+            if (metadataSrv.IsValid()) {
+                ReleaseRenderResourceDescriptor(metadataSrv);
+            }
+        }
+
         ClusterGeometryResourceHandle FindOrRegisterHandle(
             const std::string& sourceKey,
             const std::filesystem::path& hcmeshPath) {
@@ -482,6 +520,15 @@ namespace HIKARI::RENDER3D {
             return {};
         }
 
+        const auto oldRecordIt = state.recordsBySourceKey.find(sourceKey);
+        Microsoft::WRL::ComPtr<ID3D12Resource> replacedGeometryBuffer{};
+        if (oldRecordIt != state.recordsBySourceKey.end()) {
+            if (ID3D12Resource* oldGeometry =
+                    GetRenderResourcePool().GetResource(handle.ToUntyped())) {
+                replacedGeometryBuffer = oldGeometry;
+            }
+        }
+
         RenderResourceView srv = CreateClusterGeometrySrv(geometryUpload.gpu.Get(), packed.layout.byteSize);
         RenderResourceView metadataSrv = CreateClusterGeometrySrv(metadataUpload.gpu.Get(), packed.metadataByteSize);
         if (!srv.IsValid() || !metadataSrv.IsValid()) {
@@ -526,9 +573,10 @@ namespace HIKARI::RENDER3D {
             return {};
         }
 
-        const auto oldRecordIt = state.recordsBySourceKey.find(sourceKey);
         if (oldRecordIt != state.recordsBySourceKey.end()) {
-            ReleaseClusterGeometryRecordViews(oldRecordIt->second);
+            RetireReplacedClusterGeometryRecord(
+                oldRecordIt->second,
+                std::move(replacedGeometryBuffer));
             if (oldRecordIt->second.handle != handle) {
                 state.sourceKeyByHandle.erase(PackHandle(oldRecordIt->second.handle));
             }

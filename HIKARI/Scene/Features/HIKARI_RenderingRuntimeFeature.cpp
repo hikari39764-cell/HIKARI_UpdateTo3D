@@ -5,6 +5,7 @@
 
 #include "Scene/Components/HIKARI_AnimatorComponent.h"
 #include "Scene/Components/HIKARI_ModelComponent.h"
+#include "Scene/Components/HIKARI_ProceduralMeshComponent.h"
 #include "Scene/Features/HIKARI_RuntimeFeature.h"
 #include "Scene/Features/HIKARI_RuntimeFeatureIds.h"
 #include "Scene/HIKARI_AnimationSystem.h"
@@ -43,8 +44,9 @@ namespace HIKARI {
 
             std::span<const std::string_view>
                 GetComponentTypeNames() const noexcept override {
-                static constexpr std::array<std::string_view, 2> names{
+                static constexpr std::array<std::string_view, 3> names{
                     "ModelComponent",
+                    "ProceduralMeshComponent",
                     "AnimatorComponent"
                 };
                 return names;
@@ -65,10 +67,42 @@ namespace HIKARI {
                 model.factory = []() -> std::unique_ptr<IComponent> {
                     return std::make_unique<ModelComponent>();
                 };
-                model.optionalComponents = { "AnimatorComponent" };
+                model.optionalComponents = {
+                    "ProceduralMeshComponent",
+                    "AnimatorComponent"
+                };
                 model.presentation = RenderingPresentation(
                     "Model",
-                    "Renders an asset or procedural mesh for this object.");
+                    "Controls rendering, materials, shadows, and Material FX.");
+
+                ComponentTypeInfo procedural{};
+                procedural.typeName = "ProceduralMeshComponent";
+                procedural.factory = []() -> std::unique_ptr<IComponent> {
+                    return std::make_unique<ProceduralMeshComponent>();
+                };
+                procedural.requiredComponents = { "ModelComponent" };
+                procedural.runtimeApplyPolicy =
+                    ComponentRuntimeApplyPolicy::OnEditCommit;
+                procedural.initializeDefaults = [](
+                    const SceneObjectData&,
+                    nlohmann::json& properties) {
+                    properties = {
+                        { "kind", "Box" },
+                        { "width", 1.0f },
+                        { "height", 1.0f },
+                        { "depth", 1.0f },
+                        { "segmentsX", 10u },
+                        { "segmentsY", 10u },
+                        { "segmentsZ", 1u },
+                        { "sphereSlices", 32u },
+                        { "sphereStacks", 16u },
+                        { "doubleSided", false },
+                        { "generateTangents", true }
+                    };
+                };
+                procedural.presentation = RenderingPresentation(
+                    "Procedural Mesh",
+                    "Generates editable plane, box, sphere, cylinder, or capsule geometry.");
 
                 ComponentTypeInfo animator{};
                 animator.typeName = "AnimatorComponent";
@@ -93,6 +127,8 @@ namespace HIKARI {
 
                 bool success = context.componentRegistry.Register(
                     std::move(model));
+                success = context.componentRegistry.Register(
+                    std::move(procedural)) && success;
                 success = context.componentRegistry.Register(
                     std::move(animator)) && success;
                 success = context.systemTypeRegistry.Register(SystemTypeInfo{

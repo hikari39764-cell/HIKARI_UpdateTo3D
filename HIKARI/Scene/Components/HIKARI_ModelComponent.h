@@ -8,24 +8,13 @@
 
 #include "Assets/HIKARI_AssetGuid.h"
 #include "HIKARI_IComponent.h"
+#include "Scene/Geometry/HIKARI_GeometryFitProvider.h"
 
 
 namespace HIKARI {
 
     class ModelAsset;
     class Material;
-
-    enum class ModelSourceKind {
-        Asset,
-        Procedural,
-    };
-
-    enum class ProceduralMeshKind {
-        Plane,
-        GridPlane,
-        Box,
-        Sphere,
-    };
 
     enum class ModelRenderDebugMode {
         Normal,
@@ -34,27 +23,14 @@ namespace HIKARI {
         BoundsOnly,
     };
 
-    struct ProceduralModelSettings {
-        ProceduralMeshKind kind = ProceduralMeshKind::GridPlane;
-        float width = 10.0f;
-        float height = 10.0f;
-        float depth = 1.0f;
-        uint32_t segmentsX = 10;
-        uint32_t segmentsY = 10;
-        uint32_t segmentsZ = 1;
-        uint32_t sphereSlices = 32;
-        uint32_t sphereStacks = 16;
-        // 両面描画は cluster の cone culling を無効化するため、必要な面だけ明示的に有効化する。
-        bool doubleSided = false;
-        bool generateTangents = true;
-    };
-
     struct ModelMaterialOverrideSlot {
         uint32_t slotIndex = 0;
         AssetGuid materialAssetGuid{};
     };
 
-    class ModelComponent final : public IComponent {
+    class ModelComponent final :
+        public IComponent,
+        public IGeometryFitProvider {
     public:
         ~ModelComponent() override;
 
@@ -80,10 +56,6 @@ namespace HIKARI {
         bool GetReceiveShadow() const;
         void SetRenderStatic(bool enabled);
         bool IsRenderStatic() const;
-        void SetSourceKind(ModelSourceKind kind);
-        ModelSourceKind GetSourceKind() const;
-        void SetProceduralSettings(const ProceduralModelSettings& settings);
-        const ProceduralModelSettings& GetProceduralSettings() const;
         void SetRenderDebugMode(ModelRenderDebugMode mode);
         ModelRenderDebugMode GetRenderDebugMode() const;
         void SetWireColor(uint32_t color);
@@ -96,6 +68,8 @@ namespace HIKARI {
         void Serialize(nlohmann::json& out) const override;
         void Deserialize(const nlohmann::json& in) override;
         void BuildInspector(IInspectorBuilder& builder) override;
+        bool QueryGeometryFit(
+            GeometryFitDesc& outFit) const noexcept override;
 
         const std::string& GetAssetId() const;
         void SetAssetId(std::string assetId);
@@ -134,8 +108,6 @@ namespace HIKARI {
         bool castShadow_ = true;
         bool receiveShadow_ = true;
         bool renderStatic_ = false;
-        ModelSourceKind sourceKind_ = ModelSourceKind::Asset;
-        ProceduralModelSettings procedural_{};
         ModelRenderDebugMode debugRenderMode_ = ModelRenderDebugMode::Normal;
         uint32_t wireColor_ = 0x00FFAAFF;
         uint32_t maxWireLines_ = 20000;

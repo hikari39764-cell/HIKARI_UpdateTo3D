@@ -151,6 +151,27 @@ namespace HIKARI::BOUNDS {
         return globals;
     }
 
+    inline Bounds ComputeModelNodeBounds(
+        const ModelAsset& model,
+        size_t nodeIndex,
+        const std::vector<MATH::Mat4>& globals) {
+
+        if (nodeIndex >= model.nodes.size() || nodeIndex >= globals.size()) {
+            return {};
+        }
+        const ModelNode& node = model.nodes[nodeIndex];
+        if (node.meshIndex < 0 ||
+            node.meshIndex >= static_cast<int>(model.meshes.size())) {
+            return {};
+        }
+        const MeshAsset& mesh = model.meshes[
+            static_cast<size_t>(node.meshIndex)];
+        const Bounds localBounds = IsUsable(mesh.bounds)
+            ? mesh.bounds
+            : ComputeMeshBounds(mesh);
+        return TransformBounds(localBounds, globals[nodeIndex]);
+    }
+
     inline Bounds ComputeModelBounds(const ModelAsset& model) {
         Bounds bounds = EmptyBounds();
         bool hasBounds = false;

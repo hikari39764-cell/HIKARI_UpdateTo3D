@@ -299,6 +299,8 @@ namespace HIKARI {
                 }
                 descriptor->clusteredGeometryPath =
                     FindArtifactPathByFormat(*record, "ClusteredGeometry", "HCMESH");
+                descriptor->collisionGeometryPath =
+                    FindArtifactPathByFormat(*record, "CollisionGeometry", "HCOLLISION");
                 descriptor->version = record->meta.importerVersion;
                 descriptor->importer = GuessModelImporter(record->sourcePath);
                 const nlohmann::json settings = ReadImportSettings(*record);

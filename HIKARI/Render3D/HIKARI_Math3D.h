@@ -63,6 +63,11 @@ namespace HIKARI::MATH {
     Vec3 Normalize(const Vec3& v);
     Quat NormalizeQ(const Quat& q);
     Mat4 Inverse(const Mat4& value);
+    bool DecomposeTRS(
+        const Mat4& value,
+        Vec3& outTranslation,
+        Quat& outRotation,
+        Vec3& outScale);
     // QuaternionをHIKARIのXYZ Euler角へ戻す。戻り値はラジアン。
     Vec3 EulerXYZFromQuat(const Quat& q);
     // SceneDocument / Inspector用の度数版。

@@ -23,6 +23,7 @@
 #include "Render3D/Material/HIKARI_GpuMaterialRegistry.h"
 #include "Render3D/Meshlet/HIKARI_MeshletRenderBackend.h"
 #include "Render3D/Resources/HIKARI_RenderResourceHandle.h"
+#include "Render3D/Resources/HIKARI_RenderResourcePool.h"
 
 namespace HIKARI::MESHRENDERER {
 
@@ -56,6 +57,13 @@ namespace HIKARI::MESHRENDERER {
             GFX::kFrameResourceCount> frames{};
         RENDER3D::GPUDRIVEN::GpuTraditionalCommandStreamBuffer
             traditionalCommandStreamBuffer{};
+        std::array<
+            RENDER3D::RenderResourceView,
+            GFX::kFrameResourceCount> surfaceGpuSceneViews{};
+        RENDER3D::GPUDRIVEN::SurfaceGpuSceneFrameBuffer
+            surfaceGpuSceneBuffer{};
+        RENDER3D::GPUDRIVEN::GpuDrivenSceneResidency
+            sceneResidency{};
         RENDER3D::GPUDRIVEN::GpuDrivenLayer gpuDrivenLayer{};
     };
 #endif

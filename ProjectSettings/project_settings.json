@@ -2,6 +2,7 @@
   "enabledRuntimeFeatures": [
     "Rendering",
     "Camera",
+    "Physics",
     "GameplayBasic",
     "Cinematics"
   ],

@@ -69,6 +69,29 @@ namespace HIKARI {
             return nullptr;
         }
 
+        template<class T, class Fn>
+        void ForEachComponent(Fn&& fn) {
+            static_assert(std::is_base_of_v<IComponent, T>,
+                "T must derive from IComponent");
+            for (const auto& component : components_) {
+                if (auto* casted = dynamic_cast<T*>(component.get())) {
+                    std::forward<Fn>(fn)(*casted);
+                }
+            }
+        }
+
+        template<class T, class Fn>
+        void ForEachComponent(Fn&& fn) const {
+            static_assert(std::is_base_of_v<IComponent, T>,
+                "T must derive from IComponent");
+            for (const auto& component : components_) {
+                if (auto* casted =
+                        dynamic_cast<const T*>(component.get())) {
+                    std::forward<Fn>(fn)(*casted);
+                }
+            }
+        }
+
         void Update(float dt);
         void Render();
         void RenderImGui();

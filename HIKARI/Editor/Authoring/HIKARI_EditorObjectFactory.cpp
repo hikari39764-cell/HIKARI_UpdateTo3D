@@ -45,6 +45,18 @@ namespace HIKARI::EDITOR {
             return "GameObject_" + std::to_string(id.value);
         }
 
+        const char* DefaultPrimitiveName(ProceduralMeshKind kind) {
+            switch (kind) {
+            case ProceduralMeshKind::Plane: return "Plane";
+            case ProceduralMeshKind::GridPlane: return "Grid Plane";
+            case ProceduralMeshKind::Sphere: return "Sphere";
+            case ProceduralMeshKind::Cylinder: return "Cylinder";
+            case ProceduralMeshKind::Capsule: return "Capsule";
+            case ProceduralMeshKind::Box:
+            default: return "Box";
+            }
+        }
+
         SceneObjectData BuildBaseObject(
             DocumentSceneBase& scene,
             const AssetGuid* modelGuid,
@@ -86,7 +98,6 @@ namespace HIKARI::EDITOR {
         modelComponent.properties = {
             { "assetId", modelGuid.value },
             { "visible", true },
-            { "sourceKind", "Asset" },
             { "castShadow", true },
             { "receiveShadow", true }
         };
@@ -95,6 +106,116 @@ namespace HIKARI::EDITOR {
         scene.GetSceneDocument().objects.push_back(std::move(object));
 
         // Document を正として runtime world を作り直す。
+        scene.RebuildRuntimeWorld();
+        return FindRuntimeObject(scene, id);
+    }
+
+    GameObject* CreatePrimitiveObject(
+        DocumentSceneBase& scene,
+        const CreatePrimitiveRequest& request) {
+
+        CreateObjectRequest objectRequest = request.object;
+        const ProceduralMeshSettings settings =
+            SanitizeProceduralMeshSettings(request.mesh);
+        if (objectRequest.name.empty()) {
+            objectRequest.name = DefaultPrimitiveName(settings.kind);
+        }
+
+        SceneObjectData object = BuildBaseObject(
+            scene, nullptr, objectRequest);
+        const SceneObjectId id = object.id;
+
+        object.components.push_back(SceneComponentData{
+            "ModelComponent",
+            {
+                { "assetId", "" },
+                { "visible", true },
+                { "castShadow", true },
+                { "receiveShadow", true },
+                { "renderStatic", false }
+            }
+        });
+        object.components.push_back(SceneComponentData{
+            "ProceduralMeshComponent",
+            {
+                { "kind", ToString(settings.kind) },
+                { "width", settings.width },
+                { "height", settings.height },
+                { "depth", settings.depth },
+                { "segmentsX", settings.segmentsX },
+                { "segmentsY", settings.segmentsY },
+                { "segmentsZ", settings.segmentsZ },
+                { "sphereSlices", settings.sphereSlices },
+                { "sphereStacks", settings.sphereStacks },
+                { "doubleSided", settings.doubleSided },
+                { "generateTangents", settings.generateTangents }
+            }
+        });
+
+        if (request.addCollider) {
+            nlohmann::json collider{
+                { "enabled", true },
+                { "fitMode", "Geometry" },
+                { "center", { 0.0f, 0.0f, 0.0f } },
+                { "rotation", { 0.0f, 0.0f, 0.0f } },
+                { "trigger", false },
+                { "material", {
+                    { "friction", 0.5f },
+                    { "restitution", 0.0f },
+                    { "density", 1.0f }
+                } },
+                { "filter", {
+                    { "layer", 1u },
+                    { "mask", 0xFFFFFFFFu }
+                } }
+            };
+            switch (settings.kind) {
+            case ProceduralMeshKind::Sphere:
+                collider["shape"] = "Sphere";
+                collider["radius"] = settings.width * 0.5f;
+                collider["height"] = settings.width;
+                collider["size"] = {
+                    settings.width, settings.width, settings.width
+                };
+                break;
+            case ProceduralMeshKind::Capsule:
+            case ProceduralMeshKind::Cylinder:
+                // The backend contract currently exposes capsule as the
+                // closest stable collider for round vertical primitives.
+                collider["shape"] = "Capsule";
+                collider["radius"] = settings.width * 0.5f;
+                collider["height"] = settings.height;
+                collider["size"] = {
+                    settings.width, settings.height, settings.width
+                };
+                break;
+            case ProceduralMeshKind::Plane:
+            case ProceduralMeshKind::GridPlane:
+                collider["shape"] = "Box";
+                collider["size"] = {
+                    settings.width, 0.02f, settings.depth
+                };
+                collider["radius"] = 0.01f;
+                collider["height"] = 0.02f;
+                break;
+            case ProceduralMeshKind::Box:
+            default:
+                collider["shape"] = "Box";
+                collider["size"] = {
+                    settings.width, settings.height, settings.depth
+                };
+                collider["radius"] =
+                    (std::min)({ settings.width, settings.height, settings.depth }) * 0.5f;
+                collider["height"] = settings.height;
+                break;
+            }
+            object.components.push_back(SceneComponentData{
+                "ColliderComponent",
+                std::move(collider)
+            });
+        }
+
+        scene.GetSceneDocument().objects.push_back(std::move(object));
         scene.RebuildRuntimeWorld();
         return FindRuntimeObject(scene, id);
     }

@@ -1,6 +1,8 @@
 #include "HIKARI_DocumentComponentAuthoringService.h"
 
+#include <algorithm>
 #include <sstream>
+#include <utility>
 
 namespace HIKARI {
 
@@ -24,6 +26,105 @@ namespace HIKARI {
             oss << ")";
             result.message = oss.str();
         }
+        return result;
+    }
+
+    ComponentEditResult
+        DocumentComponentAuthoringService::DuplicateComponent(
+            const ComponentRegistry& registry,
+            SceneObjectData& object,
+            size_t componentIndex) const {
+        ComponentEditResult result{};
+        if (componentIndex >= object.components.size()) {
+            result.message = "Component no longer exists.";
+            return result;
+        }
+        SceneComponentData source =
+            object.components[componentIndex];
+        result.componentType = source.type;
+        const ComponentTypeInfo* info = registry.Find(source.type);
+        if (info == nullptr) {
+            result.message =
+                "Unavailable component types cannot be duplicated.";
+            return result;
+        }
+        if (!info->allowMultiple) {
+            result.message =
+                info->presentation.displayName +
+                " allows only one instance.";
+            return result;
+        }
+        object.components.insert(
+            object.components.begin() +
+                static_cast<std::ptrdiff_t>(componentIndex + 1u),
+            std::move(source));
+        result.success = true;
+        result.documentChanged = true;
+        result.message = "Duplicated " +
+            info->presentation.displayName + ".";
+        return result;
+    }
+
+    ComponentEditResult
+        DocumentComponentAuthoringService::RemoveComponent(
+            const ComponentRegistry& registry,
+            SceneObjectData& object,
+            size_t componentIndex) const {
+        ComponentEditResult result{};
+        if (componentIndex >= object.components.size()) {
+            result.message = "Component no longer exists.";
+            return result;
+        }
+        const std::string removedType =
+            object.components[componentIndex].type;
+        result.componentType = removedType;
+        const size_t remainingSameType = static_cast<size_t>(
+            std::count_if(
+                object.components.begin(),
+                object.components.end(),
+                [&removedType](const SceneComponentData& component) {
+                    return component.type == removedType;
+                })) - 1u;
+        if (remainingSameType == 0u) {
+            for (size_t index = 0;
+                index < object.components.size();
+                ++index) {
+                if (index == componentIndex) {
+                    continue;
+                }
+                const SceneComponentData& dependent =
+                    object.components[index];
+                const ComponentTypeInfo* dependentInfo =
+                    registry.Find(dependent.type);
+                if (dependentInfo == nullptr) {
+                    continue;
+                }
+                if (std::find(
+                        dependentInfo->requiredComponents.begin(),
+                        dependentInfo->requiredComponents.end(),
+                        removedType) !=
+                    dependentInfo->requiredComponents.end()) {
+                    result.message =
+                        "Remove " +
+                        dependentInfo->presentation.displayName +
+                        " first.";
+                    return result;
+                }
+            }
+        }
+        const ComponentTypeInfo* removedInfo =
+            registry.Find(removedType);
+        const std::string displayName =
+            removedInfo != nullptr &&
+            !removedInfo->presentation.displayName.empty()
+                ? removedInfo->presentation.displayName
+                : removedType;
+        object.components.erase(
+            object.components.begin() +
+            static_cast<std::ptrdiff_t>(componentIndex));
+        result.success = true;
+        result.documentChanged = true;
+        result.message = "Removed " + displayName + ".";
         return result;
     }
 

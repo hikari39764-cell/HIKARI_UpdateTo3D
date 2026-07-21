@@ -469,6 +469,18 @@ namespace HIKARI {
                 (void)workspaceHost.RequestOpen(std::move(request));
             }
 
+            const bool modelCollisionWorkspaceActive = workspaceHost.IsActive(
+                EDITOR::EditorWorkspaceId::ModelCollision);
+            if (ImGui::MenuItem(
+                    "Model Collision",
+                    nullptr,
+                    modelCollisionWorkspaceActive)) {
+                EDITOR::EditorWorkspaceOpenRequest request{};
+                request.workspaceId =
+                    EDITOR::EditorWorkspaceId::ModelCollision;
+                (void)workspaceHost.RequestOpen(std::move(request));
+            }
+
             ImGui::Separator();
             if (ImGui::MenuItem("Reset Active Layout")) {
                 workspaceHost.RequestResetActiveLayout();

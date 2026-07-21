@@ -875,6 +875,15 @@ namespace HIKARI {
             if (record.type == AssetType::Model) {
                 const bool hasHmodel = HasArtifactFormat(record, "HMODEL");
                 const bool hasHcmesh = HasArtifactFormat(record, "HCMESH");
+                const bool hasCollision = HasArtifactFormat(
+                    record,
+                    "HCOLLISION");
+                if (hasHmodel && hasHcmesh && hasCollision) {
+                    return "HMODEL + HCMESH + HCOLLISION";
+                }
+                if (hasHmodel && hasCollision) {
+                    return "HMODEL + HCOLLISION";
+                }
                 if (hasHmodel && hasHcmesh) {
                     return "HMODEL + HCMESH";
                 }
@@ -944,6 +953,15 @@ namespace HIKARI {
             if (record.type == AssetType::Model) {
                 const bool hasHmodel = HasArtifactFormat(record, "HMODEL");
                 const bool hasHcmesh = HasArtifactFormat(record, "HCMESH");
+                const bool hasCollision = HasArtifactFormat(
+                    record,
+                    "HCOLLISION");
+                if (hasHmodel && hasHcmesh && hasCollision) {
+                    return "H+HC+C";
+                }
+                if (hasHmodel && hasCollision) {
+                    return "H+C";
+                }
                 if (hasHmodel && hasHcmesh) {
                     return "H+HC";
                 }
@@ -1476,7 +1494,8 @@ namespace HIKARI {
             const AssetRecord& record,
             std::string& lastOperationMessage,
             std::string& activatedSceneGuid,
-            std::string& activatedSequenceGuid) {
+            std::string& activatedSequenceGuid,
+            std::string& activatedModelCollisionGuid) {
             if (record.type == AssetType::Scene) {
                 activatedSceneGuid = record.guid.value;
                 lastOperationMessage = "Scene open requested: " + record.displayName;
@@ -1490,7 +1509,10 @@ namespace HIKARI {
                 return;
             }
             if (record.type == AssetType::Model) {
-                lastOperationMessage = "Model selected: " + record.displayName;
+                activatedModelCollisionGuid = record.guid.value;
+                lastOperationMessage =
+                    "Model Collision workspace requested: " +
+                    record.displayName;
                 return;
             }
             lastOperationMessage = "Asset selected: " + record.displayName;
@@ -1555,16 +1577,6 @@ namespace HIKARI {
             ImGui::OpenPopup("Delete Scene Asset");
         }
 
-        void QueueModelCookSettings(
-            const AssetRecord& record,
-            std::string& modelCookSettingsGuid,
-            std::string& modelCookSettingsOriginalJson) {
-
-            modelCookSettingsGuid = record.guid.value;
-            modelCookSettingsOriginalJson = record.meta.importSettingsJson;
-            ImGui::OpenPopup("Model Cook Settings");
-        }
-
         void DrawAssetDragSource(const AssetRecord& record) {
             EDITOR::BeginAssetDragSource(record);
         }
@@ -1577,11 +1589,10 @@ namespace HIKARI {
             const AssetBrowserContext* context,
             std::string& activatedSceneGuid,
             std::string& activatedSequenceGuid,
+            std::string& activatedModelCollisionGuid,
             std::string& saveSceneAsGuid,
             std::string& refreshRuntimeAssetGuid,
             std::string& reimportAndRefreshRuntimeAssetGuid,
-            std::string& modelCookSettingsGuid,
-            std::string& modelCookSettingsOriginalJson,
             std::string& renameSceneGuid,
             std::string& deleteSceneGuid,
             std::array<char, 128>& renameSceneNameBuffer) {
@@ -1636,10 +1647,12 @@ namespace HIKARI {
             }
 
             if (record.type == AssetType::Model) {
-                if (ImGui::MenuItem("Model Cook Settings...")) {
+                if (ImGui::MenuItem("Edit Collision...")) {
                     SelectRecord(record, selection);
-                    QueueModelCookSettings(record, modelCookSettingsGuid, modelCookSettingsOriginalJson);
-                    lastOperationMessage = "Model cook settings opened";
+                    activatedModelCollisionGuid = record.guid.value;
+                    lastOperationMessage =
+                        "Model Collision workspace requested: " +
+                        record.displayName;
                 }
                 ImGui::Separator();
             }
@@ -1713,11 +1726,10 @@ namespace HIKARI {
             const AssetBrowserContext* context,
             std::string& activatedSceneGuid,
             std::string& activatedSequenceGuid,
+            std::string& activatedModelCollisionGuid,
             std::string& saveSceneAsGuid,
             std::string& refreshRuntimeAssetGuid,
             std::string& reimportAndRefreshRuntimeAssetGuid,
-            std::string& modelCookSettingsGuid,
-            std::string& modelCookSettingsOriginalJson,
             std::string& renameSceneGuid,
             std::string& deleteSceneGuid,
             std::array<char, 128>& renameSceneNameBuffer) {
@@ -1767,7 +1779,8 @@ namespace HIKARI {
                             *record,
                             lastOperationMessage,
                             activatedSceneGuid,
-                            activatedSequenceGuid);
+                            activatedSequenceGuid,
+                            activatedModelCollisionGuid);
                     }
                 }
                 const bool rowHovered = ImGui::IsItemHovered();
@@ -1785,11 +1798,10 @@ namespace HIKARI {
                         context,
                         activatedSceneGuid,
                         activatedSequenceGuid,
+                        activatedModelCollisionGuid,
                         saveSceneAsGuid,
                         refreshRuntimeAssetGuid,
                         reimportAndRefreshRuntimeAssetGuid,
-                        modelCookSettingsGuid,
-                        modelCookSettingsOriginalJson,
                         renameSceneGuid,
                         deleteSceneGuid,
                         renameSceneNameBuffer);
@@ -1822,11 +1834,10 @@ namespace HIKARI {
             const AssetBrowserContext* context,
             std::string& activatedSceneGuid,
             std::string& activatedSequenceGuid,
+            std::string& activatedModelCollisionGuid,
             std::string& saveSceneAsGuid,
             std::string& refreshRuntimeAssetGuid,
             std::string& reimportAndRefreshRuntimeAssetGuid,
-            std::string& modelCookSettingsGuid,
-            std::string& modelCookSettingsOriginalJson,
             std::string& renameSceneGuid,
             std::string& deleteSceneGuid,
             std::array<char, 128>& renameSceneNameBuffer) {
@@ -1875,7 +1886,8 @@ namespace HIKARI {
                             *record,
                             lastOperationMessage,
                             activatedSceneGuid,
-                            activatedSequenceGuid);
+                            activatedSequenceGuid,
+                            activatedModelCollisionGuid);
                     }
                 }
                 const bool rowHovered = ImGui::IsItemHovered();
@@ -1892,11 +1904,10 @@ namespace HIKARI {
                         context,
                         activatedSceneGuid,
                         activatedSequenceGuid,
+                        activatedModelCollisionGuid,
                         saveSceneAsGuid,
                         refreshRuntimeAssetGuid,
                         reimportAndRefreshRuntimeAssetGuid,
-                        modelCookSettingsGuid,
-                        modelCookSettingsOriginalJson,
                         renameSceneGuid,
                         deleteSceneGuid,
                         renameSceneNameBuffer);
@@ -1931,11 +1942,10 @@ namespace HIKARI {
             const AssetBrowserContext* context,
             std::string& activatedSceneGuid,
             std::string& activatedSequenceGuid,
+            std::string& activatedModelCollisionGuid,
             std::string& saveSceneAsGuid,
             std::string& refreshRuntimeAssetGuid,
             std::string& reimportAndRefreshRuntimeAssetGuid,
-            std::string& modelCookSettingsGuid,
-            std::string& modelCookSettingsOriginalJson,
             std::string& renameSceneGuid,
             std::string& deleteSceneGuid,
             std::array<char, 128>& renameSceneNameBuffer) {
@@ -1994,7 +2004,8 @@ namespace HIKARI {
                         *record,
                         lastOperationMessage,
                         activatedSceneGuid,
-                        activatedSequenceGuid);
+                        activatedSequenceGuid,
+                        activatedModelCollisionGuid);
                 }
                 if (ImGui::BeginPopupContextItem()) {
                     DrawRecordContextMenu(
@@ -2005,11 +2016,10 @@ namespace HIKARI {
                         context,
                         activatedSceneGuid,
                         activatedSequenceGuid,
+                        activatedModelCollisionGuid,
                         saveSceneAsGuid,
                         refreshRuntimeAssetGuid,
                         reimportAndRefreshRuntimeAssetGuid,
-                        modelCookSettingsGuid,
-                        modelCookSettingsOriginalJson,
                         renameSceneGuid,
                         deleteSceneGuid,
                         renameSceneNameBuffer);
@@ -2149,97 +2159,6 @@ namespace HIKARI {
             }
         }
 
-        void DrawModelCookSettingsModal(
-            AssetDatabase& assetDatabase,
-            std::string& lastOperationMessage,
-            std::string& reimportAndRefreshRuntimeAssetGuid,
-            std::string& modelCookSettingsGuid,
-            std::string& modelCookSettingsOriginalJson) {
-
-            bool open = true;
-            if (!ImGui::BeginPopupModal("Model Cook Settings", &open, ImGuiWindowFlags_AlwaysAutoResize)) {
-                return;
-            }
-
-            AssetRecord* record = assetDatabase.FindByGuid(AssetGuid{ modelCookSettingsGuid });
-            if (!record || record->type != AssetType::Model) {
-                ImGui::TextDisabled("Selected model is no longer available");
-                if (ImGui::Button("Close", ImVec2(96.0f, 0.0f))) {
-                    modelCookSettingsGuid.clear();
-                    modelCookSettingsOriginalJson.clear();
-                    ImGui::CloseCurrentPopup();
-                }
-                ImGui::EndPopup();
-                return;
-            }
-
-            ImGui::Text("%s", record->displayName.c_str());
-            ImGui::TextDisabled("%s", record->sourcePath.generic_string().c_str());
-            ImGui::Separator();
-
-            nlohmann::json settings = ReadImportSettings(*record);
-            if (DrawModelClusterCookSettings(settings)) {
-                record->meta.importSettingsJson = settings.dump(2);
-            }
-
-            auto saveMeta = [&]() -> bool {
-                if (!assetDatabase.WriteMeta(*record)) {
-                    lastOperationMessage = "Model cook settings save failed";
-                    return false;
-                }
-                record->importOutdated = true;
-                return true;
-            };
-
-            ImGui::Separator();
-            if (ImGui::Button("Save", ImVec2(110.0f, 0.0f))) {
-                if (saveMeta()) {
-                    lastOperationMessage = "Model cook settings saved";
-                    modelCookSettingsGuid.clear();
-                    modelCookSettingsOriginalJson.clear();
-                    ImGui::CloseCurrentPopup();
-                }
-            }
-            ImGui::SameLine();
-            if (ImGui::Button("Reimport", ImVec2(110.0f, 0.0f))) {
-                const bool saved = saveMeta();
-                const bool imported = saved && assetDatabase.ImportAsset(record->guid);
-                lastOperationMessage = imported ? "Model reimport succeeded" : "Model reimport failed";
-                if (imported) {
-                    modelCookSettingsGuid.clear();
-                    modelCookSettingsOriginalJson.clear();
-                    ImGui::CloseCurrentPopup();
-                }
-            }
-            ImGui::SameLine();
-            if (ImGui::Button("Reimport + Runtime", ImVec2(150.0f, 0.0f))) {
-                const bool saved = saveMeta();
-                const bool imported = saved && assetDatabase.ImportAsset(record->guid);
-                if (imported) {
-                    reimportAndRefreshRuntimeAssetGuid = record->guid.value;
-                    lastOperationMessage = "Model reimported; runtime refresh queued";
-                    modelCookSettingsGuid.clear();
-                    modelCookSettingsOriginalJson.clear();
-                    ImGui::CloseCurrentPopup();
-                } else {
-                    lastOperationMessage = "Model reimport failed";
-                }
-            }
-            ImGui::SameLine();
-            if (ImGui::Button("Cancel", ImVec2(110.0f, 0.0f))) {
-                record->meta.importSettingsJson = modelCookSettingsOriginalJson;
-                modelCookSettingsGuid.clear();
-                modelCookSettingsOriginalJson.clear();
-                ImGui::CloseCurrentPopup();
-            }
-
-            if (!open) {
-                record->meta.importSettingsJson = modelCookSettingsOriginalJson;
-                modelCookSettingsGuid.clear();
-                modelCookSettingsOriginalJson.clear();
-            }
-            ImGui::EndPopup();
-        }
 #endif
     }
 
@@ -2424,11 +2343,10 @@ namespace HIKARI {
                 context,
                 activatedSceneGuid_,
                 activatedSequenceGuid_,
+                activatedModelCollisionGuid_,
                 saveSceneAsGuid_,
                 refreshRuntimeAssetGuid_,
                 reimportAndRefreshRuntimeAssetGuid_,
-                modelCookSettingsGuid_,
-                modelCookSettingsOriginalJson_,
                 renameSceneGuid_,
                 deleteSceneGuid_,
                 renameSceneNameBuffer_);
@@ -2442,11 +2360,10 @@ namespace HIKARI {
                 context,
                 activatedSceneGuid_,
                 activatedSequenceGuid_,
+                activatedModelCollisionGuid_,
                 saveSceneAsGuid_,
                 refreshRuntimeAssetGuid_,
                 reimportAndRefreshRuntimeAssetGuid_,
-                modelCookSettingsGuid_,
-                modelCookSettingsOriginalJson_,
                 renameSceneGuid_,
                 deleteSceneGuid_,
                 renameSceneNameBuffer_);
@@ -2460,11 +2377,10 @@ namespace HIKARI {
                 context,
                 activatedSceneGuid_,
                 activatedSequenceGuid_,
+                activatedModelCollisionGuid_,
                 saveSceneAsGuid_,
                 refreshRuntimeAssetGuid_,
                 reimportAndRefreshRuntimeAssetGuid_,
-                modelCookSettingsGuid_,
-                modelCookSettingsOriginalJson_,
                 renameSceneGuid_,
                 deleteSceneGuid_,
                 renameSceneNameBuffer_);
@@ -2479,12 +2395,6 @@ namespace HIKARI {
             renameSceneGuid_,
             deleteSceneGuid_,
             renameSceneNameBuffer_);
-        DrawModelCookSettingsModal(
-            assetDatabase,
-            lastOperationMessage_,
-            reimportAndRefreshRuntimeAssetGuid_,
-            modelCookSettingsGuid_,
-            modelCookSettingsOriginalJson_);
 #else
         (void)assetDatabase;
         (void)selection;
@@ -2508,6 +2418,16 @@ namespace HIKARI {
 #if defined(HIKARI_WITH_EDITOR)
         std::string value = std::move(activatedSequenceGuid_);
         activatedSequenceGuid_.clear();
+        return value;
+#else
+        return {};
+#endif
+    }
+
+    std::string AssetBrowserPanel::ConsumeActivatedModelCollisionGuid() const {
+#if defined(HIKARI_WITH_EDITOR)
+        std::string value = std::move(activatedModelCollisionGuid_);
+        activatedModelCollisionGuid_.clear();
         return value;
 #else
         return {};

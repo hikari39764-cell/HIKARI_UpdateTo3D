@@ -87,6 +87,23 @@ namespace HIKARI::RUNTIME_TOOLS {
                 return ImGui::DragFloat(std::string(label).c_str(), &value, 0.1f);
             }
 
+            bool FloatRange(
+                std::string_view label,
+                float& value,
+                float minimum,
+                float maximum,
+                float speed = 0.1f) override {
+
+                return ImGui::DragFloat(
+                    std::string(label).c_str(),
+                    &value,
+                    speed,
+                    minimum,
+                    maximum,
+                    "%.3f",
+                    ImGuiSliderFlags_AlwaysClamp);
+            }
+
             bool String(std::string_view label, std::string& value) override {
                 std::array<char, 256> buffer{};
                 const size_t copyCount = (std::min)(value.size(), buffer.size() - 1);

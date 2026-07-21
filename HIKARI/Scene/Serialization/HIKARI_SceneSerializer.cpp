@@ -50,7 +50,56 @@ namespace HIKARI {
                     });
                 }
             }
-            document.version = kCurrentSceneDocumentVersion;
+            document.version = (std::max)(document.version, 2u);
+        }
+
+        void MigrateLegacyProceduralModels(SceneDocument& document) {
+            if (document.version >= 3) {
+                return;
+            }
+            for (SceneObjectData& object : document.objects) {
+                SceneComponentData* model = nullptr;
+                bool hasProceduralMesh = false;
+                for (SceneComponentData& component : object.components) {
+                    if (component.type == "ModelComponent") {
+                        model = &component;
+                    } else if (component.type == "ProceduralMeshComponent") {
+                        hasProceduralMesh = true;
+                    }
+                }
+                if (model == nullptr || !model->properties.is_object()) {
+                    continue;
+                }
+
+                const json sourceKind = model->properties.value(
+                    "sourceKind", json{});
+                const bool wasProcedural =
+                    (sourceKind.is_string() &&
+                        sourceKind.get<std::string>() == "Procedural") ||
+                    (sourceKind.is_number_integer() &&
+                        sourceKind.get<int>() == 1);
+                if (wasProcedural && !hasProceduralMesh) {
+                    json properties = model->properties.value(
+                        "procedural", json::object());
+                    if (!properties.is_object()) {
+                        properties = json::object();
+                    }
+                    const std::string kind = properties.value(
+                        "kind", std::string("GridPlane"));
+                    if ((kind == "Plane" || kind == "GridPlane") &&
+                        properties.contains("height")) {
+                        // Legacy planes used height as their Z dimension.
+                        properties["depth"] = properties["height"];
+                    }
+                    object.components.push_back(SceneComponentData{
+                        "ProceduralMeshComponent",
+                        std::move(properties)
+                    });
+                }
+                model->properties.erase("sourceKind");
+                model->properties.erase("procedural");
+            }
+            document.version = (std::max)(document.version, 3u);
         }
 
         json ToVec3(const MATH::Vec3& v) {
@@ -672,6 +721,7 @@ namespace HIKARI {
         }
 
         MigrateLegacyPlayerInput(outDocument);
+        MigrateLegacyProceduralModels(outDocument);
         outDocument.version = (std::max)(
             outDocument.version,
             kCurrentSceneDocumentVersion);

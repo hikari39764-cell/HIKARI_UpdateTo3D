@@ -11,12 +11,14 @@ namespace HIKARI::EDITOR {
     enum class EditorWorkspaceId : uint8_t {
         Scene,
         Cinematics,
+        ModelCollision,
     };
 
     struct EditorWorkspaceOpenRequest {
         EditorWorkspaceId workspaceId = EditorWorkspaceId::Scene;
         std::optional<SceneObjectId> targetCameraObjectId{};
         std::optional<AssetGuid> sequenceAssetGuid{};
+        std::optional<AssetGuid> modelAssetGuid{};
     };
 
     struct EditorWorkspaceActivation {
@@ -24,6 +26,7 @@ namespace HIKARI::EDITOR {
         EditorWorkspaceId current = EditorWorkspaceId::Scene;
         std::optional<SceneObjectId> targetCameraObjectId{};
         std::optional<AssetGuid> sequenceAssetGuid{};
+        std::optional<AssetGuid> modelAssetGuid{};
     };
 
 } // namespace HIKARI::EDITOR

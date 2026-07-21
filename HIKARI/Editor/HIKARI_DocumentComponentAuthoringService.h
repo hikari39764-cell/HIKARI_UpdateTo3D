@@ -16,9 +16,24 @@ namespace HIKARI {
         std::vector<std::string> autoAddedDependencies{};
     };
 
+    struct ComponentEditResult {
+        bool success = false;
+        bool documentChanged = false;
+        std::string componentType{};
+        std::string message{};
+    };
+
     class DocumentComponentAuthoringService {
     public:
         ComponentAddResult AddComponent(const ComponentRegistry& registry, SceneObjectData& object, std::string_view typeName) const;
+        ComponentEditResult DuplicateComponent(
+            const ComponentRegistry& registry,
+            SceneObjectData& object,
+            size_t componentIndex) const;
+        ComponentEditResult RemoveComponent(
+            const ComponentRegistry& registry,
+            SceneObjectData& object,
+            size_t componentIndex) const;
 
     private:
         bool HasComponent(const SceneObjectData& object, std::string_view typeName) const;

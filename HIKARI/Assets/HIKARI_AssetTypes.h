@@ -122,6 +122,7 @@ namespace HIKARI {
         ModelImporterKind importer = ModelImporterKind::Gltf;
         bool preload = true;
         std::string clusteredGeometryPath{};
+        std::string collisionGeometryPath{};
         ModelImportOptions importOptions{};
         std::vector<ModelMaterialOverrideDesc> materialOverrides{};
         ModelAnimationImportDesc animation{};
@@ -189,6 +190,7 @@ namespace HIKARI {
         HMODEL,
         HMESH,
         HCMESH,
+        HCOLLISION,
         HMAT,
         HSKY,
         HIBL,

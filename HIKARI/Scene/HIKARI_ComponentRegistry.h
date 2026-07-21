@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <functional>
 #include <memory>
 #include <string>
@@ -22,6 +23,11 @@ namespace HIKARI {
         std::string featureId{};
     };
 
+    enum class ComponentRuntimeApplyPolicy : uint8_t {
+        Immediate,
+        OnEditCommit,
+    };
+
     struct ComponentTypeInfo {
         using FactoryFn = std::function<std::unique_ptr<IComponent>()>;
         using InitializeDefaultsFn = std::function<void(const SceneObjectData& object, nlohmann::json& properties)>;
@@ -32,6 +38,8 @@ namespace HIKARI {
         std::vector<std::string> optionalComponents{};
         std::vector<std::string> incompatibleComponents{};
         bool allowMultiple = false;
+        ComponentRuntimeApplyPolicy runtimeApplyPolicy =
+            ComponentRuntimeApplyPolicy::Immediate;
         InitializeDefaultsFn initializeDefaults{};
         ComponentTypePresentation presentation{};
     };

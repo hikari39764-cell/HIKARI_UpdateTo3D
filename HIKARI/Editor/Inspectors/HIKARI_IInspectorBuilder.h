@@ -31,6 +31,12 @@ namespace HIKARI {
         virtual bool Bool(std::string_view label, bool& value) = 0;
         virtual bool Int(std::string_view label, int& value) = 0;
         virtual bool Float(std::string_view label, float& value) = 0;
+        virtual bool FloatRange(
+            std::string_view label,
+            float& value,
+            float minimum,
+            float maximum,
+            float speed = 0.1f) = 0;
         virtual bool String(std::string_view label, std::string& value) = 0;
         virtual bool Choice(
             std::string_view label,

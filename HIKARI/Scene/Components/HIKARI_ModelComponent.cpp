@@ -4,9 +4,9 @@
 #include "Editor/Inspectors/HIKARI_IInspectorBuilder.h"
 #include "Render3D/Core/HIKARI_Material.h"
 #include "Render3D/Core/HIKARI_MeshRenderer.h"
+#include "Render3D/Core/HIKARI_BoundsUtils.h"
 #include "Render3D/Core/HIKARI_ModelAsset.h"
 #include "Render3D/Debug/HIKARI_MeshWireDebugRenderer.h"
-#include "Render3D/Procedural/HIKARI_ProceduralModelFactory.h"
 #include "Render3D/Render/HIKARI_ModelRenderer.h"
 #include "Scene/HIKARI_GameObject.h"
 #include "Vfx/MaterialFx/HIKARI_MaterialFxProfile.h"
@@ -35,20 +35,6 @@ namespace HIKARI {
             return false;
         }
 
-        const char* ToString(ModelSourceKind kind) {
-            return kind == ModelSourceKind::Procedural ? "Procedural" : "Asset";
-        }
-
-        const char* ToString(ProceduralMeshKind kind) {
-            switch (kind) {
-            case ProceduralMeshKind::Plane: return "Plane";
-            case ProceduralMeshKind::GridPlane: return "GridPlane";
-            case ProceduralMeshKind::Box: return "Box";
-            case ProceduralMeshKind::Sphere: return "Sphere";
-            default: return "GridPlane";
-            }
-        }
-
         const char* ToString(ModelRenderDebugMode mode) {
             switch (mode) {
             case ModelRenderDebugMode::WireOverlay: return "WireOverlay";
@@ -57,22 +43,6 @@ namespace HIKARI {
             case ModelRenderDebugMode::Normal:
             default: return "Normal";
             }
-        }
-
-        ModelSourceKind ParseModelSourceKind(const nlohmann::json& in, ModelSourceKind fallback) {
-            const std::string value = in.is_string() ? in.get<std::string>() : std::string{};
-            if (value == "Procedural") return ModelSourceKind::Procedural;
-            if (value == "Asset") return ModelSourceKind::Asset;
-            return fallback;
-        }
-
-        ProceduralMeshKind ParseProceduralMeshKind(const nlohmann::json& in, ProceduralMeshKind fallback) {
-            const std::string value = in.is_string() ? in.get<std::string>() : std::string{};
-            if (value == "Plane") return ProceduralMeshKind::Plane;
-            if (value == "GridPlane") return ProceduralMeshKind::GridPlane;
-            if (value == "Box") return ProceduralMeshKind::Box;
-            if (value == "Sphere") return ProceduralMeshKind::Sphere;
-            return fallback;
         }
 
         ModelRenderDebugMode ParseRenderDebugMode(const nlohmann::json& in, ModelRenderDebugMode fallback) {
@@ -98,21 +68,6 @@ namespace HIKARI {
             profile.CopyValuesTo(values);
             initialized = true;
             return true;
-        }
-
-        bool ProceduralSettingsEqual(const ProceduralModelSettings& lhs, const ProceduralModelSettings& rhs) {
-            return
-                lhs.kind == rhs.kind &&
-                lhs.width == rhs.width &&
-                lhs.height == rhs.height &&
-                lhs.depth == rhs.depth &&
-                lhs.segmentsX == rhs.segmentsX &&
-                lhs.segmentsY == rhs.segmentsY &&
-                lhs.segmentsZ == rhs.segmentsZ &&
-                lhs.sphereSlices == rhs.sphereSlices &&
-                lhs.sphereStacks == rhs.sphereStacks &&
-                lhs.doubleSided == rhs.doubleSided &&
-                lhs.generateTangents == rhs.generateTangents;
         }
 
 #if defined(HIKARI_ENABLE_IMGUI)
@@ -331,6 +286,32 @@ namespace HIKARI {
         return GetModelAsset();
     }
 
+    bool ModelComponent::QueryGeometryFit(
+        GeometryFitDesc& outFit) const noexcept {
+        if (asset_ == nullptr || !BOUNDS::IsUsable(asset_->bounds)) {
+            return false;
+        }
+        const MATH::Vec3 rawSize =
+            asset_->bounds.max - asset_->bounds.min;
+        const MATH::Vec3 size{
+            (std::max)(rawSize.x, 0.02f),
+            (std::max)(rawSize.y, 0.02f),
+            (std::max)(rawSize.z, 0.02f)
+        };
+        outFit = {};
+        outFit.shape = GeometryFitShape::Box;
+        outFit.center =
+            (asset_->bounds.min + asset_->bounds.max) * 0.5f;
+        outFit.size = size;
+        outFit.radius = (std::min)({
+            size.x,
+            size.y,
+            size.z
+        }) * 0.5f;
+        outFit.height = size.y;
+        return true;
+    }
+
     void ModelComponent::SetVisible(bool visible) {
         visible_ = visible;
         NotifyRenderStateDirty();
@@ -385,16 +366,6 @@ namespace HIKARI {
         return renderStatic_;
     }
 
-    void ModelComponent::SetSourceKind(ModelSourceKind kind) {
-        sourceKind_ = kind;
-        NotifyRenderStateDirty();
-    }
-    ModelSourceKind ModelComponent::GetSourceKind() const { return sourceKind_; }
-    void ModelComponent::SetProceduralSettings(const ProceduralModelSettings& settings) {
-        procedural_ = settings;
-        NotifyRenderStateDirty();
-    }
-    const ProceduralModelSettings& ModelComponent::GetProceduralSettings() const { return procedural_; }
     void ModelComponent::SetRenderDebugMode(ModelRenderDebugMode mode) {
         debugRenderMode_ = mode;
         NotifyRenderStateDirty();
@@ -674,20 +645,6 @@ namespace HIKARI {
         out["castShadow"] = castShadow_;
         out["receiveShadow"] = receiveShadow_;
         out["renderStatic"] = renderStatic_;
-        out["sourceKind"] = ToString(sourceKind_);
-        out["procedural"] = {
-            { "kind", ToString(procedural_.kind) },
-            { "width", procedural_.width },
-            { "height", procedural_.height },
-            { "depth", procedural_.depth },
-            { "segmentsX", procedural_.segmentsX },
-            { "segmentsY", procedural_.segmentsY },
-            { "segmentsZ", procedural_.segmentsZ },
-            { "sphereSlices", procedural_.sphereSlices },
-            { "sphereStacks", procedural_.sphereStacks },
-            { "doubleSided", procedural_.doubleSided },
-            { "generateTangents", procedural_.generateTangents }
-        };
         out["debugRenderMode"] = ToString(debugRenderMode_);
         out["wireColor"] = wireColor_;
         out["maxWireLines"] = maxWireLines_;
@@ -721,21 +678,6 @@ namespace HIKARI {
         castShadow_ = in.value("castShadow", castShadow_);
         receiveShadow_ = in.value("receiveShadow", receiveShadow_);
         renderStatic_ = in.value("renderStatic", renderStatic_);
-        sourceKind_ = ParseModelSourceKind(in.value("sourceKind", nlohmann::json{}), sourceKind_);
-        if (in.contains("procedural") && in["procedural"].is_object()) {
-            const auto& node = in["procedural"];
-            procedural_.kind = ParseProceduralMeshKind(node.value("kind", nlohmann::json{}), procedural_.kind);
-            procedural_.width = node.value("width", procedural_.width);
-            procedural_.height = node.value("height", procedural_.height);
-            procedural_.depth = node.value("depth", procedural_.depth);
-            procedural_.segmentsX = node.value("segmentsX", procedural_.segmentsX);
-            procedural_.segmentsY = node.value("segmentsY", procedural_.segmentsY);
-            procedural_.segmentsZ = node.value("segmentsZ", procedural_.segmentsZ);
-            procedural_.sphereSlices = node.value("sphereSlices", procedural_.sphereSlices);
-            procedural_.sphereStacks = node.value("sphereStacks", procedural_.sphereStacks);
-            procedural_.doubleSided = node.value("doubleSided", procedural_.doubleSided);
-            procedural_.generateTangents = node.value("generateTangents", procedural_.generateTangents);
-        }
         debugRenderMode_ = ParseRenderDebugMode(in.value("debugRenderMode", nlohmann::json{}), debugRenderMode_);
         wireColor_ = in.value("wireColor", wireColor_);
         maxWireLines_ = in.value("maxWireLines", maxWireLines_);
@@ -789,8 +731,6 @@ namespace HIKARI {
         const bool oldCastShadow = castShadow_;
         const bool oldReceiveShadow = receiveShadow_;
         const bool oldRenderStatic = renderStatic_;
-        const ModelSourceKind oldSourceKind = sourceKind_;
-        const ProceduralModelSettings oldProcedural = procedural_;
         const std::string oldAssetId = assetId_;
         const uint32_t oldPostGroupMask = postGroupMask_;
 
@@ -798,31 +738,7 @@ namespace HIKARI {
         builder.Bool("Cast Shadow", castShadow_);
         builder.Bool("Receive Shadow", receiveShadow_);
         builder.Bool("Render Static", renderStatic_);
-        int sourceKind = static_cast<int>(sourceKind_);
-        if (builder.Int("Source Kind (0=Asset, 1=Procedural)", sourceKind)) {
-            sourceKind_ = static_cast<ModelSourceKind>((std::clamp)(sourceKind, 0, 1));
-        }
-        if (sourceKind_ == ModelSourceKind::Procedural) {
-            int proceduralKind = static_cast<int>(procedural_.kind);
-            if (builder.Int("Procedural Kind (0=Plane, 1=Grid, 2=Box, 3=Sphere)", proceduralKind)) {
-                procedural_.kind = static_cast<ProceduralMeshKind>((std::clamp)(proceduralKind, 0, 3));
-            }
-            builder.Float("Procedural Width", procedural_.width);
-            builder.Float("Procedural Height", procedural_.height);
-            builder.Float("Procedural Depth", procedural_.depth);
-            int segmentsX = static_cast<int>(procedural_.segmentsX);
-            int segmentsY = static_cast<int>(procedural_.segmentsY);
-            if (builder.Int("Segments X", segmentsX)) {
-                procedural_.segmentsX = static_cast<uint32_t>((std::clamp)(segmentsX, 1, 2048));
-            }
-            if (builder.Int("Segments Y", segmentsY)) {
-                procedural_.segmentsY = static_cast<uint32_t>((std::clamp)(segmentsY, 1, 2048));
-            }
-            builder.Bool("Procedural Double Sided", procedural_.doubleSided);
-            builder.Bool("Generate Tangents", procedural_.generateTangents);
-        } else {
-            builder.AssetIdPicker("Model Asset", AssetType::Model, assetId_);
-        }
+        builder.AssetIdPicker("Model Asset", AssetType::Model, assetId_);
         std::string materialOverrideGuid{};
         for (const ModelMaterialOverrideSlot& slot : materialOverrides_) {
             if (slot.slotIndex == 0 && slot.materialAssetGuid.IsValid()) {
@@ -886,8 +802,6 @@ namespace HIKARI {
             oldCastShadow != castShadow_ ||
             oldReceiveShadow != receiveShadow_ ||
             oldRenderStatic != renderStatic_ ||
-            oldSourceKind != sourceKind_ ||
-            !ProceduralSettingsEqual(oldProcedural, procedural_) ||
             oldAssetId != assetId_ ||
             oldPostGroupMask != postGroupMask_) {
 
@@ -903,8 +817,6 @@ namespace HIKARI {
         const bool oldCastShadow = castShadow_;
         const bool oldReceiveShadow = receiveShadow_;
         const bool oldRenderStatic = renderStatic_;
-        const ModelSourceKind oldSourceKind = sourceKind_;
-        const ProceduralModelSettings oldProcedural = procedural_;
         const ModelRenderDebugMode oldDebugRenderMode = debugRenderMode_;
         const uint32_t oldWireColor = wireColor_;
         const uint32_t oldMaxWireLines = maxWireLines_;
@@ -918,8 +830,6 @@ namespace HIKARI {
                 oldCastShadow != castShadow_ ||
                 oldReceiveShadow != receiveShadow_ ||
                 oldRenderStatic != renderStatic_ ||
-                oldSourceKind != sourceKind_ ||
-                !ProceduralSettingsEqual(oldProcedural, procedural_) ||
                 oldDebugRenderMode != debugRenderMode_ ||
                 oldWireColor != wireColor_ ||
                 oldMaxWireLines != maxWireLines_ ||
@@ -931,36 +841,9 @@ namespace HIKARI {
         };
 
         if (ImGui::TreeNodeEx("Model Source")) {
-            int sourceKind = static_cast<int>(sourceKind_);
-            const char* sourceNames[] = { "Asset", "Procedural" };
-            if (ImGui::Combo("Source Kind", &sourceKind, sourceNames, 2)) {
-                sourceKind_ = static_cast<ModelSourceKind>((std::clamp)(sourceKind, 0, 1));
-            }
-            if (sourceKind_ == ModelSourceKind::Procedural) {
-                int kind = static_cast<int>(procedural_.kind);
-                const char* kindNames[] = { "Plane", "GridPlane", "Box", "Sphere" };
-                if (ImGui::Combo("Procedural Kind", &kind, kindNames, 4)) {
-                    procedural_.kind = static_cast<ProceduralMeshKind>((std::clamp)(kind, 0, 3));
-                }
-                ImGui::DragFloat("Width", &procedural_.width, 0.1f, 0.01f, 10000.0f);
-                ImGui::DragFloat("Height", &procedural_.height, 0.1f, 0.01f, 10000.0f);
-                ImGui::DragFloat("Depth", &procedural_.depth, 0.1f, 0.01f, 10000.0f);
-                int sx = static_cast<int>(procedural_.segmentsX);
-                int sy = static_cast<int>(procedural_.segmentsY);
-                int sz = static_cast<int>(procedural_.segmentsZ);
-                if (ImGui::DragInt("Segments X", &sx, 1.0f, 1, 2048)) procedural_.segmentsX = static_cast<uint32_t>((std::clamp)(sx, 1, 2048));
-                if (ImGui::DragInt("Segments Y", &sy, 1.0f, 1, 2048)) procedural_.segmentsY = static_cast<uint32_t>((std::clamp)(sy, 1, 2048));
-                if (ImGui::DragInt("Segments Z", &sz, 1.0f, 1, 2048)) procedural_.segmentsZ = static_cast<uint32_t>((std::clamp)(sz, 1, 2048));
-                ImGui::Checkbox("Double Sided", &procedural_.doubleSided);
-                ImGui::Checkbox("Generate Tangents", &procedural_.generateTangents);
-                if (procedural_.kind == ProceduralMeshKind::Sphere) {
-                    ImGui::TextDisabled("Sphere currently falls back to Box generation.");
-                }
-            } else {
-                ImGui::Text("Asset Id: %s", assetId_.empty() ? "<none>" : assetId_.c_str());
-                if (asset_ == nullptr) {
-                    ImGui::TextDisabled("Runtime model asset is not resolved yet.");
-                }
+            ImGui::Text("Asset Id: %s", assetId_.empty() ? "<none>" : assetId_.c_str());
+            if (asset_ == nullptr) {
+                ImGui::TextDisabled("A Procedural Mesh component may provide geometry instead.");
             }
             int debugMode = static_cast<int>(debugRenderMode_);
             const char* debugModes[] = { "Normal", "WireOverlay", "WireOnly", "BoundsOnly" };
@@ -1113,14 +996,8 @@ namespace HIKARI {
             ImGui::TreePop();
         }
 
-        if (asset_ == nullptr && sourceKind_ == ModelSourceKind::Asset) {
-            ImGui::TextUnformatted("Asset: <none>");
-            notifyIfRenderStateChanged();
-            return;
-        }
-
         if (asset_ == nullptr) {
-            ImGui::TextUnformatted("Procedural asset is generated at render submission time.");
+            ImGui::TextUnformatted("Asset: <none>");
             notifyIfRenderStateChanged();
             return;
         }
@@ -1338,14 +1215,6 @@ namespace HIKARI {
             ImGui::Text("EmissiveTexture Cache Hit / Miss: %zu / %zu",
                 meshRendererStats.emissiveTextureCacheHitCount,
                 meshRendererStats.emissiveTextureCacheMissCount);
-            const PROCEDURAL::ProceduralModelDebugStats& proceduralStats = PROCEDURAL::GetDebugStats();
-            ImGui::Separator();
-            ImGui::TextUnformatted("Procedural:");
-            ImGui::Text("Cache Hit / Miss: %zu / %zu", proceduralStats.cacheHitCount, proceduralStats.cacheMissCount);
-            ImGui::Text("Generated Models: %zu", proceduralStats.generatedModelCount);
-            ImGui::Text("Generated Vertices / Indices: %zu / %zu",
-                proceduralStats.generatedVertexCount,
-                proceduralStats.generatedIndexCount);
             const MESHWIREDEBUG::MeshWireDebugStats& wireStats = MESHWIREDEBUG::GetDebugStats();
             ImGui::Separator();
             ImGui::TextUnformatted("Wire Debug:");

@@ -112,6 +112,32 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
             return HashPointer(model);
         }
 
+        bool IsProceduralModel(const ModelAsset* model) {
+            if (model == nullptr) {
+                return false;
+            }
+            const std::string& sourcePath = model->GetSourcePath();
+            return sourcePath.rfind("procedural://", 0) == 0;
+        }
+
+        uint64_t BuildClusterGeometryKey(
+            const GpuSceneSurfaceRecord& record) {
+
+            if (record.clusteredGeometryPath.empty()) {
+                return 0;
+            }
+            if (!IsProceduralModel(record.model)) {
+                return BuildStableStringKey(
+                    "cluster-geometry-path",
+                    record.clusteredGeometryPath);
+            }
+
+            uint64_t key = HashString("procedural-cluster-object");
+            key = HashAppend(key, record.objectId.value);
+            key = HashAppend(key, record.meshIndex);
+            return HashAppend(key, record.primitiveIndex);
+        }
+
         const MaterialAsset* ResolveMaterialAsset(const GpuSceneSurfaceRecord& record) {
             if (record.model == nullptr || record.materialIndex >= record.model->materials.size()) {
                 return nullptr;
@@ -358,7 +384,7 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
                 record.hasRuntimeAnimation && !record.skinned;
             key.clusterGeometryKey =
                 !animatedPoseRecord
-                    ? BuildStableStringKey("cluster-geometry-path", record.clusteredGeometryPath)
+                    ? BuildClusterGeometryKey(record)
                     : 0;
             key.geometryBackend =
                 key.clusterGeometryKey != 0

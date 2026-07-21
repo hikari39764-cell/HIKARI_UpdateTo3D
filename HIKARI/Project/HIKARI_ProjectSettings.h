@@ -16,6 +16,7 @@ namespace HIKARI {
         std::vector<std::string> enabledRuntimeFeatures{
             std::string(RuntimeFeatureIds::Rendering),
             std::string(RuntimeFeatureIds::Camera),
+            std::string(RuntimeFeatureIds::Physics),
             std::string(RuntimeFeatureIds::GameplayBasic),
             std::string(RuntimeFeatureIds::Cinematics)
         };

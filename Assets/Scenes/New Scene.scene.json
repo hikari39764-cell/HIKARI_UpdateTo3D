@@ -454,29 +454,50 @@
             "materialOverrides": [],
             "maxWireLines": 20000,
             "postGroupMask": 0,
-            "procedural": {
-              "depth": 1.0,
-              "doubleSided": false,
-              "generateTangents": true,
-              "height": 10.0,
-              "kind": "GridPlane",
-              "segmentsX": 10,
-              "segmentsY": 10,
-              "segmentsZ": 1,
-              "sphereSlices": 32,
-              "sphereStacks": 16,
-              "width": 10.0
-            },
             "receiveShadow": true,
             "renderStatic": true,
             "showSkeletonDebug": false,
             "skeletonDebugXRay": false,
-            "sourceKind": "Asset",
             "visible": true,
             "wireColor": 16755455,
             "wirePerPrimitiveColor": true
           },
           "type": "ModelComponent"
+        },
+        {
+          "properties": {
+            "center": [
+              -8.5,
+              -2.5999999046325684,
+              -0.10000000149011612
+            ],
+            "enabled": true,
+            "filter": {
+              "layer": 1,
+              "mask": 4294967295
+            },
+            "fitMode": "Manual",
+            "height": 1.0,
+            "material": {
+              "density": 1.0,
+              "friction": 0.5,
+              "restitution": 0.0
+            },
+            "radius": 0.5,
+            "rotation": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "shape": "Box",
+            "size": [
+              141.0,
+              0.0010000000474974513,
+              358.0
+            ],
+            "trigger": false
+          },
+          "type": "ColliderComponent"
         }
       ],
       "editorVisible": true,
@@ -619,6 +640,121 @@
           1.0
         ]
       }
+    },
+    {
+      "components": [
+        {
+          "properties": {
+            "assetId": "b5495438c8743f173e2cf1a7536224af",
+            "castShadow": true,
+            "debugRenderMode": "Normal",
+            "materialFxProfileId": "",
+            "materialFxValuesInitialized": false,
+            "materialOverrides": [],
+            "maxWireLines": 20000,
+            "postGroupMask": 0,
+            "receiveShadow": true,
+            "renderStatic": false,
+            "showSkeletonDebug": false,
+            "skeletonDebugXRay": false,
+            "visible": true,
+            "wireColor": 16755455,
+            "wirePerPrimitiveColor": true
+          },
+          "type": "ModelComponent"
+        },
+        {
+          "properties": {
+            "center": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "enabled": true,
+            "filter": {
+              "layer": 1,
+              "mask": 4294967295
+            },
+            "fitMode": "Manual",
+            "height": 1.0,
+            "material": {
+              "density": 1.0,
+              "friction": 0.5,
+              "restitution": 0.0
+            },
+            "radius": 0.5,
+            "rotation": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "shape": "Box",
+            "size": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "trigger": false
+          },
+          "type": "ColliderComponent"
+        },
+        {
+          "properties": {
+            "allowSleeping": true,
+            "angularDamping": 0.05000000074505806,
+            "continuousCollision": false,
+            "enabled": true,
+            "gravityScale": 1.0,
+            "initialAngularVelocity": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "initialLinearVelocity": [
+              0.20000000298023224,
+              0.0,
+              0.0
+            ],
+            "linearDamping": 0.05000000074505806,
+            "lockRotation": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "lockTranslation": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "mass": 1.0,
+            "motionType": "Dynamic"
+          },
+          "type": "PhysicsBodyComponent"
+        }
+      ],
+      "editorVisible": true,
+      "enabled": true,
+      "id": 5,
+      "name": "action",
+      "parent": null,
+      "sourcePrefabId": "",
+      "transform": {
+        "position": [
+          -11.628562927246094,
+          4.143196105957031,
+          -1.7187671661376953
+        ],
+        "rotationEulerDeg": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "scale": [
+          1.0,
+          1.0,
+          1.0
+        ]
+      }
     }
   ],
   "sceneName": "Untitled Scene",
@@ -628,7 +764,22 @@
       "executionOrder": 100,
       "settings": {},
       "systemId": "ModelRenderSystem"
+    },
+    {
+      "enabled": true,
+      "executionOrder": 120,
+      "settings": {
+        "_schemaVersion": 1,
+        "allowSleeping": true,
+        "emitPersistContactEvents": false,
+        "gravity": [
+          1.899999976158142,
+          -7.710000038146973,
+          2.799999952316284
+        ]
+      },
+      "systemId": "PhysicsSystem"
     }
   ],
-  "version": 2
+  "version": 3
 }

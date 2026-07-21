@@ -67,7 +67,8 @@ namespace HIKARI::RENDER3D::EDITORVIEW {
                 request.visible &&
                 request.width != 0 &&
                 request.height != 0 &&
-                request.sceneRevision == currentSceneRevision &&
+                (request.sceneSourceOverride != nullptr ||
+                    request.sceneRevision == currentSceneRevision) &&
                 request.cameraFrame.valid;
         }
 
@@ -222,14 +223,16 @@ namespace HIKARI::RENDER3D::EDITORVIEW {
         }
 
         MESHRENDERER::EditorInteractiveRenderSettings ResolveRenderSettings(
-            EditorInteractiveShadingMode mode) {
+            const EditorInteractiveViewRequest& request) {
 
             MESHRENDERER::EditorInteractiveRenderSettings settings{};
             settings.neutralLighting =
-                mode == EditorInteractiveShadingMode::Neutral;
-            settings.debugView = mode == EditorInteractiveShadingMode::Unlit
+                request.shadingMode == EditorInteractiveShadingMode::Neutral;
+            settings.debugView = request.shadingMode ==
+                    EditorInteractiveShadingMode::Unlit
                 ? RenderDebugView::BaseColor
                 : RenderDebugView::None;
+            settings.sceneSourceOverride = request.sceneSourceOverride;
             return settings;
         }
 
@@ -356,7 +359,7 @@ namespace HIKARI::RENDER3D::EDITORVIEW {
         view.purpose = RenderViewPurpose::EditorScene;
         view.cameraFrame = &selected->request.cameraFrame;
         const MESHRENDERER::EditorInteractiveRenderSettings renderSettings =
-            ResolveRenderSettings(selected->request.shadingMode);
+            ResolveRenderSettings(selected->request);
         (void)MESHRENDERER::RenderEditorInteractiveOpaque(
             view,
             environment,
@@ -391,7 +394,10 @@ namespace HIKARI::RENDER3D::EDITORVIEW {
         selected->output.colorSrv = colorSrv;
         selected->output.width = width;
         selected->output.height = height;
-        selected->output.sceneRevision = currentSceneRevision;
+        selected->output.sceneRevision =
+            selected->request.sceneSourceOverride != nullptr
+                ? selected->request.sceneRevision
+                : currentSceneRevision;
         ++selected->output.outputRevision;
         if (selected->output.outputRevision == 0) {
             selected->output.outputRevision = 1;

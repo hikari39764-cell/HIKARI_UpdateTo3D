@@ -46,12 +46,46 @@ namespace HIKARI::EDITOR {
             descriptor.configurationHint = hint;
             return descriptor;
         }
+
+        SystemAuthoringDescriptor PhysicsOwned() {
+            SystemAuthoringDescriptor descriptor = ComponentOwned(
+                "PhysicsSystem",
+                "Synchronizes scene transforms with the active physics backend.",
+                "Body and shape settings live on Physics Body and Collider components.");
+
+            SystemSettingField gravity{};
+            gravity.jsonPointer = "/gravity";
+            gravity.displayName = "Gravity";
+            gravity.description = "World-space acceleration applied by the backend.";
+            gravity.type = SystemSettingFieldType::Vec3;
+
+            SystemSettingField sleeping{};
+            sleeping.jsonPointer = "/allowSleeping";
+            sleeping.displayName = "Allow Sleeping";
+            sleeping.description = "Allows inactive dynamic bodies to sleep.";
+            sleeping.type = SystemSettingFieldType::Boolean;
+
+            SystemSettingField persistEvents{};
+            persistEvents.jsonPointer = "/emitPersistContactEvents";
+            persistEvents.displayName = "Emit Contact Stay";
+            persistEvents.description =
+                "Publishes Persist events every fixed step while contact continues.";
+            persistEvents.type = SystemSettingFieldType::Boolean;
+            persistEvents.advanced = true;
+
+            descriptor.fields = {
+                std::move(gravity),
+                std::move(sleeping),
+                std::move(persistEvents)
+            };
+            return descriptor;
+        }
     }
 
     void RegisterBuiltInSystemAuthoring(
         SystemAuthoringRegistry& registry) {
 
-        std::array<SystemAuthoringDescriptor, 6> descriptors{
+        std::array<SystemAuthoringDescriptor, 7> descriptors{
             ProjectOwned(
                 "ModelRenderSystem",
                 "Submits scene models to the renderer.",
@@ -76,6 +110,7 @@ namespace HIKARI::EDITOR {
                 "SequencePlayerSystem",
                 "Runs reusable Sequence assets during gameplay.",
                 "Sequence assets, playback policy, and binding slots are configured on Sequence Player components."),
+            PhysicsOwned(),
         };
 
         for (SystemAuthoringDescriptor& descriptor : descriptors) {

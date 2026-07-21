@@ -14,6 +14,7 @@
 #include "Render3D/Shadow/HIKARI_ShadowMapRenderer.h"
 #include "Scene/Components/HIKARI_AnimatorComponent.h"
 #include "Scene/Components/HIKARI_ModelComponent.h"
+#include "Scene/Components/HIKARI_ProceduralMeshComponent.h"
 #include "Scene/HIKARI_GameObject.h"
 #include "Scene/HIKARI_World.h"
 #include <Vfx/Common/HIKARI_FxTypes.h>
@@ -45,9 +46,13 @@ namespace HIKARI {
             return projectRoot.empty() ? std::filesystem::path{} : projectRoot.lexically_normal();
         }
 
-        const ModelAsset* ResolveDebugModelAsset(ModelComponent& model) {
-            if (model.GetSourceKind() == ModelSourceKind::Procedural) {
-                return PROCEDURAL::GetOrCreateModel(model.GetProceduralSettings());
+        const ModelAsset* ResolveDebugModelAsset(
+            const GameObject& object,
+            ModelComponent& model) {
+            if (const auto* procedural =
+                    object.GetComponent<ProceduralMeshComponent>()) {
+                return PROCEDURAL::GetOrCreateModel(
+                    procedural->GetSettings());
             }
             return model.GetAsset();
         }
@@ -64,7 +69,7 @@ namespace HIKARI {
                     return;
                 }
 
-                const ModelAsset* asset = ResolveDebugModelAsset(model);
+                const ModelAsset* asset = ResolveDebugModelAsset(object, model);
                 if (asset == nullptr) {
                     return;
                 }

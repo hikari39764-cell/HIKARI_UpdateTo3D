@@ -23,6 +23,8 @@ namespace HIKARI::RENDER3D {
     void UpdateRenderResourceDescriptorPoolContext(const GFX::Context& ctx);
     void ShutdownRenderResourceDescriptorPool();
 
+    RenderResourceView AllocateRenderResourceDescriptor();
+
     RenderResourceView AllocateBufferSrvDescriptor(
         ID3D12Resource* resource,
         DXGI_FORMAT format,

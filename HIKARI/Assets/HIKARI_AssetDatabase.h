@@ -52,6 +52,9 @@ namespace HIKARI {
 
         bool ScanAssets(bool createMissingMeta);
         bool ImportAsset(const AssetGuid& guid);
+        bool RebuildModelCollisionArtifact(
+            const AssetGuid& guid,
+            std::string& outMessage);
         AssetImportBatchResult ImportAssets(const std::vector<AssetGuid>& guids);
         AssetImportBatchResult ImportAllOutdated();
         AssetImportBatchResult ImportOutdatedInDirectory(const std::filesystem::path& directory, bool recursive);

@@ -89,6 +89,92 @@ namespace HIKARI::MATH {
         return out;
     }
 
+    bool DecomposeTRS(
+        const Mat4& value,
+        Vec3& outTranslation,
+        Quat& outRotation,
+        Vec3& outScale) {
+
+        outTranslation = {
+            value.m[3][0],
+            value.m[3][1],
+            value.m[3][2]
+        };
+        Vec3 right{
+            value.m[0][0],
+            value.m[0][1],
+            value.m[0][2]
+        };
+        Vec3 up{
+            value.m[1][0],
+            value.m[1][1],
+            value.m[1][2]
+        };
+        Vec3 forward{
+            value.m[2][0],
+            value.m[2][1],
+            value.m[2][2]
+        };
+        outScale = {
+            Length(right),
+            Length(up),
+            Length(forward)
+        };
+        if (outScale.x <= 1.0e-6f ||
+            outScale.y <= 1.0e-6f ||
+            outScale.z <= 1.0e-6f) {
+            outRotation = Quat::Identity();
+            return false;
+        }
+
+        right = right * (1.0f / outScale.x);
+        up = up * (1.0f / outScale.y);
+        forward = forward * (1.0f / outScale.z);
+        if (Dot(Cross(right, up), forward) < 0.0f) {
+            outScale.x = -outScale.x;
+            right = right * -1.0f;
+        }
+
+        const float m00 = right.x;
+        const float m01 = up.x;
+        const float m02 = forward.x;
+        const float m10 = right.y;
+        const float m11 = up.y;
+        const float m12 = forward.y;
+        const float m20 = right.z;
+        const float m21 = up.z;
+        const float m22 = forward.z;
+        Quat rotation{};
+        const float trace = m00 + m11 + m22;
+        if (trace > 0.0f) {
+            const float s = std::sqrt(trace + 1.0f) * 2.0f;
+            rotation.w = 0.25f * s;
+            rotation.x = (m21 - m12) / s;
+            rotation.y = (m02 - m20) / s;
+            rotation.z = (m10 - m01) / s;
+        } else if (m00 > m11 && m00 > m22) {
+            const float s = std::sqrt(1.0f + m00 - m11 - m22) * 2.0f;
+            rotation.w = (m21 - m12) / s;
+            rotation.x = 0.25f * s;
+            rotation.y = (m01 + m10) / s;
+            rotation.z = (m02 + m20) / s;
+        } else if (m11 > m22) {
+            const float s = std::sqrt(1.0f + m11 - m00 - m22) * 2.0f;
+            rotation.w = (m02 - m20) / s;
+            rotation.x = (m01 + m10) / s;
+            rotation.y = 0.25f * s;
+            rotation.z = (m12 + m21) / s;
+        } else {
+            const float s = std::sqrt(1.0f + m22 - m00 - m11) * 2.0f;
+            rotation.w = (m10 - m01) / s;
+            rotation.x = (m02 + m20) / s;
+            rotation.y = (m12 + m21) / s;
+            rotation.z = 0.25f * s;
+        }
+        outRotation = NormalizeQ(rotation);
+        return true;
+    }
+
     Quat Quat::FromEulerXYZ(float rx, float ry, float rz) {
         const float cx = std::cos(rx * 0.5f), sx = std::sin(rx * 0.5f);
         const float cy = std::cos(ry * 0.5f), sy = std::sin(ry * 0.5f);

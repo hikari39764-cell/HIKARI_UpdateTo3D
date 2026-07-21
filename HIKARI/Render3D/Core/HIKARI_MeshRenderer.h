@@ -90,9 +90,14 @@ namespace HIKARI::MESHRENDERER {
         const SceneEnvironment& environment,
         RenderDebugView debugView = RenderDebugView::None);
 #if defined(HIKARI_WITH_EDITOR)
+    namespace EDITOR_DETAIL {
+        struct SceneSourceTag;
+    }
     struct EditorInteractiveRenderSettings {
         RenderDebugView debugView = RenderDebugView::None;
         bool neutralLighting = false;
+        const RENDER3D::GPUDRIVEN::GpuDrivenSceneSource*
+            sceneSourceOverride = nullptr;
     };
 
     bool RenderEditorInteractiveOpaque(

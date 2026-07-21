@@ -13,6 +13,7 @@
 
 #include <json.hpp>
 
+#include "Assets/Collision/HIKARI_ModelCollisionArtifact.h"
 #include "Assets/Geometry/HIKARI_ClusteredGeometryCooker.h"
 #include "Assets/Geometry/HIKARI_ClusteredGeometryValidator.h"
 #include "Assets/Geometry/HIKARI_HcmeshFormat.h"
@@ -1314,7 +1315,6 @@ namespace HIKARI {
             true);
         const ASSETS::GEOMETRY::ClusterCookSettings clusterSettings =
             BuildClusterCookSettings(importSettings, clusterProfile);
-
         const std::filesystem::path absoluteSource = ResolveProjectPath(context.projectRoot, record.sourcePath);
 
         ModelManager loader{};
@@ -1445,6 +1445,30 @@ namespace HIKARI {
             }
         }
 
+        const ASSETS::COLLISION::ModelCollisionArtifactResult
+            collisionArtifact =
+                ASSETS::COLLISION::BuildModelCollisionArtifact(
+                    record,
+                    context.projectRoot,
+                    context.importedDirectory);
+        const bool hcollisionReady = collisionArtifact.ready;
+        if (!collisionArtifact.success) {
+            result.message =
+                "[AssetImporter] model collision setup compile failed: " +
+                collisionArtifact.message;
+            HIKARI_LOG_ERROR(result.message);
+            return result;
+        }
+        if (hcollisionReady) {
+            result.artifacts.push_back(AssetArtifactDesc{
+                "CollisionGeometry",
+                MakeProjectRelative(
+                    context.projectRoot,
+                    collisionArtifact.path).generic_string(),
+                "HCOLLISION"
+            });
+        }
+
         result.success = true;
         result.message = "[AssetImporter] Wrote HMODEL meshes=" +
             std::to_string(model.meshes.size()) +
@@ -1452,8 +1476,9 @@ namespace HIKARI {
             " textures=" + std::to_string(model.textures.size()) +
             " htexRefs=" + std::to_string(htexReferenceCount) +
             " fallbackTextures=" + std::to_string(fallbackTextureCount) +
-            " hcmesh=" + (hcmeshReady ? "ready" : "fallback");
-        result.diagnosticsJson = BuildModelDiagnostics(
+            " hcmesh=" + (hcmeshReady ? "ready" : "fallback") +
+            " hcollision=" + (hcollisionReady ? "ready" : "none");
+        nlohmann::json diagnostics = BuildModelDiagnostics(
             model,
             textureDiagnostics,
             htexReferenceCount,
@@ -1464,7 +1489,15 @@ namespace HIKARI {
             &clusterSettings,
             hcmeshReady,
             hcmeshMessage,
-            alphaPolicyStats).dump(2);
+            alphaPolicyStats);
+        diagnostics["collisionGeometry"] = {
+            { "format", "HCOLLISION" },
+            { "ready", hcollisionReady },
+            { "shapeCount", collisionArtifact.shapeCount },
+            { "message", collisionArtifact.message },
+            { "authoring", "Model Collision Workspace" },
+        };
+        result.diagnosticsJson = diagnostics.dump(2);
         result.artifacts.push_back(AssetArtifactDesc{
             "MainModel",
             MakeProjectRelative(context.projectRoot, finalPath).generic_string(),

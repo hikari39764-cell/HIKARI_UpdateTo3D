@@ -400,6 +400,10 @@ namespace HIKARI {
         return assetBrowserPanel_.ConsumeActivatedSequenceGuid();
     }
 
+    std::string ResourceWorkspacePanel::ConsumeActivatedModelCollisionGuid() const {
+        return assetBrowserPanel_.ConsumeActivatedModelCollisionGuid();
+    }
+
     std::string ResourceWorkspacePanel::ConsumeSaveSceneAsGuid() const {
         return assetBrowserPanel_.ConsumeSaveSceneAsGuid();
     }

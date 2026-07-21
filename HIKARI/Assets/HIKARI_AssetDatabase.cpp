@@ -14,6 +14,7 @@
 
 #include <json.hpp>
 
+#include "Assets/Collision/HIKARI_ModelCollisionArtifact.h"
 #include "Assets/Geometry/HIKARI_HcmeshFormat.h"
 #include "Core/HIKARI_Logger.h"
 #include "Importers/HIKARI_MaterialImporter.h"
@@ -559,6 +560,98 @@ namespace HIKARI {
         WriteImportReport(*record, result);
         RefreshRecordState(*record);
         return result.success;
+    }
+
+    bool AssetDatabase::RebuildModelCollisionArtifact(
+        const AssetGuid& guid,
+        std::string& outMessage) {
+
+        AssetRecord* record = FindByGuid(guid);
+        if (record == nullptr || record->type != AssetType::Model) {
+            outMessage = "model asset was not found";
+            return false;
+        }
+
+        const ASSETS::COLLISION::ModelCollisionArtifactResult collision =
+            ASSETS::COLLISION::BuildModelCollisionArtifact(
+                *record,
+                projectRoot_,
+                GetImportedDirectory(guid));
+        outMessage = collision.message;
+        if (!collision.success) {
+            return false;
+        }
+
+        std::vector<AssetArtifactDesc> artifacts =
+            record->artifactManifest.artifacts;
+        std::erase_if(
+            artifacts,
+            [](const AssetArtifactDesc& artifact) {
+                return artifact.role == "CollisionGeometry" ||
+                    artifact.format == "HCOLLISION";
+            });
+        if (collision.ready) {
+            std::error_code relativeEc{};
+            const std::filesystem::path relative = std::filesystem::relative(
+                collision.path,
+                projectRoot_,
+                relativeEc);
+            artifacts.push_back(AssetArtifactDesc{
+                "CollisionGeometry",
+                relativeEc
+                    ? collision.path.generic_string()
+                    : relative.lexically_normal().generic_string(),
+                "HCOLLISION"
+            });
+        }
+
+          AssetImportResult manifestUpdate{};
+          manifestUpdate.success = true;
+        manifestUpdate.message =
+            record->artifactManifest.lastImportMessage.empty()
+                ? collision.message
+                : record->artifactManifest.lastImportMessage;
+          nlohmann::json diagnostics = nlohmann::json::parse(
+              record->artifactManifest.diagnosticsJson,
+              nullptr,
+              false);
+          if (!diagnostics.is_object()) {
+              diagnostics = nlohmann::json::object();
+          }
+          diagnostics["collisionGeometry"] = {
+              { "format", "HCOLLISION" },
+              { "ready", collision.ready },
+              { "shapeCount", collision.shapeCount },
+              { "message", collision.message },
+              { "authoring", "Model Collision Workspace" },
+          };
+          manifestUpdate.diagnosticsJson = diagnostics.dump(2);
+        manifestUpdate.dependencies =
+            record->artifactManifest.dependencies;
+        manifestUpdate.artifacts = std::move(artifacts);
+        if (!WriteArtifactManifest(*record, manifestUpdate)) {
+            outMessage = "failed to update model artifact manifest";
+            return false;
+        }
+
+        record->artifactManifest.manifestVersion =
+            kArtifactManifestVersion;
+        record->artifactManifest.guid = record->guid;
+        record->artifactManifest.sourcePath =
+            record->sourcePath.generic_string();
+        record->artifactManifest.importerId = record->meta.importerId;
+        record->artifactManifest.importerVersion =
+            record->meta.importerVersion;
+        record->artifactManifest.lastImportSucceeded = true;
+        record->artifactManifest.lastImportMessage = manifestUpdate.message;
+        record->artifactManifest.diagnosticsJson =
+            manifestUpdate.diagnosticsJson;
+        record->artifactManifest.dependencies =
+            manifestUpdate.dependencies;
+        record->artifactManifest.artifacts =
+            manifestUpdate.artifacts;
+        RefreshRecordState(*record);
+        return true;
     }
 
     AssetImportBatchResult AssetDatabase::ImportAssets(const std::vector<AssetGuid>& guids) {

@@ -14,6 +14,12 @@ namespace HIKARI {
         bool Bool(std::string_view label, bool& value) override;
         bool Int(std::string_view label, int& value) override;
         bool Float(std::string_view label, float& value) override;
+        bool FloatRange(
+            std::string_view label,
+            float& value,
+            float minimum,
+            float maximum,
+            float speed = 0.1f) override;
         bool String(std::string_view label, std::string& value) override;
         bool Choice(
             std::string_view label,

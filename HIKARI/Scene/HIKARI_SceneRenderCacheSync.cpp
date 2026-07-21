@@ -11,6 +11,7 @@
 #include "Render3D/Runtime/HIKARI_SceneRenderCache.h"
 #include "Scene/Components/HIKARI_AnimatorComponent.h"
 #include "Scene/Components/HIKARI_ModelComponent.h"
+#include "Scene/Components/HIKARI_ProceduralMeshComponent.h"
 #include "Scene/HIKARI_GameObject.h"
 #include "Scene/HIKARI_World.h"
 
@@ -25,26 +26,31 @@ namespace HIKARI {
             return id;
         }
 
-        const ModelAsset* ResolveModelAsset(ModelComponent& model) {
-            if (model.GetSourceKind() == ModelSourceKind::Procedural) {
-                return PROCEDURAL::GetOrCreateModel(model.GetProceduralSettings());
+        const ModelAsset* ResolveModelAsset(
+            const GameObject& object,
+            ModelComponent& model) {
+            if (const auto* procedural =
+                    object.GetComponent<ProceduralMeshComponent>()) {
+                return PROCEDURAL::GetOrCreateModel(
+                    procedural->GetSettings());
             }
             return model.GetAsset();
         }
 
         std::string ResolveClusteredGeometryPath(
+            const GameObject& object,
             const ModelComponent& model,
             const AssetRegistry* assetRegistry,
             const std::filesystem::path& projectRoot) {
 
-            if (model.GetSourceKind() == ModelSourceKind::Procedural) {
+            if (const auto* procedural =
+                    object.GetComponent<ProceduralMeshComponent>()) {
                 return PROCEDURAL::GetOrCreateClusteredGeometryPath(
-                    model.GetProceduralSettings(),
+                    procedural->GetSettings(),
                     projectRoot);
             }
 
             if (assetRegistry == nullptr ||
-                model.GetSourceKind() != ModelSourceKind::Asset ||
                 model.GetAssetId().empty()) {
                 return {};
             }
@@ -84,11 +90,14 @@ namespace HIKARI {
                 , projectRoot_(std::move(projectRoot)) {
             }
 
-            std::string Resolve(const ModelComponent& model) {
-                if (model.GetSourceKind() == ModelSourceKind::Procedural) {
-                    return ResolveClusteredGeometryPath(model, assetRegistry_, projectRoot_);
+            std::string Resolve(
+                const GameObject& object,
+                const ModelComponent& model) {
+                if (object.GetComponent<ProceduralMeshComponent>() != nullptr) {
+                    return ResolveClusteredGeometryPath(
+                        object, model, assetRegistry_, projectRoot_);
                 }
-                if (model.GetSourceKind() != ModelSourceKind::Asset || model.GetAssetId().empty()) {
+                if (model.GetAssetId().empty()) {
                     return {};
                 }
                 const std::string& assetId = model.GetAssetId();
@@ -97,7 +106,8 @@ namespace HIKARI {
                     return found->second;
                 }
 
-                std::string path = ResolveClusteredGeometryPath(model, assetRegistry_, projectRoot_);
+                std::string path = ResolveClusteredGeometryPath(
+                    object, model, assetRegistry_, projectRoot_);
                 pathByAssetId_.emplace(assetId, path);
                 return path;
             }
@@ -122,7 +132,7 @@ namespace HIKARI {
                 debugMode == ModelRenderDebugMode::BoundsOnly;
             desc.visible = model.IsVisible() && !debugOnly;
 
-            const ModelAsset* asset = ResolveModelAsset(model);
+            const ModelAsset* asset = ResolveModelAsset(object, model);
             desc.model = asset;
             if (asset != nullptr) {
                 desc.renderModel = renderModelCache.GetOrCreate(*asset);
@@ -135,7 +145,8 @@ namespace HIKARI {
                 desc.worldTransform.GetWorldMatrix());
 
             desc.isStatic = model.IsRenderStatic();
-            desc.clusteredGeometryPath = clusteredGeometryPaths.Resolve(model);
+            desc.clusteredGeometryPath = clusteredGeometryPaths.Resolve(
+                object, model);
             desc.castShadow = model.GetCastShadow();
             desc.receiveShadow = model.GetReceiveShadow();
             if (const AnimatorComponent* animator = object.GetComponent<AnimatorComponent>()) {

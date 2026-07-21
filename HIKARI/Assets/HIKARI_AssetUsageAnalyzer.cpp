@@ -121,6 +121,18 @@ namespace HIKARI {
                         "Sequence",
                         assetDatabase,
                         summary);
+                } else if (component.type == "ColliderComponent" &&
+                    component.properties.value(
+                        "fitMode",
+                        std::string{}) == "CollisionAsset") {
+                    AddReference(
+                        component.properties.value(
+                            "collisionAssetId",
+                            std::string{}),
+                        owner,
+                        "Collision Geometry",
+                        assetDatabase,
+                        summary);
                 }
             }
         }
