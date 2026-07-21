@@ -34,6 +34,18 @@ namespace HIKARI::EDITOR {
                     shape.radius * 2.0f
                 };
             }
+            if (shape.type == ASSETS::COLLISION::
+                    CollisionGeometryShapeType::ConvexHull ||
+                shape.type == ASSETS::COLLISION::
+                    CollisionGeometryShapeType::TriangleMesh) {
+                Bounds bounds = BOUNDS::EmptyBounds();
+                for (const MATH::Vec3& vertex : shape.vertices) {
+                    BOUNDS::Encapsulate(bounds, vertex);
+                }
+                if (BOUNDS::IsUsable(bounds)) {
+                    return bounds.max - bounds.min;
+                }
+            }
             return shape.size;
         }
 
@@ -275,7 +287,8 @@ namespace HIKARI::EDITOR {
             DrawCirclePlane(drawList, camera, origin, size, matrix, 0, shape.radius, 0.0f, color, thickness);
             DrawCirclePlane(drawList, camera, origin, size, matrix, 1, shape.radius, 0.0f, color, thickness);
             DrawCirclePlane(drawList, camera, origin, size, matrix, 2, shape.radius, 0.0f, color, thickness);
-        } else {
+        } else if (shape.type ==
+                ASSETS::COLLISION::CollisionGeometryShapeType::Capsule) {
             const float halfLine = (std::max)(
                 0.0f,
                 shape.height * 0.5f - shape.radius);
@@ -301,6 +314,64 @@ namespace HIKARI::EDITOR {
                     { side.x, halfLine, side.z },
                     color,
                     thickness);
+            }
+        } else if (!shape.indices.empty()) {
+            const size_t triangleCount = shape.indices.size() / 3u;
+            const size_t step = (std::max)(
+                static_cast<size_t>(1u),
+                triangleCount / 2048u);
+            for (size_t triangle = 0u;
+                triangle < triangleCount;
+                triangle += step) {
+                const size_t offset = triangle * 3u;
+                const uint32_t first = shape.indices[offset];
+                const uint32_t second = shape.indices[offset + 1u];
+                const uint32_t third = shape.indices[offset + 2u];
+                if (first >= shape.vertices.size() ||
+                    second >= shape.vertices.size() ||
+                    third >= shape.vertices.size()) {
+                    continue;
+                }
+                DrawLocalLine(drawList, camera, origin, size, matrix,
+                    shape.vertices[first], shape.vertices[second], color, thickness);
+                DrawLocalLine(drawList, camera, origin, size, matrix,
+                    shape.vertices[second], shape.vertices[third], color, thickness);
+                DrawLocalLine(drawList, camera, origin, size, matrix,
+                    shape.vertices[third], shape.vertices[first], color, thickness);
+            }
+        } else {
+            Bounds bounds = BOUNDS::EmptyBounds();
+            for (const MATH::Vec3& vertex : shape.vertices) {
+                BOUNDS::Encapsulate(bounds, vertex);
+            }
+            if (BOUNDS::IsUsable(bounds)) {
+                const std::array<MATH::Vec3, 8> corners{
+                    MATH::Vec3{ bounds.min.x, bounds.min.y, bounds.min.z },
+                    MATH::Vec3{ bounds.max.x, bounds.min.y, bounds.min.z },
+                    MATH::Vec3{ bounds.min.x, bounds.max.y, bounds.min.z },
+                    MATH::Vec3{ bounds.max.x, bounds.max.y, bounds.min.z },
+                    MATH::Vec3{ bounds.min.x, bounds.min.y, bounds.max.z },
+                    MATH::Vec3{ bounds.max.x, bounds.min.y, bounds.max.z },
+                    MATH::Vec3{ bounds.min.x, bounds.max.y, bounds.max.z },
+                    MATH::Vec3{ bounds.max.x, bounds.max.y, bounds.max.z },
+                };
+                constexpr std::array<std::array<int, 2>, 12> edges{{
+                    {0, 1}, {0, 2}, {1, 3}, {2, 3},
+                    {4, 5}, {4, 6}, {5, 7}, {6, 7},
+                    {0, 4}, {1, 5}, {2, 6}, {3, 7}
+                }};
+                for (const auto& edge : edges) {
+                    DrawLocalLine(
+                        drawList,
+                        camera,
+                        origin,
+                        size,
+                        matrix,
+                        corners[static_cast<size_t>(edge[0])],
+                        corners[static_cast<size_t>(edge[1])],
+                        color,
+                        thickness);
+                }
             }
         }
         ImVec2 center{};

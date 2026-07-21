@@ -1,6 +1,8 @@
 #include "Editor/Workspaces/HIKARI_ModelCollisionWorkspaceController.h"
 
 #include <algorithm>
+#include <chrono>
+#include <exception>
 
 #include "Assets/HIKARI_AssetDatabase.h"
 #include "Render3D/Core/HIKARI_BoundsUtils.h"
@@ -101,6 +103,7 @@ namespace HIKARI::EDITOR {
             return false;
         }
         NormalizeShapeSelection();
+        ++editRevision_;
         outMessage = "collision edit undone";
         return true;
     }
@@ -113,6 +116,7 @@ namespace HIKARI::EDITOR {
             return false;
         }
         NormalizeShapeSelection();
+        ++editRevision_;
         outMessage = "collision edit redone";
         return true;
     }
@@ -133,6 +137,7 @@ namespace HIKARI::EDITOR {
                 outMessage)) {
             return false;
         }
+        sourceOutlineCache_.Reset();
 
         ASSETS::COLLISION::ModelCollisionSetup loaded{};
         const std::filesystem::path setupPath =
@@ -142,10 +147,18 @@ namespace HIKARI::EDITOR {
                 setupPath,
                 guid.value,
                 loaded);
+        bool legacySetupReplaced = false;
         if (!load.success) {
-            previewScene_.Clear();
-            outMessage = load.message;
-            return false;
+            if (loaded.version > 0u && loaded.version !=
+                    ASSETS::COLLISION::kModelCollisionSetupVersion) {
+                loaded = {};
+                loaded.modelAssetGuid = guid.value;
+                legacySetupReplaced = true;
+            } else {
+                previewScene_.Clear();
+                outMessage = load.message;
+                return false;
+            }
         }
 
         modelGuid_ = guid;
@@ -153,6 +166,7 @@ namespace HIKARI::EDITOR {
         modelDisplayName_ = record->displayName;
         setupPath_ = setupPath;
         setup_ = std::move(loaded);
+        ++editRevision_;
         history_.Reset(setup_);
         selectedSourceNodes_.clear();
         selectedShapeIds_.clear();
@@ -164,7 +178,9 @@ namespace HIKARI::EDITOR {
         selectedShapeId_ = 0u;
         SelectFirstShape();
         FitPreviewCamera();
-        outMessage = load.exists
+        outMessage = legacySetupReplaced
+            ? "legacy collision setup was intentionally discarded; save to replace it"
+            : load.exists
             ? "collision setup opened"
             : "new collision setup opened";
         return true;
@@ -280,6 +296,7 @@ namespace HIKARI::EDITOR {
 
     void ModelCollisionWorkspaceController::CommitEdit(std::string label) {
         history_.Commit(setup_, std::move(label));
+        ++editRevision_;
     }
 
     void ModelCollisionWorkspaceController::NormalizeShapeSelection() noexcept {
@@ -493,7 +510,8 @@ namespace HIKARI::EDITOR {
             duplicate.id = setup_.AllocateShapeId();
             duplicate.name += " Copy";
             duplicate.generated = false;
-            duplicate.sourceNodeIndex = -1;
+            duplicate.sourceNodeIndices.clear();
+            duplicate.generationMethod.clear();
             duplicate.center.x += 0.1f;
             duplicates.push_back(std::move(duplicate));
         }
@@ -577,38 +595,93 @@ namespace HIKARI::EDITOR {
     }
 
     void ModelCollisionWorkspaceController::GenerateShapes() {
-        const ModelAsset* model = previewScene_.GetModel();
-        if (model == nullptr) {
+        if (generationPending_) {
+            return;
+        }
+        std::shared_ptr<const ModelAsset> model =
+            previewScene_.GetSharedModel();
+        if (!model) {
             return;
         }
         ASSETS::COLLISION::ModelCollisionGenerationRequest request{};
         request.target = generationTarget_;
-        request.shapeType = generationShapeType_;
+        request.method = generationMethod_;
         request.replaceGeneratedShapes = replaceGeneratedShapes_;
+        request.preserveGaps = generationPreserveGaps_;
+        request.mergeDistance = generationMergeDistance_;
+        request.accuracy = generationAccuracy_;
         request.maximumGeneratedShapes = static_cast<uint32_t>(
             (std::max)(generationBudget_, 1));
+        request.maximumHullVertices = static_cast<uint32_t>(
+            (std::clamp)(generationHullVertexBudget_, 16, 256));
+        request.maximumTriangleCount = static_cast<uint32_t>(
+            (std::max)(generationTriangleBudget_, 1));
         request.sourceNodeIndices.assign(
             selectedSourceNodes_.begin(),
             selectedSourceNodes_.end());
         std::sort(
             request.sourceNodeIndices.begin(),
             request.sourceNodeIndices.end());
-        const ASSETS::COLLISION::ModelCollisionGenerationResult result =
-            ASSETS::COLLISION::GenerateModelCollisionShapes(
-                *model,
-                request,
-                setup_);
-        statusMessage_ = result.message;
-        if (!result.success) {
+        generationStartRevision_ = editRevision_;
+        generationDiscardRequested_ = false;
+        generationPending_ = true;
+        statusMessage_ = "generating collision in background...";
+        ASSETS::COLLISION::ModelCollisionSetup setupSnapshot = setup_;
+        generationFuture_ = std::async(
+            std::launch::async,
+            [model = std::move(model),
+             request = std::move(request),
+             setup = std::move(setupSnapshot)]() mutable {
+                CollisionGenerationTaskOutput output{};
+                output.setup = std::move(setup);
+                output.result =
+                    ASSETS::COLLISION::GenerateModelCollisionShapes(
+                        *model,
+                        request,
+                        output.setup);
+                return output;
+            });
+    }
+
+    void ModelCollisionWorkspaceController::PollGenerationTask() {
+        if (!generationPending_ || !generationFuture_.valid() ||
+            generationFuture_.wait_for(std::chrono::seconds(0)) !=
+                std::future_status::ready) {
             return;
         }
+        CollisionGenerationTaskOutput output{};
+        try {
+            output = generationFuture_.get();
+        } catch (const std::exception& error) {
+            generationPending_ = false;
+            statusMessage_ = std::string(
+                "collision generation failed: ") + error.what();
+            return;
+        } catch (...) {
+            generationPending_ = false;
+            statusMessage_ = "collision generation failed unexpectedly";
+            return;
+        }
+        generationPending_ = false;
+        if (generationDiscardRequested_ ||
+            generationStartRevision_ != editRevision_) {
+            generationDiscardRequested_ = false;
+            statusMessage_ =
+                "generation finished, but its result was discarded because the document changed";
+            return;
+        }
+        statusMessage_ = output.result.message;
+        if (!output.result.success) {
+            return;
+        }
+        setup_ = std::move(output.setup);
         selectedShapeIds_.clear();
-        for (uint64_t shapeId : result.generatedShapeIds) {
+        for (uint64_t shapeId : output.result.generatedShapeIds) {
             selectedShapeIds_.insert(shapeId);
         }
-        selectedShapeId_ = result.generatedShapeIds.empty()
+        selectedShapeId_ = output.result.generatedShapeIds.empty()
             ? 0u
-            : result.generatedShapeIds.front();
+            : output.result.generatedShapeIds.front();
         NormalizeShapeSelection();
         CommitEdit("Generate Collision Shapes");
     }

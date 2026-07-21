@@ -7,6 +7,7 @@
 #include "Scene/Components/HIKARI_ColliderComponent.h"
 #include "Scene/Components/HIKARI_PhysicsBodyComponent.h"
 #include "Scene/HIKARI_GameObject.h"
+#include "Physics/HIKARI_PhysicsCollisionGeometryStore.h"
 
 namespace HIKARI::PHYSICS {
     namespace {
@@ -139,7 +140,8 @@ namespace HIKARI::PHYSICS {
     bool BuildPhysicsBodyCreateInfo(
         const GameObject& object,
         PhysicsBodyCreateInfo& outCreateInfo,
-        MATH::Vec3& outWorldScale) {
+        MATH::Vec3& outWorldScale,
+        PhysicsCollisionGeometryStore* collisionGeometryStore) {
         PhysicsPose pose{};
         if (!TryGetPhysicsWorldPoseAndScale(
                 object,
@@ -161,14 +163,21 @@ namespace HIKARI::PHYSICS {
         }
         object.ForEachComponent<ColliderComponent>(
             [&](const ColliderComponent& collider) {
-                // Triangle collision is resolved by a backend asset adapter.
-                // Never replace it silently with the primitive fallback.
-                if (collider.IsEnabled() &&
-                    !collider.UsesCollisionGeometryAsset()) {
-                    outCreateInfo.shapes.push_back(BuildShape(
-                        collider,
-                        outWorldScale));
+                if (!collider.IsEnabled()) {
+                    return;
                 }
+                if (collider.UsesCollisionGeometryAsset()) {
+                    if (collisionGeometryStore != nullptr) {
+                        (void)collisionGeometryStore->AppendShapes(
+                            collider,
+                            outWorldScale,
+                            outCreateInfo.shapes);
+                    }
+                    return;
+                }
+                outCreateInfo.shapes.push_back(BuildShape(
+                    collider,
+                    outWorldScale));
             });
         return !outCreateInfo.shapes.empty();
     }

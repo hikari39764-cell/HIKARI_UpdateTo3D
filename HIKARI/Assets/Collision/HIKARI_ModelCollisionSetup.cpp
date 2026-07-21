@@ -7,6 +7,8 @@
 
 #include <json.hpp>
 
+#include "Assets/Collision/HIKARI_ModelCollisionSetupGeometry.h"
+
 namespace HIKARI::ASSETS::COLLISION {
     namespace {
         const char* ToString(CollisionGeometryShapeType type) noexcept {
@@ -15,6 +17,10 @@ namespace HIKARI::ASSETS::COLLISION {
                 return "Sphere";
             case CollisionGeometryShapeType::Capsule:
                 return "Capsule";
+            case CollisionGeometryShapeType::ConvexHull:
+                return "ConvexHull";
+            case CollisionGeometryShapeType::TriangleMesh:
+                return "TriangleMesh";
             case CollisionGeometryShapeType::Box:
             default:
                 return "Box";
@@ -29,6 +35,12 @@ namespace HIKARI::ASSETS::COLLISION {
             }
             if (value == "Capsule") {
                 return CollisionGeometryShapeType::Capsule;
+            }
+            if (value == "ConvexHull") {
+                return CollisionGeometryShapeType::ConvexHull;
+            }
+            if (value == "TriangleMesh") {
+                return CollisionGeometryShapeType::TriangleMesh;
             }
             return CollisionGeometryShapeType::Box;
         }
@@ -64,7 +76,17 @@ namespace HIKARI::ASSETS::COLLISION {
                 !IsFinite(shape.rotationEulerDegrees) ||
                 !IsFinite(shape.size) ||
                 !std::isfinite(shape.radius) ||
-                !std::isfinite(shape.height)) {
+                !std::isfinite(shape.height) ||
+                !std::isfinite(shape.generationError) ||
+                shape.generationError < 0.0f ||
+                !std::all_of(
+                    shape.vertices.begin(),
+                    shape.vertices.end(),
+                    IsFinite) ||
+                !std::all_of(
+                    shape.sourceNodeIndices.begin(),
+                    shape.sourceNodeIndices.end(),
+                    [](int32_t index) { return index >= 0; })) {
                 return false;
             }
             switch (shape.type) {
@@ -73,6 +95,25 @@ namespace HIKARI::ASSETS::COLLISION {
             case CollisionGeometryShapeType::Capsule:
                 return shape.radius > 0.0f &&
                     shape.height >= shape.radius * 2.0f;
+            case CollisionGeometryShapeType::ConvexHull:
+                return shape.vertices.size() >= 4u &&
+                    (shape.indices.empty() || shape.indices.size() % 3u == 0u) &&
+                    std::all_of(
+                        shape.indices.begin(),
+                        shape.indices.end(),
+                        [&shape](uint32_t index) {
+                            return index < shape.vertices.size();
+                        });
+            case CollisionGeometryShapeType::TriangleMesh:
+                return shape.vertices.size() >= 3u &&
+                    shape.indices.size() >= 3u &&
+                    shape.indices.size() % 3u == 0u &&
+                    std::all_of(
+                        shape.indices.begin(),
+                        shape.indices.end(),
+                        [&shape](uint32_t index) {
+                            return index < shape.vertices.size();
+                        });
             case CollisionGeometryShapeType::Box:
             default:
                 return shape.size.x > 0.0f &&
@@ -96,7 +137,11 @@ namespace HIKARI::ASSETS::COLLISION {
                     { "height", shape.height },
                     { "enabled", shape.enabled },
                     { "generated", shape.generated },
-                    { "sourceNodeIndex", shape.sourceNodeIndex },
+                    { "sourceNodeIndices", shape.sourceNodeIndices },
+                    { "generationMethod", shape.generationMethod },
+                    { "generationError", shape.generationError },
+                    { "geometryVertexCount", shape.vertices.size() },
+                    { "geometryIndexCount", shape.indices.size() },
                 });
             }
             return {
@@ -220,9 +265,15 @@ namespace HIKARI::ASSETS::COLLISION {
                 shape.height = source.value("height", 1.0f);
                 shape.enabled = source.value("enabled", true);
                 shape.generated = source.value("generated", false);
-                shape.sourceNodeIndex = source.value(
-                    "sourceNodeIndex",
-                    -1);
+                shape.sourceNodeIndices = source.value(
+                    "sourceNodeIndices",
+                    std::vector<int32_t>{});
+                shape.generationMethod = source.value(
+                    "generationMethod",
+                    std::string{});
+                shape.generationError = source.value(
+                    "generationError",
+                    0.0f);
                 outSetup.shapes.push_back(std::move(shape));
             }
         }
@@ -237,7 +288,11 @@ namespace HIKARI::ASSETS::COLLISION {
             outSetup.modelAssetGuid = expectedModelGuid;
             return result;
         }
-        if (!ValidateModelCollisionSetup(outSetup, result.message)) {
+        if (!LoadModelCollisionSetupGeometry(
+                path,
+                outSetup,
+                result.message) ||
+            !ValidateModelCollisionSetup(outSetup, result.message)) {
             return result;
         }
         result.success = true;
@@ -258,6 +313,9 @@ namespace HIKARI::ASSETS::COLLISION {
         if (ec) {
             outMessage = "failed to create collision setup directory: " +
                 ec.message();
+            return false;
+        }
+        if (!SaveModelCollisionSetupGeometry(path, setup, outMessage)) {
             return false;
         }
 
@@ -296,7 +354,8 @@ namespace HIKARI::ASSETS::COLLISION {
         std::string& outMessage) {
 
         if (setup.version != kModelCollisionSetupVersion) {
-            outMessage = "unsupported model collision setup version";
+            outMessage =
+                "unsupported model collision setup version; regenerate and save collision with the current editor";
             return false;
         }
         if (setup.modelAssetGuid.empty()) {

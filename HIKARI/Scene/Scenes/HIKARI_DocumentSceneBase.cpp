@@ -22,6 +22,7 @@
 #include "Assets/HIKARI_AssetRegistryBuilder.h"
 #include "Core/HIKARI_Logger.h"
 #include "Core/HIKARI_TimeService.h"
+#include "Physics/Backends/Jolt/HIKARI_JoltPhysicsBackend.h"
 #include "Project/HIKARI_ProjectSettings.h"
 #include "Render3D/HIKARI_LightDebugDraw.h"
 #include "Render3D/Core/HIKARI_Material.h"
@@ -2857,6 +2858,14 @@ namespace HIKARI {
         gameplayCameraService_.camera = &gameplayCamera_;
         gameplayCameraService_.runtimeSceneCameraActive =
             &runtimeSceneCameraActive_;
+        physicsCollisionGeometryStore_.SetAssetDatabase(&assetDatabase_);
+        if (!physicsWorldService_.HasBackend() &&
+            !physicsWorldService_.InstallBackend(
+                PHYSICS::CreateJoltPhysicsBackend())) {
+            HIKARI_LOG_ERROR(
+                "[Physics] failed to install default Jolt backend");
+            return false;
+        }
 
         WorldServiceRegistry& services = world_.Services();
         services.Clear();
@@ -2864,6 +2873,8 @@ namespace HIKARI {
         success = services.Register(sequencePlaybackService_) && success;
         success = services.Register(runtimePlayStateService_) && success;
         success = services.Register(gameplayCameraService_) && success;
+        success = services.Register(physicsCollisionGeometryStore_) &&
+            success;
         success = services.Register(physicsWorldService_) && success;
         success = runtimeExtensionHost_.RegisterWorldServices(services) &&
             success;

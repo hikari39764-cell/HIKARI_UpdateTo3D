@@ -1,0 +1,937 @@
+{
+  "modelAssetGuid": "316766690d9a63d68e3eff3494736c27",
+  "nextShapeId": 31,
+  "shapes": [
+    {
+      "center": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "enabled": true,
+      "generated": true,
+      "generationError": 0.0,
+      "generationMethod": "TriangleMesh",
+      "geometryIndexCount": 23463,
+      "geometryVertexCount": 4584,
+      "height": 1.0,
+      "id": 1,
+      "name": "Auto Static Mesh",
+      "radius": 0.5,
+      "rotationEulerDegrees": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "size": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "sourceNodeIndices": [
+        1117
+      ],
+      "type": "TriangleMesh"
+    },
+    {
+      "center": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "enabled": true,
+      "generated": true,
+      "generationError": 0.0,
+      "generationMethod": "TriangleMesh",
+      "geometryIndexCount": 4224,
+      "geometryVertexCount": 1023,
+      "height": 1.0,
+      "id": 2,
+      "name": "Auto Static Mesh",
+      "radius": 0.5,
+      "rotationEulerDegrees": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "size": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "sourceNodeIndices": [
+        1118
+      ],
+      "type": "TriangleMesh"
+    },
+    {
+      "center": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "enabled": true,
+      "generated": true,
+      "generationError": 0.0,
+      "generationMethod": "TriangleMesh",
+      "geometryIndexCount": 6,
+      "geometryVertexCount": 4,
+      "height": 1.0,
+      "id": 3,
+      "name": "Auto Static Mesh",
+      "radius": 0.5,
+      "rotationEulerDegrees": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "size": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "sourceNodeIndices": [
+        1119
+      ],
+      "type": "TriangleMesh"
+    },
+    {
+      "center": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "enabled": true,
+      "generated": true,
+      "generationError": 0.0,
+      "generationMethod": "TriangleMesh",
+      "geometryIndexCount": 3492,
+      "geometryVertexCount": 824,
+      "height": 1.0,
+      "id": 4,
+      "name": "Auto Static Mesh",
+      "radius": 0.5,
+      "rotationEulerDegrees": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "size": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "sourceNodeIndices": [
+        1120
+      ],
+      "type": "TriangleMesh"
+    },
+    {
+      "center": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "enabled": true,
+      "generated": true,
+      "generationError": 0.0,
+      "generationMethod": "TriangleMesh",
+      "geometryIndexCount": 3708,
+      "geometryVertexCount": 2196,
+      "height": 1.0,
+      "id": 5,
+      "name": "Auto Static Mesh",
+      "radius": 0.5,
+      "rotationEulerDegrees": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "size": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "sourceNodeIndices": [
+        1121
+      ],
+      "type": "TriangleMesh"
+    },
+    {
+      "center": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "enabled": true,
+      "generated": true,
+      "generationError": 0.0,
+      "generationMethod": "TriangleMesh",
+      "geometryIndexCount": 540,
+      "geometryVertexCount": 119,
+      "height": 1.0,
+      "id": 6,
+      "name": "Auto Static Mesh",
+      "radius": 0.5,
+      "rotationEulerDegrees": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "size": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "sourceNodeIndices": [
+        1122
+      ],
+      "type": "TriangleMesh"
+    },
+    {
+      "center": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "enabled": true,
+      "generated": true,
+      "generationError": 0.0,
+      "generationMethod": "TriangleMesh",
+      "geometryIndexCount": 4224,
+      "geometryVertexCount": 1023,
+      "height": 1.0,
+      "id": 7,
+      "name": "Auto Static Mesh",
+      "radius": 0.5,
+      "rotationEulerDegrees": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "size": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "sourceNodeIndices": [
+        1123
+      ],
+      "type": "TriangleMesh"
+    },
+    {
+      "center": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "enabled": true,
+      "generated": true,
+      "generationError": 0.0,
+      "generationMethod": "TriangleMesh",
+      "geometryIndexCount": 6,
+      "geometryVertexCount": 4,
+      "height": 1.0,
+      "id": 8,
+      "name": "Auto Static Mesh",
+      "radius": 0.5,
+      "rotationEulerDegrees": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "size": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "sourceNodeIndices": [
+        1124
+      ],
+      "type": "TriangleMesh"
+    },
+    {
+      "center": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "enabled": true,
+      "generated": true,
+      "generationError": 0.0,
+      "generationMethod": "TriangleMesh",
+      "geometryIndexCount": 4224,
+      "geometryVertexCount": 1023,
+      "height": 1.0,
+      "id": 9,
+      "name": "Auto Static Mesh",
+      "radius": 0.5,
+      "rotationEulerDegrees": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "size": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "sourceNodeIndices": [
+        1125
+      ],
+      "type": "TriangleMesh"
+    },
+    {
+      "center": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "enabled": true,
+      "generated": true,
+      "generationError": 0.0,
+      "generationMethod": "TriangleMesh",
+      "geometryIndexCount": 6,
+      "geometryVertexCount": 4,
+      "height": 1.0,
+      "id": 10,
+      "name": "Auto Static Mesh",
+      "radius": 0.5,
+      "rotationEulerDegrees": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "size": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "sourceNodeIndices": [
+        1126
+      ],
+      "type": "TriangleMesh"
+    },
+    {
+      "center": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "enabled": true,
+      "generated": true,
+      "generationError": 0.0,
+      "generationMethod": "TriangleMesh",
+      "geometryIndexCount": 2940,
+      "geometryVertexCount": 711,
+      "height": 1.0,
+      "id": 11,
+      "name": "Auto Static Mesh",
+      "radius": 0.5,
+      "rotationEulerDegrees": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "size": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "sourceNodeIndices": [
+        1127
+      ],
+      "type": "TriangleMesh"
+    },
+    {
+      "center": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "enabled": true,
+      "generated": true,
+      "generationError": 0.0,
+      "generationMethod": "TriangleMesh",
+      "geometryIndexCount": 6,
+      "geometryVertexCount": 4,
+      "height": 1.0,
+      "id": 12,
+      "name": "Auto Static Mesh",
+      "radius": 0.5,
+      "rotationEulerDegrees": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "size": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "sourceNodeIndices": [
+        1128
+      ],
+      "type": "TriangleMesh"
+    },
+    {
+      "center": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "enabled": true,
+      "generated": true,
+      "generationError": 0.0,
+      "generationMethod": "TriangleMesh",
+      "geometryIndexCount": 6,
+      "geometryVertexCount": 4,
+      "height": 1.0,
+      "id": 13,
+      "name": "Auto Static Mesh",
+      "radius": 0.5,
+      "rotationEulerDegrees": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "size": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "sourceNodeIndices": [
+        1129
+      ],
+      "type": "TriangleMesh"
+    },
+    {
+      "center": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "enabled": true,
+      "generated": true,
+      "generationError": 0.0,
+      "generationMethod": "TriangleMesh",
+      "geometryIndexCount": 6,
+      "geometryVertexCount": 4,
+      "height": 1.0,
+      "id": 14,
+      "name": "Auto Static Mesh",
+      "radius": 0.5,
+      "rotationEulerDegrees": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "size": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "sourceNodeIndices": [
+        1130
+      ],
+      "type": "TriangleMesh"
+    },
+    {
+      "center": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "enabled": true,
+      "generated": true,
+      "generationError": 0.0,
+      "generationMethod": "TriangleMesh",
+      "geometryIndexCount": 6,
+      "geometryVertexCount": 4,
+      "height": 1.0,
+      "id": 15,
+      "name": "Auto Static Mesh",
+      "radius": 0.5,
+      "rotationEulerDegrees": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "size": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "sourceNodeIndices": [
+        1131
+      ],
+      "type": "TriangleMesh"
+    },
+    {
+      "center": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "enabled": true,
+      "generated": true,
+      "generationError": 0.0,
+      "generationMethod": "TriangleMesh",
+      "geometryIndexCount": 3492,
+      "geometryVertexCount": 824,
+      "height": 1.0,
+      "id": 16,
+      "name": "Auto Static Mesh",
+      "radius": 0.5,
+      "rotationEulerDegrees": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "size": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "sourceNodeIndices": [
+        1132
+      ],
+      "type": "TriangleMesh"
+    },
+    {
+      "center": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "enabled": true,
+      "generated": true,
+      "generationError": 0.0,
+      "generationMethod": "TriangleMesh",
+      "geometryIndexCount": 10770,
+      "geometryVertexCount": 2499,
+      "height": 1.0,
+      "id": 17,
+      "name": "Auto Static Mesh",
+      "radius": 0.5,
+      "rotationEulerDegrees": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "size": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "sourceNodeIndices": [
+        1133
+      ],
+      "type": "TriangleMesh"
+    },
+    {
+      "center": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "enabled": true,
+      "generated": true,
+      "generationError": 0.0,
+      "generationMethod": "TriangleMesh",
+      "geometryIndexCount": 2172,
+      "geometryVertexCount": 525,
+      "height": 1.0,
+      "id": 18,
+      "name": "Auto Static Mesh",
+      "radius": 0.5,
+      "rotationEulerDegrees": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "size": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "sourceNodeIndices": [
+        1134
+      ],
+      "type": "TriangleMesh"
+    },
+    {
+      "center": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "enabled": true,
+      "generated": true,
+      "generationError": 0.0,
+      "generationMethod": "TriangleMesh",
+      "geometryIndexCount": 2808,
+      "geometryVertexCount": 678,
+      "height": 1.0,
+      "id": 19,
+      "name": "Auto Static Mesh",
+      "radius": 0.5,
+      "rotationEulerDegrees": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "size": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "sourceNodeIndices": [
+        1135
+      ],
+      "type": "TriangleMesh"
+    },
+    {
+      "center": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "enabled": true,
+      "generated": true,
+      "generationError": 0.0,
+      "generationMethod": "TriangleMesh",
+      "geometryIndexCount": 1872,
+      "geometryVertexCount": 704,
+      "height": 1.0,
+      "id": 20,
+      "name": "Auto Static Mesh",
+      "radius": 0.5,
+      "rotationEulerDegrees": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "size": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "sourceNodeIndices": [
+        1136
+      ],
+      "type": "TriangleMesh"
+    },
+    {
+      "center": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "enabled": true,
+      "generated": true,
+      "generationError": 0.0,
+      "generationMethod": "TriangleMesh",
+      "geometryIndexCount": 6,
+      "geometryVertexCount": 4,
+      "height": 1.0,
+      "id": 21,
+      "name": "Auto Static Mesh",
+      "radius": 0.5,
+      "rotationEulerDegrees": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "size": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "sourceNodeIndices": [
+        1137
+      ],
+      "type": "TriangleMesh"
+    },
+    {
+      "center": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "enabled": true,
+      "generated": true,
+      "generationError": 0.0,
+      "generationMethod": "TriangleMesh",
+      "geometryIndexCount": 30,
+      "geometryVertexCount": 14,
+      "height": 1.0,
+      "id": 22,
+      "name": "Auto Static Mesh",
+      "radius": 0.5,
+      "rotationEulerDegrees": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "size": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "sourceNodeIndices": [
+        1138
+      ],
+      "type": "TriangleMesh"
+    },
+    {
+      "center": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "enabled": true,
+      "generated": true,
+      "generationError": 0.0,
+      "generationMethod": "TriangleMesh",
+      "geometryIndexCount": 24,
+      "geometryVertexCount": 10,
+      "height": 1.0,
+      "id": 23,
+      "name": "Auto Static Mesh",
+      "radius": 0.5,
+      "rotationEulerDegrees": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "size": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "sourceNodeIndices": [
+        1139
+      ],
+      "type": "TriangleMesh"
+    },
+    {
+      "center": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "enabled": true,
+      "generated": true,
+      "generationError": 0.0,
+      "generationMethod": "TriangleMesh",
+      "geometryIndexCount": 4224,
+      "geometryVertexCount": 1023,
+      "height": 1.0,
+      "id": 24,
+      "name": "Auto Static Mesh",
+      "radius": 0.5,
+      "rotationEulerDegrees": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "size": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "sourceNodeIndices": [
+        1140
+      ],
+      "type": "TriangleMesh"
+    },
+    {
+      "center": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "enabled": true,
+      "generated": true,
+      "generationError": 0.0,
+      "generationMethod": "TriangleMesh",
+      "geometryIndexCount": 24,
+      "geometryVertexCount": 10,
+      "height": 1.0,
+      "id": 25,
+      "name": "Auto Static Mesh",
+      "radius": 0.5,
+      "rotationEulerDegrees": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "size": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "sourceNodeIndices": [
+        1141
+      ],
+      "type": "TriangleMesh"
+    },
+    {
+      "center": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "enabled": true,
+      "generated": true,
+      "generationError": 0.0,
+      "generationMethod": "TriangleMesh",
+      "geometryIndexCount": 4230,
+      "geometryVertexCount": 1027,
+      "height": 1.0,
+      "id": 26,
+      "name": "Auto Static Mesh",
+      "radius": 0.5,
+      "rotationEulerDegrees": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "size": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "sourceNodeIndices": [
+        1142
+      ],
+      "type": "TriangleMesh"
+    },
+    {
+      "center": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "enabled": true,
+      "generated": true,
+      "generationError": 0.0,
+      "generationMethod": "TriangleMesh",
+      "geometryIndexCount": 1668,
+      "geometryVertexCount": 405,
+      "height": 1.0,
+      "id": 27,
+      "name": "Auto Static Mesh",
+      "radius": 0.5,
+      "rotationEulerDegrees": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "size": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "sourceNodeIndices": [
+        1143
+      ],
+      "type": "TriangleMesh"
+    },
+    {
+      "center": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "enabled": true,
+      "generated": true,
+      "generationError": 0.0,
+      "generationMethod": "TriangleMesh",
+      "geometryIndexCount": 768,
+      "geometryVertexCount": 186,
+      "height": 1.0,
+      "id": 28,
+      "name": "Auto Static Mesh",
+      "radius": 0.5,
+      "rotationEulerDegrees": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "size": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "sourceNodeIndices": [
+        1144
+      ],
+      "type": "TriangleMesh"
+    },
+    {
+      "center": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "enabled": true,
+      "generated": true,
+      "generationError": 0.0,
+      "generationMethod": "TriangleMesh",
+      "geometryIndexCount": 1200,
+      "geometryVertexCount": 428,
+      "height": 1.0,
+      "id": 29,
+      "name": "Auto Static Mesh",
+      "radius": 0.5,
+      "rotationEulerDegrees": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "size": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "sourceNodeIndices": [
+        1145
+      ],
+      "type": "TriangleMesh"
+    },
+    {
+      "center": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "enabled": true,
+      "generated": true,
+      "generationError": 0.0,
+      "generationMethod": "TriangleMesh",
+      "geometryIndexCount": 1200,
+      "geometryVertexCount": 428,
+      "height": 1.0,
+      "id": 30,
+      "name": "Auto Static Mesh",
+      "radius": 0.5,
+      "rotationEulerDegrees": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "size": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "sourceNodeIndices": [
+        1146
+      ],
+      "type": "TriangleMesh"
+    }
+  ],
+  "version": 2
+}

@@ -1,6 +1,7 @@
 #pragma once
 
 #include <filesystem>
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -17,6 +18,7 @@ namespace HIKARI::EDITOR {
         int32_t meshIndex = -1;
         std::string name{};
         Bounds bounds{};
+        MATH::Mat4 globalTransform = MATH::Mat4::Identity();
     };
 
     class ModelCollisionPreviewScene {
@@ -29,6 +31,7 @@ namespace HIKARI::EDITOR {
 
         bool IsReady() const noexcept;
         const ModelAsset* GetModel() const noexcept;
+        std::shared_ptr<const ModelAsset> GetSharedModel() const noexcept;
         const RENDER3D::GPUDRIVEN::GpuDrivenSceneSource*
             GetSceneSource() const noexcept;
         const std::vector<ModelCollisionPreviewNode>&
@@ -40,7 +43,7 @@ namespace HIKARI::EDITOR {
     private:
         void RebuildSceneSource();
 
-        ModelAsset model_{};
+        std::shared_ptr<ModelAsset> model_{};
         RENDER3D::RUNTIME::RenderModelAsset renderModel_{};
         RENDER3D::RUNTIME::SceneRenderCache sceneCache_{};
         RENDER3D::GPUDRIVEN::GpuSceneRegistry gpuSceneRegistry_{};

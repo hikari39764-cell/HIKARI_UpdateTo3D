@@ -428,6 +428,7 @@ namespace HIKARI::EDITOR {
         }
 
         if (showModel_) {
+            const ModelAsset* previewModel = previewScene_.GetModel();
             size_t highlightedNodeCount = 0u;
             for (const ModelCollisionPreviewNode& node :
                 previewScene_.GetSourceNodes()) {
@@ -438,6 +439,25 @@ namespace HIKARI::EDITOR {
                 if (!selectedNode && !hoveredNode) {
                     continue;
                 }
+                const uint32_t highlightColor = hoveredNode
+                    ? IM_COL32(255, 210, 92, 255)
+                    : IM_COL32(76, 205, 255, 245);
+                const float highlightThickness = hoveredNode
+                    ? 2.4f
+                    : 1.9f;
+                const bool drewGeometryOutline = previewModel != nullptr &&
+                    sourceOutlineCache_.Draw(
+                        drawList,
+                        camera,
+                        origin.x,
+                        origin.y,
+                        canvasSize.x,
+                        canvasSize.y,
+                        *previewModel,
+                        node,
+                        previewScene_.GetRevision(),
+                        highlightColor,
+                        highlightThickness);
                 DrawModelCollisionBoundsOverlay(
                     drawList,
                     camera,
@@ -446,10 +466,12 @@ namespace HIKARI::EDITOR {
                     canvasSize.x,
                     canvasSize.y,
                     node.bounds,
-                    hoveredNode
-                        ? IM_COL32(255, 210, 92, 245)
-                        : IM_COL32(76, 205, 255, 220),
-                    hoveredNode ? 2.2f : 1.6f);
+                    drewGeometryOutline
+                        ? (hoveredNode
+                            ? IM_COL32(255, 210, 92, 105)
+                            : IM_COL32(76, 205, 255, 85))
+                        : highlightColor,
+                    drewGeometryOutline ? 1.0f : highlightThickness);
                 ++highlightedNodeCount;
                 if (highlightedNodeCount >= 1024u) {
                     break;
@@ -498,7 +520,8 @@ namespace HIKARI::EDITOR {
                     selected->radius = (std::max)(
                         0.001f,
                         (scale.x + scale.y + scale.z) / 6.0f);
-                } else {
+                } else if (selected->type == ASSETS::COLLISION::
+                        CollisionGeometryShapeType::Capsule) {
                     selected->radius = (std::max)(
                         0.001f,
                         (scale.x + scale.z) * 0.25f);
@@ -507,7 +530,8 @@ namespace HIKARI::EDITOR {
                         selected->radius * 2.0f);
                 }
                 selected->generated = false;
-                selected->sourceNodeIndex = -1;
+                selected->sourceNodeIndices.clear();
+                selected->generationMethod.clear();
                 gizmoEditChanged_ = true;
             }
         }

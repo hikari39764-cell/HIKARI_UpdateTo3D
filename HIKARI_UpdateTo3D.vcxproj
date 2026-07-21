@@ -116,6 +116,11 @@
     <IntDir>$(ProjectDir)..\Generated\Obj\$(ProjectName)\$(Configuration)\</IntDir>
     <LibraryPath>$(LibraryPath)</LibraryPath>
   </PropertyGroup>
+  <ItemDefinitionGroup>
+    <ClCompile>
+      <AdditionalIncludeDirectories>$(ProjectDir)ThirdParty\CoACD\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+    </ClCompile>
+  </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <ClCompile>
       <WarningLevel>Level3</WarningLevel>
@@ -239,28 +244,28 @@
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <ClCompile>
-      <PreprocessorDefinitions>HIKARI_ENABLE_ASSIMP_IMPORTER;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>HIKARI_ENABLE_ASSIMP_IMPORTER;JPH_FLOATING_POINT_EXCEPTIONS_ENABLED;JPH_USE_CPU_COMPUTE;JPH_OBJECT_STREAM;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <AdditionalIncludeDirectories>$(ProjectDir)vcpkg_installed\x64-windows\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
-      <AdditionalDependencies>assimp-vc143-mtd.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>assimp-vc143-mtd.lib;Jolt.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <AdditionalLibraryDirectories>$(ProjectDir)vcpkg_installed\x64-windows\debug\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
     </Link>
     <PostBuildEvent>
-      <Command>xcopy /Y /D /I "$(ProjectDir)vcpkg_installed\x64-windows\debug\bin\*.dll" "$(OutDir)" &gt; nul</Command>
+      <Command>xcopy /Y /D /I "$(ProjectDir)vcpkg_installed\x64-windows\debug\bin\*.dll" "$(OutDir)" &gt; nul&#xD;&#xA;copy /Y "$(ProjectDir)ThirdParty\CoACD\bin\win-x64\lib_coacd.dll" "$(OutDir)lib_coacd.dll" &gt; nul</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'!='Debug|x64' And '$(Platform)'=='x64'">
     <ClCompile>
-      <PreprocessorDefinitions>HIKARI_ENABLE_ASSIMP_IMPORTER;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>HIKARI_ENABLE_ASSIMP_IMPORTER;JPH_FLOATING_POINT_EXCEPTIONS_ENABLED;JPH_USE_CPU_COMPUTE;JPH_OBJECT_STREAM;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <AdditionalIncludeDirectories>$(ProjectDir)vcpkg_installed\x64-windows\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
-      <AdditionalDependencies>assimp-vc143-mt.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>assimp-vc143-mt.lib;$(ProjectDir)vcpkg_installed_static\x64-windows-static\lib\Jolt.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <AdditionalLibraryDirectories>$(ProjectDir)vcpkg_installed\x64-windows\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
     </Link>
     <PostBuildEvent>
-      <Command>xcopy /Y /D /I "$(ProjectDir)vcpkg_installed\x64-windows\bin\*.dll" "$(OutDir)" &gt; nul</Command>
+      <Command>xcopy /Y /D /I "$(ProjectDir)vcpkg_installed\x64-windows\bin\*.dll" "$(OutDir)" &gt; nul&#xD;&#xA;if "$(Configuration)"=="EditorRelease" copy /Y "$(ProjectDir)ThirdParty\CoACD\bin\win-x64\lib_coacd.dll" "$(OutDir)lib_coacd.dll" &gt; nul</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
@@ -330,6 +335,11 @@
     <ClCompile Include="HIKARI\Physics\HIKARI_PhysicsSystem.cpp" />
     <ClCompile Include="HIKARI\Physics\HIKARI_PhysicsSceneBridge.cpp" />
     <ClCompile Include="HIKARI\Physics\HIKARI_PhysicsWorldService.cpp" />
+    <ClCompile Include="HIKARI\Physics\HIKARI_PhysicsCollisionGeometryStore.cpp" />
+    <ClCompile Include="HIKARI\Physics\Backends\Jolt\HIKARI_JoltPhysicsBackend.cpp" />
+    <ClCompile Include="HIKARI\Physics\Backends\Jolt\HIKARI_JoltContacts.cpp" />
+    <ClCompile Include="HIKARI\Physics\Backends\Jolt\HIKARI_JoltQueries.cpp" />
+    <ClCompile Include="HIKARI\Physics\Backends\Jolt\HIKARI_JoltShapeFactory.cpp" />
     <ClCompile Include="HIKARI\Vfx\Post\HIKARI_PostChain.cpp" />
     <ClCompile Include="HIKARI\Vfx\Post\HIKARI_PostEffect.cpp" />
     <ClCompile Include="HIKARI\Vfx\Post\HIKARI_PostQuadDrawer.cpp" />
@@ -477,6 +487,7 @@
     <ClCompile Include="HIKARI\Editor\Workspaces\HIKARI_CinematicsWorkspaceWindows.cpp" />
     <ClCompile Include="HIKARI\Editor\Workspaces\HIKARI_ModelCollisionHistory.cpp" />
     <ClCompile Include="HIKARI\Editor\Workspaces\HIKARI_ModelCollisionPreviewScene.cpp" />
+    <ClCompile Include="HIKARI\Editor\Workspaces\HIKARI_ModelCollisionSourceOutline.cpp" />
     <ClCompile Include="HIKARI\Editor\Workspaces\HIKARI_ModelCollisionWorkspaceInteraction.cpp" />
     <ClCompile Include="HIKARI\Editor\Workspaces\HIKARI_ModelCollisionViewportOverlay.cpp" />
     <ClCompile Include="HIKARI\Editor\Workspaces\HIKARI_ModelCollisionWorkspaceController.cpp" />
@@ -532,6 +543,11 @@
     <ClCompile Include="HIKARI\Assets\Collision\HIKARI_ModelCollisionArtifact.cpp" />
     <ClCompile Include="HIKARI\Assets\Collision\HIKARI_ModelCollisionCompiler.cpp" />
     <ClCompile Include="HIKARI\Assets\Collision\HIKARI_ModelCollisionGenerator.cpp" />
+    <ClCompile Include="HIKARI\Assets\Collision\HIKARI_ModelCollisionMeshExtraction.cpp" />
+    <ClCompile Include="HIKARI\Assets\Collision\HIKARI_ModelCollisionGrouping.cpp" />
+    <ClCompile Include="HIKARI\Assets\Collision\HIKARI_CollisionPrimitiveFitter.cpp" />
+    <ClCompile Include="HIKARI\Assets\Collision\HIKARI_CoacdCollisionGenerator.cpp" />
+    <ClCompile Include="HIKARI\Assets\Collision\HIKARI_ModelCollisionSetupGeometry.cpp" />
     <ClCompile Include="HIKARI\Assets\Collision\HIKARI_ModelCollisionSetup.cpp" />
     <ClCompile Include="HIKARI\Assets\Geometry\HIKARI_ClusteredGeometryCooker.cpp" />
     <ClCompile Include="HIKARI\Assets\Geometry\HIKARI_ClusteredGeometryValidator.cpp" />
@@ -964,6 +980,7 @@
     <ClInclude Include="HIKARI\Editor\Workspaces\HIKARI_CinematicsWorkspaceController.h" />
     <ClInclude Include="HIKARI\Editor\Workspaces\HIKARI_ModelCollisionHistory.h" />
     <ClInclude Include="HIKARI\Editor\Workspaces\HIKARI_ModelCollisionPreviewScene.h" />
+    <ClInclude Include="HIKARI\Editor\Workspaces\HIKARI_ModelCollisionSourceOutline.h" />
     <ClInclude Include="HIKARI\Editor\Workspaces\HIKARI_ModelCollisionWorkspaceInteraction.h" />
     <ClInclude Include="HIKARI\Editor\Workspaces\HIKARI_ModelCollisionViewportOverlay.h" />
     <ClInclude Include="HIKARI\Editor\Workspaces\HIKARI_ModelCollisionWorkspaceController.h" />
@@ -1081,6 +1098,11 @@
     <ClInclude Include="HIKARI\Assets\Collision\HIKARI_ModelCollisionArtifact.h" />
     <ClInclude Include="HIKARI\Assets\Collision\HIKARI_ModelCollisionCompiler.h" />
     <ClInclude Include="HIKARI\Assets\Collision\HIKARI_ModelCollisionGenerator.h" />
+    <ClInclude Include="HIKARI\Assets\Collision\HIKARI_ModelCollisionMeshExtraction.h" />
+    <ClInclude Include="HIKARI\Assets\Collision\HIKARI_ModelCollisionGrouping.h" />
+    <ClInclude Include="HIKARI\Assets\Collision\HIKARI_CollisionPrimitiveFitter.h" />
+    <ClInclude Include="HIKARI\Assets\Collision\HIKARI_CoacdCollisionGenerator.h" />
+    <ClInclude Include="HIKARI\Assets\Collision\HIKARI_ModelCollisionSetupGeometry.h" />
     <ClInclude Include="HIKARI\Assets\Collision\HIKARI_ModelCollisionSetup.h" />
     <ClInclude Include="HIKARI\Assets\Geometry\HIKARI_ClusteredGeometryCooker.h" />
     <ClInclude Include="HIKARI\Assets\Geometry\HIKARI_ClusteredGeometryValidator.h" />
@@ -1233,6 +1255,11 @@
     <ClInclude Include="HIKARI\Physics\HIKARI_PhysicsSystem.h" />
     <ClInclude Include="HIKARI\Physics\HIKARI_PhysicsTypes.h" />
     <ClInclude Include="HIKARI\Physics\HIKARI_PhysicsWorldService.h" />
+    <ClInclude Include="HIKARI\Physics\HIKARI_PhysicsCollisionGeometryStore.h" />
+    <ClInclude Include="HIKARI\Physics\Backends\Jolt\HIKARI_JoltConversions.h" />
+    <ClInclude Include="HIKARI\Physics\Backends\Jolt\HIKARI_JoltPhysicsBackend.h" />
+    <ClInclude Include="HIKARI\Physics\Backends\Jolt\HIKARI_JoltPhysicsBackendInternal.h" />
+    <ClInclude Include="HIKARI\Physics\Backends\Jolt\HIKARI_JoltShapeFactory.h" />
     <ClInclude Include="HIKARI\Scene\HIKARI_ISystem.h" />
     <ClInclude Include="HIKARI\Scene\HIKARI_RenderSubmissionSystem.h" />
     <ClInclude Include="HIKARI\Scene\HIKARI_SceneRenderCacheSync.h" />

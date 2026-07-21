@@ -14,7 +14,17 @@ namespace HIKARI::ASSETS::COLLISION {
                 std::isfinite(value.z);
         }
 
-        bool IsShapeUsable(const CollisionGeometryShape& shape) noexcept {
+        bool RangeFits(
+            uint32_t offset,
+            uint32_t count,
+            size_t size) noexcept {
+
+            return offset <= size && count <= size - offset;
+        }
+
+        bool IsShapeUsable(
+            const CollisionGeometryAsset& asset,
+            const CollisionGeometryShape& shape) noexcept {
             if (shape.id == 0u ||
                 !IsFinite(shape.center) ||
                 !IsFinite(shape.rotationEulerDegrees) ||
@@ -29,6 +39,30 @@ namespace HIKARI::ASSETS::COLLISION {
             case CollisionGeometryShapeType::Capsule:
                 return shape.radius > 0.0f &&
                     shape.height >= shape.radius * 2.0f;
+            case CollisionGeometryShapeType::ConvexHull:
+                return shape.vertexCount >= 4u &&
+                    RangeFits(
+                        shape.vertexOffset,
+                        shape.vertexCount,
+                        asset.vertices.size()) &&
+                    (shape.indexCount == 0u ||
+                        (shape.indexCount % 3u == 0u &&
+                         RangeFits(
+                            shape.indexOffset,
+                            shape.indexCount,
+                            asset.indices.size())));
+            case CollisionGeometryShapeType::TriangleMesh:
+                return shape.vertexCount >= 3u &&
+                    shape.indexCount >= 3u &&
+                    shape.indexCount % 3u == 0u &&
+                    RangeFits(
+                        shape.vertexOffset,
+                        shape.vertexCount,
+                        asset.vertices.size()) &&
+                    RangeFits(
+                        shape.indexOffset,
+                        shape.indexCount,
+                        asset.indices.size());
             case CollisionGeometryShapeType::Box:
             default:
                 return shape.size.x > 0.0f &&
@@ -48,7 +82,9 @@ namespace HIKARI::ASSETS::COLLISION {
         return std::all_of(
             shapes.begin(),
             shapes.end(),
-            IsShapeUsable);
+            [this](const CollisionGeometryShape& shape) {
+                return IsShapeUsable(*this, shape);
+            });
     }
 
     uint32_t CollisionGeometryAsset::GetShapeCount() const noexcept {
@@ -57,7 +93,9 @@ namespace HIKARI::ASSETS::COLLISION {
 
     uint64_t CollisionGeometryAsset::GetPayloadByteSize() const noexcept {
         return static_cast<uint64_t>(shapes.size()) *
-            sizeof(CollisionGeometryShape);
+                sizeof(CollisionGeometryShape) +
+            static_cast<uint64_t>(vertices.size()) * sizeof(MATH::Vec3) +
+            static_cast<uint64_t>(indices.size()) * sizeof(uint32_t);
     }
 
     CollisionGeometryValidationResult ValidateCollisionGeometryAsset(
@@ -83,9 +121,33 @@ namespace HIKARI::ASSETS::COLLISION {
 
         std::unordered_set<uint64_t> ids{};
         for (const CollisionGeometryShape& shape : asset.shapes) {
-            if (!IsShapeUsable(shape)) {
+            if (!IsShapeUsable(asset, shape)) {
                 result.messages.push_back(
                     "collision geometry contains an invalid shape");
+                break;
+            }
+            const uint64_t vertexEnd =
+                static_cast<uint64_t>(shape.vertexOffset) +
+                shape.vertexCount;
+            const uint64_t indexEnd =
+                static_cast<uint64_t>(shape.indexOffset) +
+                shape.indexCount;
+            if (vertexEnd > asset.vertices.size() ||
+                indexEnd > asset.indices.size()) {
+                result.messages.push_back(
+                    "collision geometry contains an invalid geometry range");
+                break;
+            }
+            for (uint32_t index = 0u; index < shape.indexCount; ++index) {
+                const uint32_t localIndex = asset.indices[
+                    shape.indexOffset + index];
+                if (localIndex >= shape.vertexCount) {
+                    result.messages.push_back(
+                        "collision geometry contains an out-of-range index");
+                    break;
+                }
+            }
+            if (!result.messages.empty()) {
                 break;
             }
             if (!ids.insert(shape.id).second) {

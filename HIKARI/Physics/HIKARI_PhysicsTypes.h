@@ -2,6 +2,7 @@
 
 #include <cstdint>
 #include <limits>
+#include <memory>
 #include <vector>
 
 #include "Render3D/HIKARI_Math3D.h"
@@ -19,6 +20,8 @@ namespace HIKARI::PHYSICS {
         Box,
         Sphere,
         Capsule,
+        ConvexHull,
+        TriangleMesh,
     };
 
     enum class PhysicsContactPhase : uint8_t {
@@ -64,6 +67,11 @@ namespace HIKARI::PHYSICS {
         uint32_t mask = 0xFFFFFFFFu;
     };
 
+    struct PhysicsGeometryBuffer {
+        std::vector<MATH::Vec3> vertices{};
+        std::vector<uint32_t> indices{};
+    };
+
     struct PhysicsShapeDesc {
         PhysicsShapeType type = PhysicsShapeType::Box;
         MATH::Vec3 localCenter{};
@@ -71,6 +79,12 @@ namespace HIKARI::PHYSICS {
         MATH::Vec3 halfExtents{ 0.5f, 0.5f, 0.5f };
         float radius = 0.5f;
         float height = 1.0f;
+        MATH::Vec3 localScale{ 1.0f, 1.0f, 1.0f };
+        std::shared_ptr<const PhysicsGeometryBuffer> geometry{};
+        uint32_t vertexOffset = 0u;
+        uint32_t vertexCount = 0u;
+        uint32_t indexOffset = 0u;
+        uint32_t indexCount = 0u;
         bool isTrigger = false;
         PhysicsMaterialDesc material{};
         PhysicsCollisionFilter filter{};

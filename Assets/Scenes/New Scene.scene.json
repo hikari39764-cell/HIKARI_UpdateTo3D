@@ -471,12 +471,13 @@
               -2.5999999046325684,
               -0.10000000149011612
             ],
+            "collisionAssetId": "316766690d9a63d68e3eff3494736c27",
             "enabled": true,
             "filter": {
               "layer": 1,
               "mask": 4294967295
             },
-            "fitMode": "Manual",
+            "fitMode": "CollisionAsset",
             "height": 1.0,
             "material": {
               "density": 1.0,
@@ -667,9 +668,126 @@
           "properties": {
             "center": [
               0.0,
+              0.800000011920929,
+              0.0
+            ],
+            "collisionAssetId": "b5495438c8743f173e2cf1a7536224af",
+            "enabled": true,
+            "filter": {
+              "layer": 1,
+              "mask": 4294967295
+            },
+            "fitMode": "Manual",
+            "height": 1.7999999523162842,
+            "material": {
+              "density": 1.0,
+              "friction": 0.5,
+              "restitution": 0.0
+            },
+            "radius": 0.4000000059604645,
+            "rotation": [
+              0.0,
               0.0,
               0.0
             ],
+            "shape": "Capsule",
+            "size": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "trigger": false
+          },
+          "type": "ColliderComponent"
+        },
+        {
+          "properties": {
+            "allowSleeping": true,
+            "angularDamping": 0.05000000074505806,
+            "continuousCollision": false,
+            "enabled": true,
+            "gravityScale": 1.0,
+            "initialAngularVelocity": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "initialLinearVelocity": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "linearDamping": 0.05000000074505806,
+            "lockRotation": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "lockTranslation": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "mass": 1.0,
+            "motionType": "Dynamic"
+          },
+          "type": "PhysicsBodyComponent"
+        }
+      ],
+      "editorVisible": true,
+      "enabled": true,
+      "id": 5,
+      "name": "action",
+      "parent": null,
+      "sourcePrefabId": "",
+      "transform": {
+        "position": [
+          -11.696145057678223,
+          7.7197394371032715,
+          -1.5458850860595703
+        ],
+        "rotationEulerDeg": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "scale": [
+          1.0,
+          1.0,
+          1.0
+        ]
+      }
+    },
+    {
+      "components": [
+        {
+          "properties": {},
+          "type": "ModelComponent"
+        },
+        {
+          "properties": {
+            "depth": 1.0,
+            "doubleSided": false,
+            "generateTangents": true,
+            "height": 1.0,
+            "kind": "Box",
+            "segmentsX": 10,
+            "segmentsY": 10,
+            "segmentsZ": 1,
+            "sphereSlices": 32,
+            "sphereStacks": 16,
+            "width": 1.0
+          },
+          "type": "ProceduralMeshComponent"
+        },
+        {
+          "properties": {
+            "center": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "collisionAssetId": "",
             "enabled": true,
             "filter": {
               "layer": 1,
@@ -711,7 +829,7 @@
               0.0
             ],
             "initialLinearVelocity": [
-              0.20000000298023224,
+              0.0,
               0.0,
               0.0
             ],
@@ -734,15 +852,15 @@
       ],
       "editorVisible": true,
       "enabled": true,
-      "id": 5,
-      "name": "action",
+      "id": 6,
+      "name": "GameObject_6",
       "parent": null,
       "sourcePrefabId": "",
       "transform": {
         "position": [
-          -11.628562927246094,
-          4.143196105957031,
-          -1.7187671661376953
+          -7.617530822753906,
+          6.449795246124268,
+          -11.793941497802734
         ],
         "rotationEulerDeg": [
           0.0,
@@ -773,9 +891,9 @@
         "allowSleeping": true,
         "emitPersistContactEvents": false,
         "gravity": [
-          1.899999976158142,
-          -7.710000038146973,
-          2.799999952316284
+          0.0,
+          -10.0,
+          0.0
         ]
       },
       "systemId": "PhysicsSystem"

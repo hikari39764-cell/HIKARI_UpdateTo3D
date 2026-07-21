@@ -11,7 +11,7 @@
 
 namespace HIKARI::ASSETS::COLLISION {
 
-    constexpr uint32_t kModelCollisionSetupVersion = 1u;
+    constexpr uint32_t kModelCollisionSetupVersion = 2u;
 
     struct ModelCollisionShape {
         uint64_t id = 0u;
@@ -25,7 +25,11 @@ namespace HIKARI::ASSETS::COLLISION {
         float height = 1.0f;
         bool enabled = true;
         bool generated = false;
-        int32_t sourceNodeIndex = -1;
+        std::vector<int32_t> sourceNodeIndices{};
+        std::vector<MATH::Vec3> vertices{};
+        std::vector<uint32_t> indices{};
+        std::string generationMethod{};
+        float generationError = 0.0f;
     };
 
     struct ModelCollisionSetup {

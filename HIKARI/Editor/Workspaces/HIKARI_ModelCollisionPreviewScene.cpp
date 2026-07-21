@@ -81,25 +81,27 @@ namespace HIKARI::EDITOR {
                 "model has no HCMESH artifact; reimport it before editing collision";
             return false;
         }
-        if (!ReadHmodelFile(modelPath, model_, outMessage)) {
+        model_ = std::make_shared<ModelAsset>();
+        if (!ReadHmodelFile(modelPath, *model_, outMessage)) {
+            Clear();
             return false;
         }
-        model_.id = AssetId{ record.guid.value };
-        model_.SetName(record.displayName);
-        model_.SetSourcePath(modelPath.generic_string());
-        model_.SetState(ModelAsset::State::Loaded);
+        model_->id = AssetId{ record.guid.value };
+        model_->SetName(record.displayName);
+        model_->SetSourcePath(modelPath.generic_string());
+        model_->SetState(ModelAsset::State::Loaded);
         clusteredGeometryPath_ = clusteredGeometryPath.generic_string();
-        BOUNDS::EnsureModelBounds(model_);
+        BOUNDS::EnsureModelBounds(*model_);
         const std::vector<MATH::Mat4> nodeGlobals =
-            BOUNDS::BuildModelNodeGlobals(model_);
-        sourceNodes_.reserve(model_.nodes.size());
+            BOUNDS::BuildModelNodeGlobals(*model_);
+        sourceNodes_.reserve(model_->nodes.size());
         for (size_t nodeIndex = 0;
-            nodeIndex < model_.nodes.size();
+            nodeIndex < model_->nodes.size();
             ++nodeIndex) {
 
-            const ModelNode& node = model_.nodes[nodeIndex];
+            const ModelNode& node = model_->nodes[nodeIndex];
             const Bounds nodeBounds = BOUNDS::ComputeModelNodeBounds(
-                model_,
+                *model_,
                 nodeIndex,
                 nodeGlobals);
             if (!BOUNDS::IsUsable(nodeBounds)) {
@@ -112,10 +114,11 @@ namespace HIKARI::EDITOR {
                 ? "Node " + std::to_string(nodeIndex)
                 : node.name;
             previewNode.bounds = nodeBounds;
+            previewNode.globalTransform = nodeGlobals[nodeIndex];
             sourceNodes_.push_back(std::move(previewNode));
         }
         if (!RENDER3D::RUNTIME::BuildRenderModelAsset(
-                model_,
+                *model_,
                 renderModel_,
                 &outMessage)) {
             Clear();
@@ -143,7 +146,7 @@ namespace HIKARI::EDITOR {
         gpuSceneRegistry_.Clear();
         sceneCache_.Clear();
         renderModel_ = {};
-        model_ = {};
+        model_.reset();
         sourceNodes_.clear();
         clusteredGeometryPath_.clear();
     }
@@ -153,7 +156,13 @@ namespace HIKARI::EDITOR {
     }
 
     const ModelAsset* ModelCollisionPreviewScene::GetModel() const noexcept {
-        return ready_ ? &model_ : nullptr;
+        return ready_ ? model_.get() : nullptr;
+    }
+
+    std::shared_ptr<const ModelAsset>
+        ModelCollisionPreviewScene::GetSharedModel() const noexcept {
+
+        return ready_ ? model_ : nullptr;
     }
 
     const RENDER3D::GPUDRIVEN::GpuDrivenSceneSource*
@@ -189,11 +198,11 @@ namespace HIKARI::EDITOR {
         sceneCache_.BeginSync(revision_ + 1u);
         RENDER3D::RUNTIME::SceneRenderObjectDesc object{};
         object.id.value = 0x48434F4C4C505256ull;
-        object.model = &model_;
+        object.model = model_.get();
         object.renderModel = &renderModel_;
         object.worldTransform = {};
-        object.localBounds = model_.bounds;
-        object.worldBounds = model_.bounds;
+        object.localBounds = model_->bounds;
+        object.worldBounds = model_->bounds;
         object.clusteredGeometryPath = clusteredGeometryPath_;
         object.visible = true;
         object.isStatic = true;

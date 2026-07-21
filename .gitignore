@@ -28,6 +28,11 @@ x86/
 [Aa][Rr][Mm]64/
 bld/
 [Bb]in/
+# CoACD is an editor-only pinned dependency; keep its redistributable DLL.
+!ThirdParty/CoACD/
+!ThirdParty/CoACD/bin/
+!ThirdParty/CoACD/bin/win-x64/
+!ThirdParty/CoACD/bin/win-x64/lib_coacd.dll
 [Oo]bj/
 [Oo]ut/
 [Ll]og/
@@ -382,3 +387,4 @@ Assets/**
 !Assets/**/*.hikari.meta
 Library/
 vcpkg_installed/
+vcpkg_installed_static/

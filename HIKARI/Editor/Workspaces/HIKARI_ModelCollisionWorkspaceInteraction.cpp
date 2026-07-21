@@ -143,6 +143,29 @@ namespace HIKARI::EDITOR {
     Bounds ComputeModelCollisionShapeBounds(
         const ASSETS::COLLISION::ModelCollisionShape& shape) noexcept {
 
+        if (shape.type == ASSETS::COLLISION::
+                CollisionGeometryShapeType::ConvexHull ||
+            shape.type == ASSETS::COLLISION::
+                CollisionGeometryShapeType::TriangleMesh) {
+            Bounds geometryBounds = BOUNDS::EmptyBounds();
+            for (const MATH::Vec3& vertex : shape.vertices) {
+                BOUNDS::Encapsulate(geometryBounds, vertex);
+            }
+            if (!BOUNDS::IsUsable(geometryBounds)) {
+                return {};
+            }
+            const MATH::Quat rotation = MATH::Quat::FromEulerXYZ(
+                shape.rotationEulerDegrees.x * kDegreesToRadians,
+                shape.rotationEulerDegrees.y * kDegreesToRadians,
+                shape.rotationEulerDegrees.z * kDegreesToRadians);
+            return BOUNDS::TransformBounds(
+                geometryBounds,
+                MATH::Mat4::TRS(
+                    shape.center,
+                    rotation,
+                    { 1.0f, 1.0f, 1.0f }));
+        }
+
         MATH::Vec3 half{};
         switch (shape.type) {
         case ASSETS::COLLISION::CollisionGeometryShapeType::Sphere:

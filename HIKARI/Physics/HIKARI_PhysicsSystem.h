@@ -13,6 +13,7 @@ namespace HIKARI {
 namespace HIKARI::PHYSICS {
 
     class PhysicsWorldService;
+    class PhysicsCollisionGeometryStore;
 
     class PhysicsSystem final : public ISystem {
     public:
@@ -53,6 +54,7 @@ namespace HIKARI::PHYSICS {
 
         PhysicsWorldSettings settings_{};
         PhysicsWorldService* service_ = nullptr;
+        PhysicsCollisionGeometryStore* collisionGeometryStore_ = nullptr;
         const RuntimePlayStateService* runtimePlayState_ = nullptr;
         std::unordered_map<uint64_t, BodyBinding> bindings_{};
     };

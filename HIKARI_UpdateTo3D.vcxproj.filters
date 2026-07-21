@@ -939,6 +939,9 @@
     <ClCompile Include="HIKARI\Editor\Workspaces\HIKARI_ModelCollisionPreviewScene.cpp">
       <Filter>Source Files\Editor\Workspaces</Filter>
     </ClCompile>
+    <ClCompile Include="HIKARI\Editor\Workspaces\HIKARI_ModelCollisionSourceOutline.cpp">
+      <Filter>Source Files\Editor\Workspaces</Filter>
+    </ClCompile>
     <ClCompile Include="HIKARI\Editor\Workspaces\HIKARI_ModelCollisionWorkspaceInteraction.cpp">
       <Filter>Source Files\Editor\Workspaces</Filter>
     </ClCompile>
@@ -1090,6 +1093,21 @@
       <Filter>Source Files\Assets\Collision</Filter>
     </ClCompile>
     <ClCompile Include="HIKARI\Assets\Collision\HIKARI_ModelCollisionGenerator.cpp">
+      <Filter>Source Files\Assets\Collision</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Assets\Collision\HIKARI_ModelCollisionMeshExtraction.cpp">
+      <Filter>Source Files\Assets\Collision</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Assets\Collision\HIKARI_ModelCollisionGrouping.cpp">
+      <Filter>Source Files\Assets\Collision</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Assets\Collision\HIKARI_CollisionPrimitiveFitter.cpp">
+      <Filter>Source Files\Assets\Collision</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Assets\Collision\HIKARI_CoacdCollisionGenerator.cpp">
+      <Filter>Source Files\Assets\Collision</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Assets\Collision\HIKARI_ModelCollisionSetupGeometry.cpp">
       <Filter>Source Files\Assets\Collision</Filter>
     </ClCompile>
     <ClCompile Include="HIKARI\Assets\Collision\HIKARI_ModelCollisionSetup.cpp">
@@ -1669,6 +1687,21 @@
       <Filter>Source Files\Physics</Filter>
     </ClCompile>
     <ClCompile Include="HIKARI\Physics\HIKARI_PhysicsWorldService.cpp">
+      <Filter>Source Files\Physics</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Physics\HIKARI_PhysicsCollisionGeometryStore.cpp">
+      <Filter>Source Files\Physics</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Physics\Backends\Jolt\HIKARI_JoltPhysicsBackend.cpp">
+      <Filter>Source Files\Physics</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Physics\Backends\Jolt\HIKARI_JoltContacts.cpp">
+      <Filter>Source Files\Physics</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Physics\Backends\Jolt\HIKARI_JoltQueries.cpp">
+      <Filter>Source Files\Physics</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Physics\Backends\Jolt\HIKARI_JoltShapeFactory.cpp">
       <Filter>Source Files\Physics</Filter>
     </ClCompile>
     <ClCompile Include="HIKARI\Render3D\Render\HIKARI_ModelRenderer.cpp">
@@ -2329,6 +2362,9 @@
     <ClInclude Include="HIKARI\Editor\Workspaces\HIKARI_ModelCollisionPreviewScene.h">
       <Filter>Header Files\Editor\Workspaces</Filter>
     </ClInclude>
+    <ClInclude Include="HIKARI\Editor\Workspaces\HIKARI_ModelCollisionSourceOutline.h">
+      <Filter>Header Files\Editor\Workspaces</Filter>
+    </ClInclude>
     <ClInclude Include="HIKARI\Editor\Workspaces\HIKARI_ModelCollisionWorkspaceInteraction.h">
       <Filter>Header Files\Editor\Workspaces</Filter>
     </ClInclude>
@@ -2540,6 +2576,21 @@
       <Filter>Header Files\Assets\Collision</Filter>
     </ClInclude>
     <ClInclude Include="HIKARI\Assets\Collision\HIKARI_ModelCollisionGenerator.h">
+      <Filter>Header Files\Assets\Collision</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Assets\Collision\HIKARI_ModelCollisionMeshExtraction.h">
+      <Filter>Header Files\Assets\Collision</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Assets\Collision\HIKARI_ModelCollisionGrouping.h">
+      <Filter>Header Files\Assets\Collision</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Assets\Collision\HIKARI_CollisionPrimitiveFitter.h">
+      <Filter>Header Files\Assets\Collision</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Assets\Collision\HIKARI_CoacdCollisionGenerator.h">
+      <Filter>Header Files\Assets\Collision</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Assets\Collision\HIKARI_ModelCollisionSetupGeometry.h">
       <Filter>Header Files\Assets\Collision</Filter>
     </ClInclude>
     <ClInclude Include="HIKARI\Assets\Collision\HIKARI_ModelCollisionSetup.h">
@@ -2999,6 +3050,21 @@
       <Filter>Header Files\Physics</Filter>
     </ClInclude>
     <ClInclude Include="HIKARI\Physics\HIKARI_PhysicsWorldService.h">
+      <Filter>Header Files\Physics</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Physics\HIKARI_PhysicsCollisionGeometryStore.h">
+      <Filter>Header Files\Physics</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Physics\Backends\Jolt\HIKARI_JoltConversions.h">
+      <Filter>Header Files\Physics</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Physics\Backends\Jolt\HIKARI_JoltPhysicsBackend.h">
+      <Filter>Header Files\Physics</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Physics\Backends\Jolt\HIKARI_JoltPhysicsBackendInternal.h">
+      <Filter>Header Files\Physics</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Physics\Backends\Jolt\HIKARI_JoltShapeFactory.h">
       <Filter>Header Files\Physics</Filter>
     </ClInclude>
     <ClInclude Include="HIKARI\Render3D\Render\HIKARI_ModelRenderer.h">

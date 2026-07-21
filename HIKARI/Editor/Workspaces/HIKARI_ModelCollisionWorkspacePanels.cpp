@@ -23,6 +23,10 @@ namespace HIKARI::EDITOR {
                 return "Sphere";
             case ASSETS::COLLISION::CollisionGeometryShapeType::Capsule:
                 return "Capsule";
+            case ASSETS::COLLISION::CollisionGeometryShapeType::ConvexHull:
+                return "Convex Hull";
+            case ASSETS::COLLISION::CollisionGeometryShapeType::TriangleMesh:
+                return "Static Mesh";
             case ASSETS::COLLISION::CollisionGeometryShapeType::Box:
             default:
                 return "Box";
@@ -202,16 +206,28 @@ namespace HIKARI::EDITOR {
             shape->name = nameBuffer;
             detailsEditPending_ = true;
         }
-        int type = static_cast<int>(shape->type);
-        const char* types[]{ "Box", "Sphere", "Capsule" };
-        if (ImGui::Combo("Type", &type, types, 3)) {
-            shape->type = static_cast<
-                ASSETS::COLLISION::CollisionGeometryShapeType>(type);
-            shape->radius = (std::max)(shape->radius, 0.001f);
-            shape->height = (std::max)(
-                shape->height,
-                shape->radius * 2.0f);
-            detailsEditPending_ = true;
+        const bool geometryShape = shape->type == ASSETS::COLLISION::
+                CollisionGeometryShapeType::ConvexHull ||
+            shape->type == ASSETS::COLLISION::
+                CollisionGeometryShapeType::TriangleMesh;
+        if (geometryShape) {
+            ImGui::Text("Type: %s", ShapeTypeName(shape->type));
+            ImGui::TextDisabled(
+                "%d vertices | %d triangles",
+                static_cast<int>(shape->vertices.size()),
+                static_cast<int>(shape->indices.size() / 3u));
+        } else {
+            int type = static_cast<int>(shape->type);
+            const char* types[]{ "Box", "Sphere", "Capsule" };
+            if (ImGui::Combo("Type", &type, types, 3)) {
+                shape->type = static_cast<
+                    ASSETS::COLLISION::CollisionGeometryShapeType>(type);
+                shape->radius = (std::max)(shape->radius, 0.001f);
+                shape->height = (std::max)(
+                    shape->height,
+                    shape->radius * 2.0f);
+                detailsEditPending_ = true;
+            }
         }
         if (ImGui::DragFloat3(
                 "Center", &shape->center.x, 0.02f, 0.0f, 0.0f, "%.3f")) {
@@ -232,7 +248,7 @@ namespace HIKARI::EDITOR {
                 shape->size.z = (std::max)(shape->size.z, 0.001f);
                 detailsEditPending_ = true;
             }
-        } else {
+        } else if (!geometryShape) {
             if (ImGui::DragFloat(
                     "Radius", &shape->radius, 0.01f, 0.001f,
                     1000000.0f, "%.3f")) {
@@ -255,15 +271,19 @@ namespace HIKARI::EDITOR {
         }
         if (detailsEditPending_) {
             shape->generated = false;
-            shape->sourceNodeIndex = -1;
+            shape->sourceNodeIndices.clear();
+            shape->generationMethod.clear();
         }
         ImGui::EndDisabled();
 
         ImGui::Separator();
         if (shape->generated) {
             ImGui::TextDisabled(
-                "Generated from source node %d",
-                shape->sourceNodeIndex);
+                "Generated from %d source part(s) | %s",
+                static_cast<int>(shape->sourceNodeIndices.size()),
+                shape->generationMethod.empty()
+                    ? "Auto"
+                    : shape->generationMethod.c_str());
         } else {
             ImGui::TextDisabled("Manual collision shape");
         }
@@ -383,32 +403,123 @@ namespace HIKARI::EDITOR {
             ImGui::End();
             return;
         }
+        PollGenerationTask();
+        if (generationPending_) {
+            ImGui::TextColored(
+                ImVec4(0.40f, 0.82f, 0.92f, 1.0f),
+                "Generating collision...");
+            ImGui::TextDisabled(
+                "The editor remains usable while geometry is processed.");
+            if (!generationDiscardRequested_ &&
+                ImGui::Button("Discard Result When Finished")) {
+                generationDiscardRequested_ = true;
+                statusMessage_ =
+                    "generation is still finishing safely; its result will be discarded";
+            }
+            if (!statusMessage_.empty()) {
+                ImGui::TextWrapped("%s", statusMessage_.c_str());
+            }
+            ImGui::End();
+            return;
+        }
         const char* targets[]{
             "Whole Model",
             "Selected Parts Combined",
+            "Nearby Selected Groups",
             "Each Selected Part"
         };
         int target = static_cast<int>(generationTarget_);
-        if (ImGui::Combo("Target", &target, targets, 3)) {
+        if (ImGui::Combo("Target", &target, targets, 4)) {
             generationTarget_ = static_cast<
                 ASSETS::COLLISION::ModelCollisionGenerationTarget>(target);
         }
-        const char* shapeTypes[]{ "Box", "Sphere", "Capsule" };
-        int shapeType = static_cast<int>(generationShapeType_);
-        if (ImGui::Combo("Shape", &shapeType, shapeTypes, 3)) {
-            generationShapeType_ = static_cast<
-                ASSETS::COLLISION::CollisionGeometryShapeType>(shapeType);
+        const char* methods[]{
+            "Fitted Box",
+            "Fitted Sphere",
+            "Fitted Capsule",
+            "Single Convex Hull",
+            "Convex Decomposition (CoACD)",
+            "Static Triangle Mesh"
+        };
+        int method = static_cast<int>(generationMethod_);
+        if (ImGui::Combo("Method", &method, methods, 6)) {
+            generationMethod_ = static_cast<
+                ASSETS::COLLISION::ModelCollisionGenerationMethod>(method);
         }
         ImGui::Checkbox(
             "Replace previously generated shapes",
             &replaceGeneratedShapes_);
         const bool requiresSourceSelection = generationTarget_ !=
             ASSETS::COLLISION::ModelCollisionGenerationTarget::WholeModel;
-        if (generationTarget_ ==
-                ASSETS::COLLISION::ModelCollisionGenerationTarget::SelectedNodesIndividually) {
+        if (generationTarget_ == ASSETS::COLLISION::
+                ModelCollisionGenerationTarget::SelectedNodesSpatialGroups) {
+            ImGui::DragFloat(
+                "Merge Distance",
+                &generationMergeDistance_,
+                0.01f,
+                0.0f,
+                100000.0f,
+                "%.3f");
+            generationMergeDistance_ = (std::max)(
+                generationMergeDistance_,
+                0.0f);
+        }
+        const bool convexHull = generationMethod_ == ASSETS::COLLISION::
+            ModelCollisionGenerationMethod::ConvexHull;
+        const bool decomposition = generationMethod_ == ASSETS::COLLISION::
+            ModelCollisionGenerationMethod::ConvexDecomposition;
+        const bool triangleMesh = generationMethod_ == ASSETS::COLLISION::
+            ModelCollisionGenerationMethod::TriangleMesh;
+        const bool primitiveMethod = generationMethod_ == ASSETS::COLLISION::
+                ModelCollisionGenerationMethod::Box ||
+            generationMethod_ == ASSETS::COLLISION::
+                ModelCollisionGenerationMethod::Sphere ||
+            generationMethod_ == ASSETS::COLLISION::
+                ModelCollisionGenerationMethod::Capsule;
+        if (primitiveMethod && generationTarget_ == ASSETS::COLLISION::
+                ModelCollisionGenerationTarget::SelectedNodesSpatialGroups) {
+            ImGui::DragFloat(
+                "Max Merge Inflation",
+                &generationAccuracy_,
+                0.01f,
+                0.0f,
+                4.0f,
+                "%.2f x");
+            generationAccuracy_ = (std::clamp)(
+                generationAccuracy_, 0.0f, 4.0f);
+        }
+        if (convexHull || decomposition) {
+            ImGui::InputInt(
+                "Max Hull Vertices",
+                &generationHullVertexBudget_);
+            generationHullVertexBudget_ = (std::clamp)(
+                generationHullVertexBudget_, 16, 256);
+        }
+        if (decomposition) {
+            ImGui::DragFloat(
+                "Concavity Threshold",
+                &generationAccuracy_,
+                0.0025f,
+                0.001f,
+                1.0f,
+                "%.4f");
+            generationAccuracy_ = (std::clamp)(
+                generationAccuracy_, 0.001f, 1.0f);
+            ImGui::Checkbox("Preserve Separate Gaps", &generationPreserveGaps_);
+        }
+        if (triangleMesh) {
+            ImGui::TextDisabled("Static bodies only");
+            ImGui::InputInt(
+                "Triangle Budget",
+                &generationTriangleBudget_);
+            generationTriangleBudget_ = (std::clamp)(
+                generationTriangleBudget_, 1, 16000000);
+        } else if (decomposition || generationTarget_ == ASSETS::COLLISION::
+                ModelCollisionGenerationTarget::SelectedNodesIndividually ||
+            generationTarget_ == ASSETS::COLLISION::
+                ModelCollisionGenerationTarget::SelectedNodesSpatialGroups) {
             ImGui::InputInt("Shape Budget", &generationBudget_);
-            generationBudget_ = (std::clamp)(
-                generationBudget_, 1, 4096);
+            generationBudget_ = (std::clamp)(generationBudget_, 1, 4096);
         }
         if (requiresSourceSelection) {
             const ImVec4 color = selectedSourceNodes_.empty()

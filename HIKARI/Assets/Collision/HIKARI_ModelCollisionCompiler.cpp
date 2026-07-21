@@ -11,6 +11,26 @@ namespace HIKARI::ASSETS::COLLISION {
             0.01745329251994329577f;
 
         Bounds ShapeBounds(const ModelCollisionShape& shape) {
+            if (shape.type == CollisionGeometryShapeType::ConvexHull ||
+                shape.type == CollisionGeometryShapeType::TriangleMesh) {
+                Bounds geometryBounds = BOUNDS::EmptyBounds();
+                for (const MATH::Vec3& vertex : shape.vertices) {
+                    BOUNDS::Encapsulate(geometryBounds, vertex);
+                }
+                if (!BOUNDS::IsUsable(geometryBounds)) {
+                    return {};
+                }
+                const MATH::Quat rotation = MATH::Quat::FromEulerXYZ(
+                    shape.rotationEulerDegrees.x * kDegreesToRadians,
+                    shape.rotationEulerDegrees.y * kDegreesToRadians,
+                    shape.rotationEulerDegrees.z * kDegreesToRadians);
+                return BOUNDS::TransformBounds(
+                    geometryBounds,
+                    MATH::Mat4::TRS(
+                        shape.center,
+                        rotation,
+                        { 1.0f, 1.0f, 1.0f }));
+            }
             MATH::Vec3 size = shape.size;
             if (shape.type == CollisionGeometryShapeType::Sphere) {
                 size = {
@@ -75,6 +95,22 @@ namespace HIKARI::ASSETS::COLLISION {
             shape.size = source.size;
             shape.radius = source.radius;
             shape.height = source.height;
+            shape.vertexOffset = static_cast<uint32_t>(
+                outAsset.vertices.size());
+            shape.vertexCount = static_cast<uint32_t>(
+                source.vertices.size());
+            shape.indexOffset = static_cast<uint32_t>(
+                outAsset.indices.size());
+            shape.indexCount = static_cast<uint32_t>(
+                source.indices.size());
+            outAsset.vertices.insert(
+                outAsset.vertices.end(),
+                source.vertices.begin(),
+                source.vertices.end());
+            outAsset.indices.insert(
+                outAsset.indices.end(),
+                source.indices.begin(),
+                source.indices.end());
             outAsset.shapes.push_back(shape);
 
             const Bounds shapeBounds = ShapeBounds(source);

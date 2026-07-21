@@ -15,17 +15,32 @@ namespace HIKARI::ASSETS::COLLISION {
     enum class ModelCollisionGenerationTarget : uint8_t {
         WholeModel,
         SelectedNodesCombined,
+        SelectedNodesSpatialGroups,
         SelectedNodesIndividually,
+    };
+
+    enum class ModelCollisionGenerationMethod : uint8_t {
+        Box,
+        Sphere,
+        Capsule,
+        ConvexHull,
+        ConvexDecomposition,
+        TriangleMesh,
     };
 
     struct ModelCollisionGenerationRequest {
         ModelCollisionGenerationTarget target =
             ModelCollisionGenerationTarget::WholeModel;
-        CollisionGeometryShapeType shapeType =
-            CollisionGeometryShapeType::Box;
+        ModelCollisionGenerationMethod method =
+            ModelCollisionGenerationMethod::Box;
         std::vector<int32_t> sourceNodeIndices{};
         bool replaceGeneratedShapes = true;
+        bool preserveGaps = true;
+        float mergeDistance = 0.1f;
+        float accuracy = 0.05f;
         uint32_t maximumGeneratedShapes = 512u;
+        uint32_t maximumHullVertices = 128u;
+        uint32_t maximumTriangleCount = 1000000u;
     };
 
     struct ModelCollisionGenerationResult {
@@ -49,6 +64,6 @@ namespace HIKARI::ASSETS::COLLISION {
         const Bounds& bounds,
         std::string name,
         bool generated,
-        int32_t sourceNodeIndex = -1);
+        std::vector<int32_t> sourceNodeIndices = {});
 
 } // namespace HIKARI::ASSETS::COLLISION

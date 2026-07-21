@@ -1,11 +1,15 @@
 #include "Assets/Collision/HIKARI_ModelCollisionGenerator.h"
 
 #include <algorithm>
+#include <array>
 #include <cmath>
-#include <unordered_set>
+#include <limits>
 
+#include "Assets/Collision/HIKARI_CoacdCollisionGenerator.h"
+#include "Assets/Collision/HIKARI_CollisionPrimitiveFitter.h"
+#include "Assets/Collision/HIKARI_ModelCollisionMeshExtraction.h"
+#include "Assets/Collision/HIKARI_ModelCollisionGrouping.h"
 #include "Render3D/Core/HIKARI_BoundsUtils.h"
-#include "Render3D/Core/HIKARI_ModelAsset.h"
 
 namespace HIKARI::ASSETS::COLLISION {
     namespace {
@@ -15,6 +19,36 @@ namespace HIKARI::ASSETS::COLLISION {
 
         MATH::Vec3 BoundsSize(const Bounds& bounds) noexcept {
             return bounds.max - bounds.min;
+        }
+
+        float BoundsVolume(const Bounds& bounds) noexcept {
+            if (!BOUNDS::IsUsable(bounds)) {
+                return 0.0f;
+            }
+            const MATH::Vec3 size = bounds.max - bounds.min;
+            return (std::max)(size.x, 0.0f) *
+                (std::max)(size.y, 0.0f) *
+                (std::max)(size.z, 0.0f);
+        }
+
+        float PrimitiveVolume(const ModelCollisionShape& shape) noexcept {
+            constexpr float kPi = 3.14159265358979323846f;
+            switch (shape.type) {
+            case CollisionGeometryShapeType::Sphere:
+                return 4.0f / 3.0f * kPi *
+                    shape.radius * shape.radius * shape.radius;
+            case CollisionGeometryShapeType::Capsule: {
+                const float cylinderHeight = (std::max)(
+                    0.0f,
+                    shape.height - shape.radius * 2.0f);
+                return kPi * shape.radius * shape.radius * cylinderHeight +
+                    4.0f / 3.0f * kPi *
+                        shape.radius * shape.radius * shape.radius;
+            }
+            case CollisionGeometryShapeType::Box:
+            default:
+                return shape.size.x * shape.size.y * shape.size.z;
+            }
         }
 
         std::string ShapeName(
@@ -44,18 +78,203 @@ namespace HIKARI::ASSETS::COLLISION {
             shape.height = (std::max)(largest, shape.radius * 2.0f);
         }
 
-        const char* ShapeNamePrefix(
-            CollisionGeometryShapeType type) noexcept {
+        const char* MethodName(
+            ModelCollisionGenerationMethod method) noexcept {
 
-            switch (type) {
-            case CollisionGeometryShapeType::Sphere:
+            switch (method) {
+            case ModelCollisionGenerationMethod::Sphere:
                 return "Sphere";
-            case CollisionGeometryShapeType::Capsule:
+            case ModelCollisionGenerationMethod::Capsule:
                 return "Capsule";
-            case CollisionGeometryShapeType::Box:
+            case ModelCollisionGenerationMethod::ConvexHull:
+                return "Convex Hull";
+            case ModelCollisionGenerationMethod::ConvexDecomposition:
+                return "Convex Part";
+            case ModelCollisionGenerationMethod::TriangleMesh:
+                return "Static Mesh";
+            case ModelCollisionGenerationMethod::Box:
             default:
                 return "Box";
             }
+        }
+
+        CollisionGeometryShapeType PrimitiveType(
+            ModelCollisionGenerationMethod method) noexcept {
+
+            switch (method) {
+            case ModelCollisionGenerationMethod::Sphere:
+                return CollisionGeometryShapeType::Sphere;
+            case ModelCollisionGenerationMethod::Capsule:
+                return CollisionGeometryShapeType::Capsule;
+            case ModelCollisionGenerationMethod::Box:
+            default:
+                return CollisionGeometryShapeType::Box;
+            }
+        }
+
+        bool IsPrimitiveMethod(
+            ModelCollisionGenerationMethod method) noexcept {
+
+            return method == ModelCollisionGenerationMethod::Box ||
+                method == ModelCollisionGenerationMethod::Sphere ||
+                method == ModelCollisionGenerationMethod::Capsule;
+        }
+
+        ModelCollisionShape MakeGeometryShape(
+            ModelCollisionSetup& setup,
+            CollisionGeometryShapeType type,
+            ModelCollisionMeshData mesh,
+            std::string name,
+            std::string generationMethod,
+            float generationError) {
+
+            ModelCollisionShape shape{};
+            shape.id = setup.AllocateShapeId();
+            shape.name = std::move(name);
+            shape.type = type;
+            shape.generated = true;
+            shape.sourceNodeIndices = std::move(mesh.sourceNodeIndices);
+            shape.vertices = std::move(mesh.vertices);
+            shape.indices = std::move(mesh.indices);
+            shape.generationMethod = std::move(generationMethod);
+            shape.generationError = generationError;
+            return shape;
+        }
+
+        void SampleConvexPoints(
+            const ModelCollisionMeshData& input,
+            uint32_t maximumVertices,
+            ModelCollisionMeshData& output) {
+
+            output = {};
+            output.sourceNodeIndices = input.sourceNodeIndices;
+            output.bounds = input.bounds;
+            maximumVertices = (std::clamp)(maximumVertices, 16u, 256u);
+            if (input.vertices.size() <= maximumVertices) {
+                output.vertices = input.vertices;
+                return;
+            }
+            const double step = static_cast<double>(input.vertices.size()) /
+                static_cast<double>(maximumVertices);
+            output.vertices.reserve(maximumVertices);
+            for (uint32_t index = 0u; index < maximumVertices; ++index) {
+                const size_t sourceIndex = (std::min)(
+                    static_cast<size_t>(index * step),
+                    input.vertices.size() - 1u);
+                output.vertices.push_back(input.vertices[sourceIndex]);
+            }
+        }
+
+        bool GenerateGroupShapes(
+            const ModelCollisionMeshData& mesh,
+            const ModelCollisionGenerationRequest& request,
+            float sourceBoundsVolume,
+            ModelCollisionSetup& setup,
+            std::vector<ModelCollisionShape>& outShapes,
+            std::string& outMessage) {
+
+            if (IsPrimitiveMethod(request.method)) {
+                ModelCollisionShape shape{};
+                shape.id = setup.AllocateShapeId();
+                shape.type = PrimitiveType(request.method);
+                shape.name = "Auto " + std::string(MethodName(request.method));
+                shape.generated = true;
+                shape.sourceNodeIndices = mesh.sourceNodeIndices;
+                shape.generationMethod = "PrimitiveFit";
+                if (!FitCollisionPrimitive(
+                        mesh,
+                        shape.type,
+                        shape,
+                        shape.generationError,
+                        outMessage)) {
+                    return false;
+                }
+                if (sourceBoundsVolume > 1.0e-8f) {
+                    shape.generationError = (std::max)(
+                        0.0f,
+                        PrimitiveVolume(shape) / sourceBoundsVolume - 1.0f);
+                }
+                outShapes.push_back(std::move(shape));
+                return true;
+            }
+            if (request.method ==
+                    ModelCollisionGenerationMethod::TriangleMesh) {
+                const uint64_t triangleCount = mesh.indices.size() / 3u;
+                if (triangleCount > request.maximumTriangleCount) {
+                    outMessage = "static mesh collision has " +
+                        std::to_string(triangleCount) +
+                        " triangles; select smaller parts or raise the triangle budget";
+                    return false;
+                }
+                outShapes.push_back(MakeGeometryShape(
+                    setup,
+                    CollisionGeometryShapeType::TriangleMesh,
+                    mesh,
+                    "Auto Static Mesh",
+                    "TriangleMesh",
+                    0.0f));
+                return true;
+            }
+
+            CoacdCollisionSettings settings{};
+            settings.threshold = (std::clamp)(
+                static_cast<double>(request.accuracy),
+                0.001,
+                1.0);
+            settings.maximumConvexHulls = request.method ==
+                    ModelCollisionGenerationMethod::ConvexHull
+                ? 1
+                : static_cast<int>((std::min)(
+                    request.maximumGeneratedShapes,
+                    static_cast<uint32_t>((std::numeric_limits<int>::max)())));
+            settings.maximumHullVertices = static_cast<int>(
+                request.maximumHullVertices);
+            settings.mergeParts = !request.preserveGaps;
+
+            std::vector<ModelCollisionMeshData> convexParts{};
+            if (!GenerateCoacdCollisionParts(
+                    mesh,
+                    settings,
+                    convexParts,
+                    outMessage)) {
+                if (request.method ==
+                        ModelCollisionGenerationMethod::ConvexDecomposition) {
+                    return false;
+                }
+                ModelCollisionMeshData sampled{};
+                SampleConvexPoints(
+                    mesh,
+                    request.maximumHullVertices,
+                    sampled);
+                if (sampled.vertices.size() < 4u) {
+                    return false;
+                }
+                outShapes.push_back(MakeGeometryShape(
+                    setup,
+                    CollisionGeometryShapeType::ConvexHull,
+                    std::move(sampled),
+                    "Auto Convex Hull",
+                    "ConvexHullFallback",
+                    0.0f));
+                outMessage.clear();
+                return true;
+            }
+            for (size_t partIndex = 0u;
+                partIndex < convexParts.size();
+                ++partIndex) {
+                outShapes.push_back(MakeGeometryShape(
+                    setup,
+                    CollisionGeometryShapeType::ConvexHull,
+                    std::move(convexParts[partIndex]),
+                    "Auto " + std::string(MethodName(request.method)) +
+                        " " + std::to_string(partIndex + 1u),
+                    request.method ==
+                            ModelCollisionGenerationMethod::ConvexHull
+                        ? "CoACDConvexHull"
+                        : "CoACDDecomposition",
+                    request.accuracy));
+            }
+            return true;
         }
     }
 
@@ -65,7 +284,7 @@ namespace HIKARI::ASSETS::COLLISION {
         const Bounds& bounds,
         std::string name,
         bool generated,
-        int32_t sourceNodeIndex) {
+        std::vector<int32_t> sourceNodeIndices) {
 
         ModelCollisionShape shape{};
         shape.id = setup.AllocateShapeId();
@@ -83,7 +302,7 @@ namespace HIKARI::ASSETS::COLLISION {
             MATH::Length(shape.size) * 0.5f);
         shape.height = (std::max)(shape.size.y, shape.radius * 2.0f);
         shape.generated = generated;
-        shape.sourceNodeIndex = sourceNodeIndex;
+        shape.sourceNodeIndices = std::move(sourceNodeIndices);
         if (type == CollisionGeometryShapeType::Capsule) {
             FitCapsuleToBounds(bounds, shape);
         }
@@ -100,89 +319,109 @@ namespace HIKARI::ASSETS::COLLISION {
             result.message = "generation shape budget is zero";
             return result;
         }
-
-        std::vector<ModelCollisionShape> generated{};
-        if (request.target ==
-                ModelCollisionGenerationTarget::WholeModel) {
-            const Bounds modelBounds = BOUNDS::IsUsable(model.bounds)
-                ? model.bounds
-                : BOUNDS::ComputeModelBounds(model);
-            if (!BOUNDS::IsUsable(modelBounds)) {
-                result.message = "model has no usable bounds";
-                return result;
-            }
-            generated.push_back(CreateFittedCollisionShape(
-                setup,
-                request.shapeType,
-                modelBounds,
-                std::string("Auto Model ") +
-                    ShapeNamePrefix(request.shapeType),
-                true));
-            result.candidateCount = 1u;
-        } else {
-            if (request.sourceNodeIndices.empty()) {
-                result.message =
-                    "select one or more source model parts first";
-                return result;
-            }
-            const std::vector<MATH::Mat4> globals =
-                BOUNDS::BuildModelNodeGlobals(model);
-            std::unordered_set<int32_t> selected(
-                request.sourceNodeIndices.begin(),
-                request.sourceNodeIndices.end());
-            Bounds combinedBounds = BOUNDS::EmptyBounds();
-            bool hasCombinedBounds = false;
-            for (size_t nodeIndex = 0;
-                nodeIndex < model.nodes.size();
-                ++nodeIndex) {
-
-                if (!selected.contains(static_cast<int32_t>(nodeIndex))) {
-                    continue;
-                }
-                const Bounds bounds = BOUNDS::ComputeModelNodeBounds(
-                    model,
-                    nodeIndex,
-                    globals);
-                if (!BOUNDS::IsUsable(bounds)) {
-                    continue;
-                }
-                ++result.candidateCount;
-                if (request.target ==
-                        ModelCollisionGenerationTarget::SelectedNodesCombined) {
-                    BOUNDS::Encapsulate(combinedBounds, bounds);
-                    hasCombinedBounds = true;
-                    continue;
-                }
-                if (generated.size() >= request.maximumGeneratedShapes) {
-                    result.truncated = true;
-                    continue;
-                }
-                const ModelNode& node = model.nodes[nodeIndex];
-                const std::string nodeName = node.name.empty()
-                    ? "Node " + std::to_string(nodeIndex)
-                    : node.name;
-                generated.push_back(CreateFittedCollisionShape(
-                    setup,
-                    request.shapeType,
-                    bounds,
-                    "Auto " + nodeName + " " +
-                        ShapeNamePrefix(request.shapeType),
-                    true,
-                    static_cast<int32_t>(nodeIndex)));
-            }
-            if (request.target ==
-                    ModelCollisionGenerationTarget::SelectedNodesCombined &&
-                hasCombinedBounds) {
-                generated.push_back(CreateFittedCollisionShape(
-                    setup,
-                    request.shapeType,
-                    combinedBounds,
-                    std::string("Auto Selection ") +
-                        ShapeNamePrefix(request.shapeType),
-                    true));
-            }
+        if (request.target != ModelCollisionGenerationTarget::WholeModel &&
+            request.sourceNodeIndices.empty()) {
+            result.message = "select one or more source model parts first";
+            return result;
         }
 
+        ModelCollisionGroupingMode groupingMode =
+            ModelCollisionGroupingMode::AllCombined;
+        switch (request.target) {
+        case ModelCollisionGenerationTarget::SelectedNodesCombined:
+            groupingMode = ModelCollisionGroupingMode::SelectedCombined;
+            break;
+        case ModelCollisionGenerationTarget::SelectedNodesSpatialGroups:
+            groupingMode = ModelCollisionGroupingMode::SelectedSpatialGroups;
+            break;
+        case ModelCollisionGenerationTarget::SelectedNodesIndividually:
+            groupingMode = ModelCollisionGroupingMode::SelectedIndividually;
+            break;
+        case ModelCollisionGenerationTarget::WholeModel:
+        default:
+            break;
+        }
+        const std::vector<ModelCollisionSourceGroup> groups =
+            BuildModelCollisionSourceGroups(
+                model,
+                groupingMode,
+                request.sourceNodeIndices,
+                request.mergeDistance);
+        if (groups.empty()) {
+            result.message = "no usable source model parts were found";
+            return result;
+        }
+        result.candidateCount = static_cast<uint32_t>(groups.size());
+        std::vector<ModelCollisionShape> generated{};
+        std::string generationMessage{};
+        for (const ModelCollisionSourceGroup& group : groups) {
+            if (generated.size() >= request.maximumGeneratedShapes) {
+                result.truncated = true;
+                break;
+            }
+            ModelCollisionMeshData mesh{};
+            if (!ExtractModelCollisionMesh(
+                    model,
+                    group.nodeIndices,
+                    mesh,
+                    generationMessage)) {
+                result.message = generationMessage;
+                return result;
+            }
+            const size_t before = generated.size();
+            std::vector<ModelCollisionShape> groupShapes{};
+            if (!GenerateGroupShapes(
+                    mesh,
+                    request,
+                    group.sourceBoundsVolume,
+                    setup,
+                    groupShapes,
+                    generationMessage)) {
+                result.message = generationMessage;
+                return result;
+            }
+            const bool unsafePrimitiveMerge =
+                request.target == ModelCollisionGenerationTarget::
+                    SelectedNodesSpatialGroups &&
+                IsPrimitiveMethod(request.method) &&
+                group.nodeIndices.size() > 1u &&
+                !groupShapes.empty() &&
+                groupShapes.front().generationError > request.accuracy;
+            if (unsafePrimitiveMerge) {
+                groupShapes.clear();
+                for (int32_t nodeIndex : group.nodeIndices) {
+                    ModelCollisionMeshData nodeMesh{};
+                    const std::array<int32_t, 1> node{ nodeIndex };
+                    if (!ExtractModelCollisionMesh(
+                            model,
+                            node,
+                            nodeMesh,
+                            generationMessage) ||
+                        !GenerateGroupShapes(
+                            nodeMesh,
+                            request,
+                            BoundsVolume(nodeMesh.bounds),
+                            setup,
+                            groupShapes,
+                            generationMessage)) {
+                        result.message = generationMessage;
+                        return result;
+                    }
+                }
+            }
+            generated.insert(
+                generated.end(),
+                std::make_move_iterator(groupShapes.begin()),
+                std::make_move_iterator(groupShapes.end()));
+            if (generated.size() > request.maximumGeneratedShapes) {
+                generated.resize(request.maximumGeneratedShapes);
+                result.truncated = true;
+            }
+            if (generated.size() == before) {
+                result.message = "collision generation produced no shapes";
+                return result;
+            }
+        }
         if (generated.empty()) {
             result.message = "no collision shapes could be generated";
             return result;
@@ -206,13 +445,19 @@ namespace HIKARI::ASSETS::COLLISION {
             setup.shapes.end(),
             std::make_move_iterator(generated.begin()),
             std::make_move_iterator(generated.end()));
+        std::string validationMessage{};
+        if (!ValidateModelCollisionSetup(setup, validationMessage)) {
+            result.message = "generated collision is invalid: " +
+                validationMessage;
+            return result;
+        }
         result.success = true;
         result.message = "generated " +
             std::to_string(result.generatedCount) +
-            " collision shape(s)";
+            " collision shape(s) from " +
+            std::to_string(groups.size()) + " source group(s)";
         if (result.truncated) {
-            result.message += " (limited from " +
-                std::to_string(result.candidateCount) + ")";
+            result.message += " (limited by shape budget)";
         }
         return result;
     }

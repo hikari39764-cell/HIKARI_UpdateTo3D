@@ -3,6 +3,7 @@
 #include <array>
 #include <cstdint>
 #include <filesystem>
+#include <future>
 #include <optional>
 #include <string>
 #include <unordered_set>
@@ -16,6 +17,7 @@
 #include "Editor/Workspaces/HIKARI_EditorWorkspace.h"
 #include "Editor/Workspaces/HIKARI_ModelCollisionHistory.h"
 #include "Editor/Workspaces/HIKARI_ModelCollisionPreviewScene.h"
+#include "Editor/Workspaces/HIKARI_ModelCollisionSourceOutline.h"
 
 namespace HIKARI {
     class AssetDatabase;
@@ -57,6 +59,11 @@ namespace HIKARI::EDITOR {
         bool Redo(std::string& outMessage);
 
     private:
+        struct CollisionGenerationTaskOutput {
+            ASSETS::COLLISION::ModelCollisionGenerationResult result{};
+            ASSETS::COLLISION::ModelCollisionSetup setup{};
+        };
+
         bool OpenModel(
             AssetDatabase& assetDatabase,
             const AssetGuid& guid,
@@ -86,6 +93,7 @@ namespace HIKARI::EDITOR {
         void SetSelectedShapesHidden(bool hidden) noexcept;
         void SetSelectedShapesLocked(bool locked) noexcept;
         void GenerateShapes();
+        void PollGenerationTask();
 
         void DrawPreviewWindow(
             DocumentSceneBase& scene,
@@ -109,6 +117,7 @@ namespace HIKARI::EDITOR {
         ASSETS::COLLISION::ModelCollisionSetup setup_{};
         ModelCollisionHistory history_{};
         ModelCollisionPreviewScene previewScene_{};
+        ModelCollisionSourceOutlineCache sourceOutlineCache_{};
 
         EditorDirectorCameraController cameraController_{};
         EditorViewInputRouter inputRouter_{};
@@ -136,10 +145,20 @@ namespace HIKARI::EDITOR {
 
         ASSETS::COLLISION::ModelCollisionGenerationTarget generationTarget_ =
             ASSETS::COLLISION::ModelCollisionGenerationTarget::WholeModel;
-        ASSETS::COLLISION::CollisionGeometryShapeType generationShapeType_ =
-            ASSETS::COLLISION::CollisionGeometryShapeType::Box;
+        ASSETS::COLLISION::ModelCollisionGenerationMethod generationMethod_ =
+            ASSETS::COLLISION::ModelCollisionGenerationMethod::Box;
         bool replaceGeneratedShapes_ = true;
+        bool generationPreserveGaps_ = true;
+        float generationMergeDistance_ = 0.10f;
+        float generationAccuracy_ = 0.05f;
         int generationBudget_ = 512;
+        int generationHullVertexBudget_ = 128;
+        int generationTriangleBudget_ = 1000000;
+        std::future<CollisionGenerationTaskOutput> generationFuture_{};
+        uint64_t editRevision_ = 1u;
+        uint64_t generationStartRevision_ = 0u;
+        bool generationPending_ = false;
+        bool generationDiscardRequested_ = false;
         std::unordered_set<int32_t> selectedSourceNodes_{};
         std::array<char, 128> sourceSearch_{};
         std::string statusMessage_{};

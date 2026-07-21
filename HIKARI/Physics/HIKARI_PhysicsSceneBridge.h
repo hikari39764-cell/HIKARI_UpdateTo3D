@@ -10,10 +10,13 @@ namespace HIKARI {
 
 namespace HIKARI::PHYSICS {
 
+    class PhysicsCollisionGeometryStore;
+
     bool BuildPhysicsBodyCreateInfo(
         const GameObject& object,
         PhysicsBodyCreateInfo& outCreateInfo,
-        MATH::Vec3& outWorldScale);
+        MATH::Vec3& outWorldScale,
+        PhysicsCollisionGeometryStore* collisionGeometryStore = nullptr);
 
     uint64_t ComputePhysicsBodyDefinitionSignature(
         const PhysicsBodyCreateInfo& createInfo,

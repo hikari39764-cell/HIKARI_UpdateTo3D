@@ -7,6 +7,7 @@
 #include "Core/HIKARI_FrameContext.h"
 #include "Core/HIKARI_Logger.h"
 #include "Physics/HIKARI_PhysicsSceneBridge.h"
+#include "Physics/HIKARI_PhysicsCollisionGeometryStore.h"
 #include "Physics/HIKARI_PhysicsWorldService.h"
 #include "Scene/HIKARI_GameObject.h"
 #include "Scene/HIKARI_RuntimeWorldServices.h"
@@ -22,6 +23,8 @@ namespace HIKARI::PHYSICS {
         service_ = world.Services().Find<PhysicsWorldService>();
         runtimePlayState_ =
             world.Services().Find<RuntimePlayStateService>();
+        collisionGeometryStore_ =
+            world.Services().Find<PhysicsCollisionGeometryStore>();
         if (service_ == nullptr) {
             HIKARI_LOG_ERROR(
                 "[Physics] PhysicsWorldService is not registered");
@@ -46,6 +49,7 @@ namespace HIKARI::PHYSICS {
             service_->DetachWorld();
         }
         service_ = nullptr;
+        collisionGeometryStore_ = nullptr;
         runtimePlayState_ = nullptr;
     }
 
@@ -107,7 +111,8 @@ namespace HIKARI::PHYSICS {
             if (!BuildPhysicsBodyCreateInfo(
                     object,
                     createInfo,
-                    worldScale)) {
+                    worldScale,
+                    collisionGeometryStore_)) {
                 continue;
             }
 

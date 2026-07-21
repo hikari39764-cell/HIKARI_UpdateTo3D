@@ -10,10 +10,12 @@ namespace HIKARI::ASSETS::COLLISION {
         constexpr std::array<char, 8> kMagic{
             'H', 'C', 'O', 'L', 'L', 'I', 'S', 'N'
         };
-        constexpr uint32_t kFormatVersion = 2u;
+        constexpr uint32_t kFormatVersion = 3u;
         constexpr uint32_t kEndianMarker = 0x01020304u;
         constexpr uint32_t kMaximumGuidBytes = 4096u;
         constexpr uint32_t kMaximumShapes = 1024u * 1024u;
+        constexpr uint32_t kMaximumVertices = 64u * 1024u * 1024u;
+        constexpr uint32_t kMaximumIndices = 192u * 1024u * 1024u;
         constexpr uint64_t kFnvOffset = 1469598103934665603ull;
         constexpr uint64_t kFnvPrime = 1099511628211ull;
 
@@ -100,6 +102,16 @@ namespace HIKARI::ASSETS::COLLISION {
                 HashVec3(hash, shape.size);
                 HashPod(hash, shape.radius);
                 HashPod(hash, shape.height);
+                HashPod(hash, shape.vertexOffset);
+                HashPod(hash, shape.vertexCount);
+                HashPod(hash, shape.indexOffset);
+                HashPod(hash, shape.indexCount);
+            }
+            for (const MATH::Vec3& vertex : asset.vertices) {
+                HashVec3(hash, vertex);
+            }
+            for (uint32_t index : asset.indices) {
+                HashPod(hash, index);
             }
             return hash;
         }
@@ -117,7 +129,11 @@ namespace HIKARI::ASSETS::COLLISION {
                 WriteVec3(stream, shape.rotationEulerDegrees) &&
                 WriteVec3(stream, shape.size) &&
                 WritePod(stream, shape.radius) &&
-                WritePod(stream, shape.height);
+                WritePod(stream, shape.height) &&
+                WritePod(stream, shape.vertexOffset) &&
+                WritePod(stream, shape.vertexCount) &&
+                WritePod(stream, shape.indexOffset) &&
+                WritePod(stream, shape.indexCount);
         }
 
         bool ReadShape(
@@ -134,8 +150,12 @@ namespace HIKARI::ASSETS::COLLISION {
                 !ReadVec3(stream, shape.size) ||
                 !ReadPod(stream, shape.radius) ||
                 !ReadPod(stream, shape.height) ||
+                !ReadPod(stream, shape.vertexOffset) ||
+                !ReadPod(stream, shape.vertexCount) ||
+                !ReadPod(stream, shape.indexOffset) ||
+                !ReadPod(stream, shape.indexCount) ||
                 type > static_cast<uint8_t>(
-                    CollisionGeometryShapeType::Capsule)) {
+                    CollisionGeometryShapeType::TriangleMesh)) {
                 return false;
             }
             shape.type = static_cast<CollisionGeometryShapeType>(type);
@@ -158,7 +178,13 @@ namespace HIKARI::ASSETS::COLLISION {
         }
         if (asset.sourceAssetGuid.size() > kMaximumGuidBytes ||
             asset.shapes.size() > kMaximumShapes ||
+            asset.vertices.size() > kMaximumVertices ||
+            asset.indices.size() > kMaximumIndices ||
             asset.shapes.size() >
+                (std::numeric_limits<uint32_t>::max)() ||
+            asset.vertices.size() >
+                (std::numeric_limits<uint32_t>::max)() ||
+            asset.indices.size() >
                 (std::numeric_limits<uint32_t>::max)()) {
             outMessage = "[HCOLLISION] asset is too large to serialize";
             return false;
@@ -183,6 +209,10 @@ namespace HIKARI::ASSETS::COLLISION {
             asset.sourceAssetGuid.size());
         const uint32_t shapeCount = static_cast<uint32_t>(
             asset.shapes.size());
+        const uint32_t vertexCount = static_cast<uint32_t>(
+            asset.vertices.size());
+        const uint32_t indexCount = static_cast<uint32_t>(
+            asset.indices.size());
         const uint64_t contentHash = ComputeContentHash(asset);
 
         stream.write(kMagic.data(), static_cast<std::streamsize>(kMagic.size()));
@@ -192,6 +222,8 @@ namespace HIKARI::ASSETS::COLLISION {
             WritePod(stream, asset.version) &&
             WritePod(stream, guidBytes) &&
             WritePod(stream, shapeCount) &&
+            WritePod(stream, vertexCount) &&
+            WritePod(stream, indexCount) &&
             WritePod(stream, contentHash) &&
             WriteBounds(stream, asset.localBounds);
         if (guidBytes > 0u) {
@@ -202,6 +234,12 @@ namespace HIKARI::ASSETS::COLLISION {
         }
         for (const CollisionGeometryShape& shape : asset.shapes) {
             ok = ok && WriteShape(stream, shape);
+        }
+        for (const MATH::Vec3& vertex : asset.vertices) {
+            ok = ok && WriteVec3(stream, vertex);
+        }
+        for (uint32_t index : asset.indices) {
+            ok = ok && WritePod(stream, index);
         }
         stream.flush();
         ok = ok && stream.good();
@@ -233,6 +271,8 @@ namespace HIKARI::ASSETS::COLLISION {
         uint32_t endianMarker = 0u;
         uint32_t guidBytes = 0u;
         uint32_t shapeCount = 0u;
+        uint32_t vertexCount = 0u;
+        uint32_t indexCount = 0u;
         uint64_t storedHash = 0u;
         bool ok = stream.good() && magic == kMagic &&
             ReadPod(stream, formatVersion) &&
@@ -240,6 +280,8 @@ namespace HIKARI::ASSETS::COLLISION {
             ReadPod(stream, outAsset.version) &&
             ReadPod(stream, guidBytes) &&
             ReadPod(stream, shapeCount) &&
+            ReadPod(stream, vertexCount) &&
+            ReadPod(stream, indexCount) &&
             ReadPod(stream, storedHash) &&
             ReadBounds(stream, outAsset.localBounds);
         if (!ok ||
@@ -247,9 +289,11 @@ namespace HIKARI::ASSETS::COLLISION {
             endianMarker != kEndianMarker ||
             outAsset.version != kCollisionGeometryAssetVersion ||
             guidBytes > kMaximumGuidBytes ||
-            shapeCount > kMaximumShapes) {
+            shapeCount > kMaximumShapes ||
+            vertexCount > kMaximumVertices ||
+            indexCount > kMaximumIndices) {
             outMessage =
-                "[HCOLLISION] invalid or unsupported v2 file: " +
+                "[HCOLLISION] invalid or unsupported v3 file; recook the model collision asset: " +
                 path.generic_string();
             outAsset = {};
             return false;
@@ -265,6 +309,14 @@ namespace HIKARI::ASSETS::COLLISION {
         outAsset.shapes.resize(shapeCount);
         for (CollisionGeometryShape& shape : outAsset.shapes) {
             ok = ok && ReadShape(stream, shape);
+        }
+        outAsset.vertices.resize(vertexCount);
+        for (MATH::Vec3& vertex : outAsset.vertices) {
+            ok = ok && ReadVec3(stream, vertex);
+        }
+        outAsset.indices.resize(indexCount);
+        for (uint32_t& index : outAsset.indices) {
+            ok = ok && ReadPod(stream, index);
         }
         if (!ok || ComputeContentHash(outAsset) != storedHash) {
             outMessage =
