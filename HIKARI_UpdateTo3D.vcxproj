@@ -559,7 +559,12 @@
     <ClCompile Include="HIKARI\Editor\Gizmos\HIKARI_EditorTransformGizmo.cpp" />
     <ClCompile Include="HIKARI\Editor\Gizmos\HIKARI_LightProbeVolumeGizmoRenderer.cpp" />
     <ClCompile Include="HIKARI\Editor\Gizmos\HIKARI_ReflectionProbeGizmoRenderer.cpp" />
+    <ClCompile Include="HIKARI\Editor\Viewport\HIKARI_ViewportAuthoringToolbar.cpp" />
     <ClCompile Include="HIKARI\Editor\Style\HIKARI_EditorIconManager.cpp" />
+    <ClCompile Include="HIKARI\Editor\Style\HIKARI_EditorAssetIcons.cpp" />
+    <ClCompile Include="HIKARI\Editor\Style\HIKARI_EditorFontManager.cpp" />
+    <ClCompile Include="HIKARI\Editor\Style\HIKARI_EditorGlyphs.cpp" />
+    <ClCompile Include="HIKARI\Editor\Style\HIKARI_EditorTheme.cpp" />
     <ClCompile Include="HIKARI\Editor\Style\HIKARI_EditorWidgets.cpp" />
     <ClCompile Include="HIKARI\Editor\Panels\HIKARI_EnvironmentPanel.cpp" />
     <ClCompile Include="HIKARI\Editor\Panels\HIKARI_QualityPanel.cpp" />
@@ -1083,7 +1088,12 @@
     <ClInclude Include="HIKARI\Editor\Gizmos\HIKARI_EditorTransformGizmo.h" />
     <ClInclude Include="HIKARI\Editor\Gizmos\HIKARI_LightProbeVolumeGizmoRenderer.h" />
     <ClInclude Include="HIKARI\Editor\Gizmos\HIKARI_ReflectionProbeGizmoRenderer.h" />
+    <ClInclude Include="HIKARI\Editor\Viewport\HIKARI_ViewportAuthoringToolbar.h" />
     <ClInclude Include="HIKARI\Editor\Style\HIKARI_EditorIconManager.h" />
+    <ClInclude Include="HIKARI\Editor\Style\HIKARI_EditorAssetIcons.h" />
+    <ClInclude Include="HIKARI\Editor\Style\HIKARI_EditorFontManager.h" />
+    <ClInclude Include="HIKARI\Editor\Style\HIKARI_EditorGlyphs.h" />
+    <ClInclude Include="HIKARI\Editor\Style\HIKARI_EditorTheme.h" />
     <ClInclude Include="HIKARI\Editor\Style\HIKARI_EditorWidgets.h" />
     <ClInclude Include="HIKARI\Editor\HIKARI_HierarchyPanel.h" />
     <ClInclude Include="HIKARI\Editor\HIKARI_ComponentDocumentEditor.h" />

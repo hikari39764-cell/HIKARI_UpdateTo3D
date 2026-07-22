@@ -38,6 +38,7 @@
 #include "Render3D/Upscaling/HIKARI_StreamlineReflex.h"
 #include "Audio/HIKARI_Audio.h"
 #if defined(HIKARI_WITH_EDITOR)
+#include "Editor/Style/HIKARI_EditorFontManager.h"
 #include "Editor/Style/HIKARI_EditorIconManager.h"
 #include "Editor/HIKARI_EditorStyle.h"
 #include "Editor/HIKARI_EditorViewportInput.h"
@@ -349,6 +350,7 @@ namespace HIKARI {
             io.ConfigViewportsNoAutoMerge = false;
             io.ConfigViewportsNoTaskBarIcon = false;
 #if defined(HIKARI_WITH_EDITOR)
+            (void)EDITOR::EnsureEditorFonts();
             EDITOR::ApplyEditorStyle();
 #endif
 #endif
@@ -581,8 +583,12 @@ namespace HIKARI {
 
                 ImGuiIO& io = ImGui::GetIO();
                 if (io.Fonts && io.Fonts->Fonts.empty()) {
+#if defined(HIKARI_WITH_EDITOR)
+                    (void)EDITOR::EnsureEditorFonts();
+#else
                     io.Fonts->AddFontDefault();
                     io.Fonts->Build();
+#endif
                 }
                 gImGuiInitialized = true;
                 HIKARI_LOG_INFO("ImGui context initialized.");
@@ -621,6 +627,9 @@ namespace HIKARI {
                     gImGuiBackendInitialized = false;
                     HIKARI_LOG_INFO("ImGui backend shutdown.");
                 }
+#if defined(HIKARI_WITH_EDITOR)
+                EDITOR::ResetEditorFonts();
+#endif
                 ImGui::DestroyContext();
 #endif
                 gImGuiInitialized = false;
@@ -1037,8 +1046,12 @@ namespace HIKARI {
                 io.DisplaySize = ImVec2(static_cast<float>(gWindow.Width()), static_cast<float>(gWindow.Height()));
                 io.DeltaTime = (frame.unscaledDt > 0.0f) ? frame.unscaledDt : (1.0f / 60.0f);
                 if (io.Fonts && io.Fonts->Fonts.empty()) {
+#if defined(HIKARI_WITH_EDITOR)
+                    (void)EDITOR::EnsureEditorFonts();
+#else
                     io.Fonts->AddFontDefault();
                     io.Fonts->Build();
+#endif
                 }
                 ImGui::NewFrame();
                 gImGuiFrameBegun = true;

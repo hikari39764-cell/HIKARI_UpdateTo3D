@@ -2,6 +2,8 @@
 
 #include "Assets/HIKARI_AssetDatabase.h"
 #include "Editor/Documents/HIKARI_SequenceEditorDocumentController.h"
+#include "Editor/Style/HIKARI_EditorGlyphs.h"
+#include "Editor/Style/HIKARI_EditorWidgets.h"
 
 #if defined(HIKARI_WITH_EDITOR)
 #include "imgui.h"
@@ -21,9 +23,12 @@ namespace HIKARI::EDITOR {
         SequenceEditorDocumentToolbarResult result{};
 #if defined(HIKARI_WITH_EDITOR)
         SequenceEditorDocument& document = controller.GetDocument();
-        if (ImGui::Button(libraryVisible
-                ? "Hide Library"
-                : "Show Library")) {
+        if (IconToggleButton(
+                EditorGlyph::Library,
+                "SequenceLibraryToggle",
+                libraryVisible,
+                ImVec2(28.0f, 28.0f),
+                libraryVisible ? "Hide sequence library" : "Show sequence library")) {
             result.toggleLibraryRequested = true;
         }
         ImGui::SameLine();
@@ -49,7 +54,13 @@ namespace HIKARI::EDITOR {
         if (!actionsAllowed) {
             ImGui::BeginDisabled();
         }
-        if (ImGui::Button("New")) {
+        if (IconTextButton(
+                EditorGlyph::NewDocument,
+                "New",
+                "SequenceDocumentNew",
+                EditorButtonTone::Neutral,
+                ImVec2(0.0f, 28.0f),
+                "Create a new sequence asset")) {
             (void)controller.RequestNewAsset(
                 assetDatabase,
                 result.statusMessage);
@@ -58,7 +69,15 @@ namespace HIKARI::EDITOR {
         if (activeSequence == nullptr) {
             ImGui::BeginDisabled();
         }
-        if (ImGui::Button("Save")) {
+        if (IconTextButton(
+                EditorGlyph::Save,
+                "Save",
+                "SequenceDocumentSave",
+                document.IsDirty()
+                    ? EditorButtonTone::Primary
+                    : EditorButtonTone::Neutral,
+                ImVec2(0.0f, 28.0f),
+                "Save the active sequence")) {
             if (document.IsEmbeddedScene()) {
                 result.saveEmbeddedSceneRequested = true;
             } else {
@@ -68,7 +87,12 @@ namespace HIKARI::EDITOR {
             }
         }
         ImGui::SameLine();
-        if (ImGui::Button("Save As")) {
+        if (IconButton(
+                EditorGlyph::SaveAs,
+                "SequenceDocumentSaveAs",
+                EditorButtonTone::Quiet,
+                ImVec2(28.0f, 28.0f),
+                "Save the active sequence as a new asset")) {
             (void)controller.SaveAs(
                 assetDatabase,
                 *activeSequence,
@@ -84,7 +108,12 @@ namespace HIKARI::EDITOR {
         if (!canRevert) {
             ImGui::BeginDisabled();
         }
-        if (ImGui::Button("Revert")) {
+        if (IconButton(
+                EditorGlyph::Revert,
+                "SequenceDocumentRevert",
+                EditorButtonTone::Quiet,
+                ImVec2(28.0f, 28.0f),
+                "Revert the active sequence to its saved version")) {
             (void)controller.RequestRevert(
                 assetDatabase,
                 result.statusMessage);
@@ -97,7 +126,12 @@ namespace HIKARI::EDITOR {
         if (!document.GetAssetGuid().IsValid()) {
             ImGui::BeginDisabled();
         }
-        if (ImGui::Button("Reveal in Assets")) {
+        if (IconButton(
+                EditorGlyph::Reveal,
+                "SequenceDocumentReveal",
+                EditorButtonTone::Quiet,
+                ImVec2(28.0f, 28.0f),
+                "Reveal this sequence in the Resource Workspace")) {
             result.revealAssetRequested = true;
             result.revealAssetGuid = document.GetAssetGuid();
             result.revealAssetPath = document.GetSourcePath();
@@ -111,7 +145,12 @@ namespace HIKARI::EDITOR {
         if (!document.IsExternalDocument()) {
             ImGui::BeginDisabled();
         }
-        if (ImGui::Button("Close")) {
+        if (IconButton(
+                EditorGlyph::Close,
+                "SequenceDocumentClose",
+                EditorButtonTone::Quiet,
+                ImVec2(28.0f, 28.0f),
+                "Close the external sequence and return to the embedded scene sequence")) {
             (void)controller.RequestCloseToEmbedded(
                 assetDatabase,
                 result.statusMessage);
@@ -168,7 +207,12 @@ namespace HIKARI::EDITOR {
             "%s",
             controller.GetPendingConfirmationText());
         ImGui::Separator();
-        if (ImGui::Button("Save", ImVec2(100.0f, 0.0f))) {
+        if (IconTextButton(
+                EditorGlyph::Save,
+                "Save",
+                "SequenceConfirmSave",
+                EditorButtonTone::Primary,
+                ImVec2(108.0f, 30.0f))) {
             if (controller.ConfirmSaveThenContinue(
                     assetDatabase,
                     inOutStatusMessage)) {
@@ -176,14 +220,24 @@ namespace HIKARI::EDITOR {
             }
         }
         ImGui::SameLine();
-        if (ImGui::Button("Discard", ImVec2(100.0f, 0.0f))) {
+        if (IconTextButton(
+                EditorGlyph::Delete,
+                "Discard",
+                "SequenceConfirmDiscard",
+                EditorButtonTone::Danger,
+                ImVec2(108.0f, 30.0f))) {
             (void)controller.ConfirmDiscardAndContinue(
                 assetDatabase,
                 inOutStatusMessage);
             ImGui::CloseCurrentPopup();
         }
         ImGui::SameLine();
-        if (ImGui::Button("Cancel", ImVec2(100.0f, 0.0f))) {
+        if (IconTextButton(
+                EditorGlyph::Close,
+                "Cancel",
+                "SequenceConfirmCancel",
+                EditorButtonTone::Neutral,
+                ImVec2(108.0f, 30.0f))) {
             controller.CancelPending();
             ImGui::CloseCurrentPopup();
         }

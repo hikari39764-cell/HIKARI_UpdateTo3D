@@ -1,6 +1,14 @@
 #include "HIKARI_HierarchyPanel.h"
+#include <algorithm>
+#include <cctype>
+#include <string>
+#include <string_view>
+#include <vector>
+
 #include "Editor/HIKARI_EditorContext.h"
 #include "Editor/Style/HIKARI_EditorIconManager.h"
+#include "Editor/Style/HIKARI_EditorTheme.h"
+#include "Editor/Style/HIKARI_EditorWidgets.h"
 #include "Scene/HIKARI_GameObject.h"
 #include "Scene/HIKARI_World.h"
 #if defined(HIKARI_WITH_EDITOR)
@@ -8,8 +16,31 @@
 #endif
 
 namespace HIKARI {
+    namespace {
+        std::string LowerCopy(std::string_view value) {
+            std::string result(value);
+            std::transform(
+                result.begin(),
+                result.end(),
+                result.begin(),
+                [](unsigned char ch) {
+                    return static_cast<char>(std::tolower(ch));
+                });
+            return result;
+        }
 
-    void HierarchyPanel::Draw(World& world, EditorSelection& selection) const {
+        bool MatchesSearch(
+            const GameObject& object,
+            std::string_view lowerSearch) {
+            if (lowerSearch.empty()) {
+                return true;
+            }
+            return LowerCopy(object.GetName()).find(lowerSearch) !=
+                std::string::npos;
+        }
+    }
+
+    void HierarchyPanel::Draw(World& world, EditorSelection& selection) {
 #if defined(HIKARI_WITH_EDITOR)
         if (!ImGui::Begin("Scene Hierarchy")) {
             ImGui::End();
@@ -25,7 +56,7 @@ namespace HIKARI {
 #endif
     }
 
-    void HierarchyPanel::DrawContents(World& world, EditorSelection& selection) const {
+    void HierarchyPanel::DrawContents(World& world, EditorSelection& selection) {
         DrawContents(world, selection, {});
     }
 
@@ -33,41 +64,85 @@ namespace HIKARI {
         World& world,
         EditorSelection& selection,
         const std::function<void(GameObject&)>&
-            drawObjectContextMenu) const {
+            drawObjectContextMenu) {
 #if defined(HIKARI_WITH_EDITOR)
         const auto& objects = world.GetObjects();
-        ImGui::TextDisabled("%d objects", static_cast<int>(objects.size()));
-        ImGui::Separator();
+        EDITOR::SearchField(
+            "Hierarchy",
+            "Search scene objects...",
+            searchBuffer_.data(),
+            searchBuffer_.size());
+
+        std::vector<GameObject*> filteredObjects{};
+        filteredObjects.reserve(objects.size());
+        const std::string lowerSearch = LowerCopy(searchBuffer_.data());
+        for (const auto& object : objects) {
+            if (object != nullptr &&
+                MatchesSearch(*object, lowerSearch)) {
+                filteredObjects.push_back(object.get());
+            }
+        }
+
+        ImGui::TextDisabled(
+            searchBuffer_[0] == '\0'
+                ? "%d objects"
+                : "%d of %d objects",
+            static_cast<int>(filteredObjects.size()),
+            static_cast<int>(objects.size()));
 
         if (objects.empty()) {
-            ImGui::TextDisabled("No scene objects");
+            EDITOR::EmptyState(
+                "No scene objects",
+                "Use + or right-click to create one.");
+            return;
+        }
+        if (filteredObjects.empty()) {
+            EDITOR::EmptyState(
+                "No matching objects",
+                "Try another name or clear the search.");
             return;
         }
 
-        for (const auto& object : objects) {
-            GameObject* objectPtr = object.get();
-            ImGui::PushID(objectPtr);
-            const bool isSelected = (selection.selectedObject == objectPtr);
-            EDITOR::EditorIconManager::DrawIcon(EDITOR::EditorIconKind::GameObject, ImVec2(16.0f, 16.0f));
-            ImGui::SameLine();
-            if (ImGui::Selectable(objectPtr->GetName().c_str(), isSelected)) {
-                selection.selectedObject = objectPtr;
-                selection.selectedAsset = nullptr;
-                selection.selectedAssetGuid.clear();
-                selection.selectedAssetPath.clear();
+        const EDITOR::EditorThemeMetrics& metrics =
+            EDITOR::GetEditorThemeMetrics();
+        ImGuiListClipper clipper{};
+        clipper.Begin(static_cast<int>(filteredObjects.size()));
+        while (clipper.Step()) {
+            for (int index = clipper.DisplayStart;
+                index < clipper.DisplayEnd;
+                ++index) {
+                GameObject* objectPtr = filteredObjects[
+                    static_cast<std::size_t>(index)];
+                ImGui::PushID(objectPtr);
+                const bool isSelected =
+                    selection.selectedObject == objectPtr;
+                EDITOR::EditorIconManager::DrawIcon(
+                    EDITOR::EditorIconKind::GameObject,
+                    ImVec2(16.0f, 16.0f));
+                ImGui::SameLine();
+                if (ImGui::Selectable(
+                        objectPtr->GetName().c_str(),
+                        isSelected,
+                        ImGuiSelectableFlags_None,
+                        ImVec2(0.0f, metrics.rowHeight))) {
+                    selection.selectedObject = objectPtr;
+                    selection.selectedAsset = nullptr;
+                    selection.selectedAssetGuid.clear();
+                    selection.selectedAssetPath.clear();
+                }
+                if (ImGui::IsItemClicked(ImGuiMouseButton_Right)) {
+                    selection.selectedObject = objectPtr;
+                    selection.selectedAsset = nullptr;
+                    selection.selectedAssetGuid.clear();
+                    selection.selectedAssetPath.clear();
+                }
+                if (drawObjectContextMenu &&
+                    ImGui::BeginPopupContextItem("ObjectContextMenu")) {
+                    drawObjectContextMenu(*objectPtr);
+                    ImGui::EndPopup();
+                }
+                ImGui::PopID();
             }
-            if (ImGui::IsItemClicked(ImGuiMouseButton_Right)) {
-                selection.selectedObject = objectPtr;
-                selection.selectedAsset = nullptr;
-                selection.selectedAssetGuid.clear();
-                selection.selectedAssetPath.clear();
-            }
-            if (drawObjectContextMenu &&
-                ImGui::BeginPopupContextItem("ObjectContextMenu")) {
-                drawObjectContextMenu(*objectPtr);
-                ImGui::EndPopup();
-            }
-            ImGui::PopID();
         }
 #else
         (void)world;

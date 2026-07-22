@@ -2,6 +2,8 @@
 
 #include <algorithm>
 
+#include "Editor/Style/HIKARI_EditorTheme.h"
+
 #if defined(HIKARI_WITH_EDITOR)
 #include "imgui.h"
 #endif
@@ -42,20 +44,25 @@ namespace HIKARI::EDITOR {
 
         const float availableWidth = ImGui::GetContentRegionAvail().x;
         const ImGuiStyle& style = ImGui::GetStyle();
+        const EditorThemeMetrics& metrics = GetEditorThemeMetrics();
         const float labelTextWidth = ImGui::CalcTextSize(
             label_.data(),
             label_.data() + label_.size()).x;
-        const float labelWidth = (std::max)(
-            160.0f,
-            labelTextWidth + style.CellPadding.x * 2.0f + 8.0f);
+        const float preferredLabelWidth = (std::clamp)(
+            labelTextWidth + style.CellPadding.x * 2.0f + 8.0f,
+            metrics.labelColumnWidth,
+            220.0f);
+        const float labelWidth = (std::min)(
+            preferredLabelWidth,
+            availableWidth * 0.48f);
         const float minimumValueWidth =
             valueKind == InspectorPropertyValueKind::Compact
                 ? 42.0f
-                : 150.0f;
+                : 128.0f;
         const float rowSpacing = style.ItemSpacing.x +
             style.CellPadding.x * 2.0f;
         const bool useStackedLayout =
-            availableWidth < 260.0f ||
+            availableWidth < 280.0f ||
             labelWidth + minimumValueWidth + rowSpacing > availableWidth;
         if (useStackedLayout) {
             DrawInspectorPropertyLabel(label_, availableWidth);

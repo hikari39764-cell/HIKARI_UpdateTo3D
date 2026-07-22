@@ -9,9 +9,10 @@
 #include "Editor/SystemAuthoring/HIKARI_BuiltInSystemAuthoring.h"
 #include "Editor/Menus/HIKARI_EditorDocumentMenu.h"
 #include "Editor/HIKARI_EditorViewportInput.h"
-#include "Editor/Style/HIKARI_EditorIconManager.h"
+#include "Editor/Style/HIKARI_EditorGlyphs.h"
 #include "Editor/Style/HIKARI_EditorWidgets.h"
 #include "Editor/Tools/HIKARI_BuiltInEditorTools.h"
+#include "Editor/Viewport/HIKARI_ViewportAuthoringToolbar.h"
 #include "Editor/Widgets/HIKARI_MaterialTextureSlotWidget.h"
 #include "Assets/Material/HIKARI_MaterialAssetData.h"
 #include "Core/HIKARI_Logger.h"
@@ -300,15 +301,6 @@ namespace HIKARI {
                 debugView.renderView = kRenderDebugViewOptions[selectedIndex].view;
             }
             return changed;
-        }
-
-        bool DrawMiniTextToggle(const char* text, const char* id, bool selected, const char* tooltip) {
-            return EDITOR::ToggleButton(
-                text,
-                id,
-                selected,
-                ImVec2(30.0f, 30.0f),
-                tooltip);
         }
 
         bool ProjectWorldToViewport(
@@ -1464,6 +1456,18 @@ namespace HIKARI {
             playSession.ReleaseEmbeddedInput();
         }
 
+        const bool selectedObjectIsCamera =
+            context_.selection.selectedObject != nullptr &&
+            context_.selection.selectedObject->GetComponent<CameraComponent>() != nullptr;
+        const std::string activatedSequenceGuid =
+            resourceWorkspacePanel_.ConsumeActivatedSequenceGuid();
+        if (!activatedSequenceGuid.empty()) {
+            EDITOR::EditorWorkspaceOpenRequest request{};
+            request.workspaceId = EDITOR::EditorWorkspaceId::Cinematics;
+            request.sequenceAssetGuid = AssetGuid{ activatedSequenceGuid };
+            (void)workspaceHost_.RequestOpen(std::move(request));
+        }
+
         const float toolbarHeight = context_.windows.viewport.showViewportHud ? 38.0f : 0.0f;
         if (toolbarHeight > 0.0f) {
             ImGui::PushStyleColor(ImGuiCol_ChildBg, ImVec4(0.055f, 0.065f, 0.080f, 1.0f));
@@ -1472,16 +1476,18 @@ namespace HIKARI {
                 ImGui::Dummy(ImVec2(8.0f, 0.0f));
                 ImGui::SameLine();
                 const bool previewRunning = playSession.IsRunning();
-                if (EDITOR::EditorIconManager::IconButton(
-                    previewRunning
-                        ? EDITOR::EditorIconKind::Stop
-                        : EDITOR::EditorIconKind::Play,
-                    "EmbeddedPlay",
-                    ImVec2(24.0f, 24.0f),
-                    previewRunning,
-                    previewRunning
-                        ? "Stop Play"
-                        : "Play in Game View")) {
+                if (EDITOR::IconButton(
+                        previewRunning
+                            ? EDITOR::EditorGlyph::Stop
+                            : EDITOR::EditorGlyph::Play,
+                        "EmbeddedPlay",
+                        previewRunning
+                            ? EDITOR::EditorButtonTone::Danger
+                            : EDITOR::EditorButtonTone::Primary,
+                        ImVec2(26.0f, 26.0f),
+                        previewRunning
+                            ? "Stop Play"
+                            : "Play in Game View")) {
                     ToggleGamePreview(scene, playSession);
                 }
                 ImGui::SameLine(0.0f, 3.0f);
@@ -1503,21 +1509,21 @@ namespace HIKARI {
                 }
                 if (playSession.IsEmbeddedRunning()) {
                     ImGui::SameLine();
-                    if (ImGui::Button(
+                    if (EDITOR::IconButton(
                             playSession.IsPaused()
-                                ? "Resume##EmbeddedPlay"
-                                : "Pause##EmbeddedPlay",
-                            ImVec2(68.0f, 24.0f))) {
+                                ? EDITOR::EditorGlyph::Play
+                                : EDITOR::EditorGlyph::Pause,
+                            "EmbeddedPlayPause",
+                            playSession.IsPaused()
+                                ? EDITOR::EditorButtonTone::Primary
+                                : EDITOR::EditorButtonTone::Neutral,
+                            ImVec2(26.0f, 26.0f),
+                            playSession.IsPaused()
+                                ? "Resume Play"
+                                : "Pause Play")) {
                         playSession.TogglePause();
                     }
                 }
-                ImGui::SameLine();
-                ImGui::TextUnformatted(
-                    playSession.IsEmbeddedRunning()
-                        ? "Game Preview"
-                        : "Scene View");
-                ImGui::SameLine();
-                ImGui::TextDisabled("%s", scene.GetSceneId().c_str());
                 if (playSession.GetState() != EDITOR::EditorPlayState::Stopped) {
                     ImGui::SameLine();
                     EDITOR::StatusText(
@@ -1537,6 +1543,61 @@ namespace HIKARI {
                     }
                 }
                 if (!previewRunning) {
+                    ImGui::SameLine(0.0f, 8.0f);
+                    const EDITOR::ViewportAuthoringToolbarResult authoringToolbar =
+                        EDITOR::DrawViewportAuthoringToolbar(
+                            context_,
+                            selectedObjectIsCamera);
+                    if (authoringToolbar.settingsRequested) {
+                        ImGui::OpenPopup("ViewportToolSettingsPopup");
+                    }
+                    if (ImGui::BeginPopup("ViewportToolSettingsPopup")) {
+                        ImGui::SeparatorText("Viewport");
+                        DrawViewportDebugOptions(
+                            context_.overlays,
+                            context_.viewportPerformance);
+                        ImGui::SeparatorText("Gizmos");
+                        ImGui::Checkbox(
+                            "Only Selected Object",
+                            &context_.gizmos.showOnlySelectedObject);
+                        const ComponentGizmoRegistry& gizmoRegistry =
+                            scene.GetComponentGizmoRegistry();
+                        for (const ComponentGizmoProvider& provider :
+                            gizmoRegistry.GetProviders()) {
+                            bool visible = context_.gizmos.IsProviderVisible(
+                                provider.providerId,
+                                provider.defaultVisible);
+                            if (ImGui::Checkbox(
+                                    provider.displayName.c_str(),
+                                    &visible)) {
+                                context_.gizmos.SetProviderVisible(
+                                    provider.providerId,
+                                    visible);
+                            }
+                        }
+                        ImGui::SeparatorText("Snap");
+                        ImGui::DragFloat3(
+                            "Translate",
+                            &context_.transformGizmo.translateSnap.x,
+                            0.05f,
+                            0.001f,
+                            100.0f);
+                        ImGui::DragFloat(
+                            "Rotate",
+                            &context_.transformGizmo.rotateSnapDeg,
+                            0.5f,
+                            0.1f,
+                            180.0f,
+                            "%.1f deg");
+                        ImGui::DragFloat(
+                            "Scale",
+                            &context_.transformGizmo.scaleSnap,
+                            0.01f,
+                            0.001f,
+                            10.0f);
+                        ImGui::EndPopup();
+                    }
+
                     ImGui::SameLine();
                     RENDER3D::RenderQualitySettings qualitySettings =
                         RENDER3D::GetRenderQualitySettings();
@@ -1624,10 +1685,6 @@ namespace HIKARI {
             static_cast<int>(imageSize.x + 0.5f),
             static_cast<int>(imageSize.y + 0.5f),
             true);
-        const bool selectedObjectIsCamera =
-            context_.selection.selectedObject != nullptr &&
-            context_.selection.selectedObject->GetComponent<CameraComponent>() != nullptr;
-
         auto drawTransformGizmoOverlay = [&]() -> bool {
             bool gizmoCapture = false;
             const EDITOR::EditorViewportRect viewportRect{
@@ -1760,146 +1817,6 @@ namespace HIKARI {
             return gizmoCapture;
         };
 
-        auto drawViewportFloatingTools = [&]() {
-            const ImVec2 savedCursor = ImGui::GetCursorScreenPos();
-            ImGui::SetCursorScreenPos(ImVec2(imageOrigin.x + 10.0f, imageOrigin.y + 10.0f));
-            ImGui::PushStyleColor(ImGuiCol_PopupBg, ImVec4(0.055f, 0.065f, 0.080f, 0.96f));
-            ImGui::BeginGroup();
-            if (EDITOR::EditorIconManager::IconButton(
-                    EDITOR::EditorIconKind::Transform,
-                    "ViewportTransformEnabled",
-                    ImVec2(30.0f, 30.0f),
-                    context_.transformGizmo.enabled,
-                    "Transform Gizmo")) {
-                context_.transformGizmo.enabled = !context_.transformGizmo.enabled;
-            }
-            if (EDITOR::EditorIconManager::IconButton(
-                    EDITOR::EditorIconKind::Translate,
-                    "ViewportTransformTranslate",
-                    ImVec2(30.0f, 30.0f),
-                    context_.transformGizmo.operation == EditorTransformGizmoOperation::Translate,
-                    "Translate")) {
-                context_.transformGizmo.operation = EditorTransformGizmoOperation::Translate;
-                context_.transformGizmo.enabled = true;
-            }
-            if (EDITOR::EditorIconManager::IconButton(
-                    EDITOR::EditorIconKind::Rotate,
-                    "ViewportTransformRotate",
-                    ImVec2(30.0f, 30.0f),
-                    context_.transformGizmo.operation == EditorTransformGizmoOperation::Rotate,
-                    "Rotate")) {
-                context_.transformGizmo.operation = EditorTransformGizmoOperation::Rotate;
-                context_.transformGizmo.enabled = true;
-            }
-            if (selectedObjectIsCamera) {
-                ImGui::BeginDisabled();
-            }
-            const bool scaleClicked = EDITOR::EditorIconManager::IconButton(
-                    EDITOR::EditorIconKind::Scale,
-                    "ViewportTransformScale",
-                    ImVec2(30.0f, 30.0f),
-                    context_.transformGizmo.operation == EditorTransformGizmoOperation::Scale,
-                    selectedObjectIsCamera
-                        ? "Camera scale does not affect its lens"
-                        : "Scale");
-            if (selectedObjectIsCamera) {
-                ImGui::EndDisabled();
-                if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled)) {
-                    ImGui::SetTooltip(
-                        "Camera scale is not a lens control. Edit Camera FOV instead.");
-                }
-            }
-
-            const std::string activatedSequenceGuid =
-                resourceWorkspacePanel_.ConsumeActivatedSequenceGuid();
-            if (!activatedSequenceGuid.empty()) {
-                EDITOR::EditorWorkspaceOpenRequest request{};
-                request.workspaceId =
-                    EDITOR::EditorWorkspaceId::Cinematics;
-                request.sequenceAssetGuid =
-                    AssetGuid{ activatedSequenceGuid };
-                (void)workspaceHost_.RequestOpen(std::move(request));
-            }
-            if (scaleClicked) {
-                context_.transformGizmo.operation = EditorTransformGizmoOperation::Scale;
-                context_.transformGizmo.enabled = true;
-            }
-            if (DrawMiniTextToggle(
-                    context_.transformGizmo.mode == EditorTransformGizmoMode::Local ? "L" : "W",
-                    "ViewportTransformSpace",
-                    context_.transformGizmo.mode == EditorTransformGizmoMode::Local,
-                    "World / Local Space")) {
-                context_.transformGizmo.mode = context_.transformGizmo.mode == EditorTransformGizmoMode::World
-                    ? EditorTransformGizmoMode::Local
-                    : EditorTransformGizmoMode::World;
-            }
-            if (DrawMiniTextToggle(
-                    "S",
-                    "ViewportSnap",
-                    context_.transformGizmo.snapEnabled,
-                    "Snap")) {
-                context_.transformGizmo.snapEnabled = !context_.transformGizmo.snapEnabled;
-            }
-            if (DrawMiniTextToggle(
-                    "G",
-                    "ViewportGrid",
-                    context_.overlays.showGrid,
-                    "Grid")) {
-                context_.overlays.showGrid = !context_.overlays.showGrid;
-            }
-            if (DrawMiniTextToggle(
-                    "L",
-                    "ViewportLights",
-                    context_.overlays.showLights,
-                    "Light Icons")) {
-                context_.overlays.showLights = !context_.overlays.showLights;
-            }
-            if (DrawMiniTextToggle(
-                    "Z",
-                    "ViewportGizmos",
-                    context_.gizmos.showComponentGizmos,
-                    "Component Gizmos")) {
-                context_.gizmos.showComponentGizmos = !context_.gizmos.showComponentGizmos;
-            }
-            const ComponentGizmoRegistry& gizmoRegistry =
-                scene.GetComponentGizmoRegistry();
-            if (EDITOR::EditorIconManager::IconButton(
-                    EDITOR::EditorIconKind::Settings,
-                    "ViewportToolSettings",
-                    ImVec2(30.0f, 30.0f),
-                    false,
-                    "Viewport Options")) {
-                ImGui::OpenPopup("ViewportToolSettingsPopup");
-            }
-            if (ImGui::BeginPopup("ViewportToolSettingsPopup")) {
-                ImGui::SeparatorText("Viewport");
-                DrawViewportDebugOptions(context_.overlays, context_.viewportPerformance);
-                ImGui::SeparatorText("Gizmos");
-                ImGui::Checkbox("Only Selected Object", &context_.gizmos.showOnlySelectedObject);
-                for (const ComponentGizmoProvider& provider :
-                    gizmoRegistry.GetProviders()) {
-                    bool visible = context_.gizmos.IsProviderVisible(
-                        provider.providerId,
-                        provider.defaultVisible);
-                    if (ImGui::Checkbox(
-                            provider.displayName.c_str(),
-                            &visible)) {
-                        context_.gizmos.SetProviderVisible(
-                            provider.providerId,
-                            visible);
-                    }
-                }
-                ImGui::SeparatorText("Snap");
-                ImGui::DragFloat3("Translate", &context_.transformGizmo.translateSnap.x, 0.05f, 0.001f, 100.0f);
-                ImGui::DragFloat("Rotate", &context_.transformGizmo.rotateSnapDeg, 0.5f, 0.1f, 180.0f, "%.1f deg");
-                ImGui::DragFloat("Scale", &context_.transformGizmo.scaleSnap, 0.01f, 0.001f, 10.0f);
-                ImGui::EndPopup();
-            }
-            ImGui::EndGroup();
-            ImGui::PopStyleColor();
-            ImGui::SetCursorScreenPos(savedCursor);
-        };
-
         const EDITOR::SceneViewportRect sceneViewportRect{
             imageOrigin.x,
             imageOrigin.y,
@@ -1960,17 +1877,17 @@ namespace HIKARI {
         const bool authoringInteractionEnabled =
             !playSession.IsRunning() &&
             !context_.overlays.editReflectionProbe;
-        const EDITOR::SceneViewportRect floatingToolsRect{
-            imageOrigin.x + 6.0f,
-            imageOrigin.y + 6.0f,
-            48.0f,
-            344.0f
+        const EDITOR::SceneViewportRect blockedViewportRegion{
+            -1.0f,
+            -1.0f,
+            0.0f,
+            0.0f
         };
         const EDITOR::SceneViewportInteractionResult interaction =
             viewportSelectionService_.UpdateInput(
                 scene.GetCamera(),
                 sceneViewportRect,
-                floatingToolsRect,
+                blockedViewportRegion,
                 authoringInteractionEnabled,
                 viewportImageHovered,
                 gizmoCapture);
@@ -1999,7 +1916,6 @@ namespace HIKARI {
                 context_.overlays,
                 imageOrigin,
                 imageSize);
-            drawViewportFloatingTools();
             DrawViewportContextMenu(scene);
         }
         viewportTransformHistory_.EndFrame(scene.GetSceneDocument());
@@ -2268,18 +2184,19 @@ namespace HIKARI {
             return;
         }
 
-        ImGui::AlignTextToFramePadding();
-        ImGui::TextUnformatted("Objects");
+        EDITOR::PanelTitle("Objects");
         ImGui::SameLine();
-        const float createButtonWidth = ImGui::GetFrameHeight() * 1.8f;
+        const float createButtonWidth = ImGui::GetFrameHeight();
         ImGui::SetCursorPosX((std::max)(
             ImGui::GetCursorPosX(),
             ImGui::GetWindowContentRegionMax().x - createButtonWidth));
-        if (ImGui::Button("+", ImVec2(createButtonWidth, 0.0f))) {
+        if (EDITOR::IconButton(
+                EDITOR::EditorGlyph::Add,
+                "CreateSceneObject",
+                EDITOR::EditorButtonTone::Quiet,
+                ImVec2(createButtonWidth, createButtonWidth),
+                "Create Object")) {
             ImGui::OpenPopup("SceneHierarchyCreateMenu");
-        }
-        if (ImGui::IsItemHovered()) {
-            ImGui::SetTooltip("Create Object");
         }
         if (ImGui::BeginPopup("SceneHierarchyCreateMenu")) {
             sceneCreationPanel_.DrawCreationMenu(
@@ -2290,7 +2207,6 @@ namespace HIKARI {
             ImGui::EndPopup();
         }
 
-        ImGui::Separator();
         hierarchyPanel_.DrawContents(
             scene.GetWorld(),
             context_.selection,

@@ -3,6 +3,8 @@
 #include <algorithm>
 #include <cstdio>
 
+#include "Editor/Style/HIKARI_EditorGlyphs.h"
+#include "Editor/Style/HIKARI_EditorWidgets.h"
 #include "Editor/Workspaces/HIKARI_CameraTimelineKeyframeToolbar.h"
 
 #if defined(HIKARI_WITH_EDITOR)
@@ -252,7 +254,15 @@ namespace HIKARI::EDITOR {
         if (!canAddShot) {
             ImGui::BeginDisabled();
         }
-        if (ImGui::Button("Add Shot")) {
+        if (IconTextButton(
+                EditorGlyph::Camera,
+                "Add Shot",
+                "CameraTimelineAddShot",
+                EditorButtonTone::Primary,
+                ImVec2(0.0f, 28.0f),
+                canAddShot
+                    ? "Add the selected camera at the playhead"
+                    : "Select a Camera object to add a shot")) {
             SEQUENCER::CameraCutClip shot{};
             shot.id = SEQUENCER::AllocateCameraCutClipId(
                 sequence->cameraCutTrack);
@@ -280,18 +290,19 @@ namespace HIKARI::EDITOR {
         if (!canAddShot) {
             ImGui::EndDisabled();
         }
-        if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled)) {
-            ImGui::SetTooltip(
-                canAddShot
-                    ? "Add the selected camera at the playhead"
-                    : "Select a Camera object to add a shot");
-        }
 
         ImGui::SameLine();
         if (!previewAllowed) {
             ImGui::BeginDisabled();
         }
-        if (ImGui::Button(player_.IsPlaying() ? "Pause" : "Play")) {
+        if (IconButton(
+                player_.IsPlaying() ? EditorGlyph::Pause : EditorGlyph::Play,
+                "CameraTimelinePlayback",
+                player_.IsPlaying()
+                    ? EditorButtonTone::Primary
+                    : EditorButtonTone::Neutral,
+                ImVec2(28.0f, 28.0f),
+                player_.IsPlaying() ? "Pause preview" : "Play preview")) {
             if (player_.IsPlaying()) {
                 player_.Pause();
             } else {
@@ -303,7 +314,12 @@ namespace HIKARI::EDITOR {
             previewEnabled_ = true;
         }
         ImGui::SameLine();
-        if (ImGui::Button("Stop")) {
+        if (IconButton(
+                EditorGlyph::Stop,
+                "CameraTimelineStop",
+                EditorButtonTone::Quiet,
+                ImVec2(28.0f, 28.0f),
+                "Stop preview and return to the sequence start")) {
             player_.Stop();
             previewEnabled_ = true;
             previewCutPending_ = true;
@@ -341,7 +357,12 @@ namespace HIKARI::EDITOR {
         if (!canDeleteSelectedShot) {
             ImGui::BeginDisabled();
         }
-        if (ImGui::Button("Delete Shot")) {
+        if (IconButton(
+                EditorGlyph::Delete,
+                "CameraTimelineDeleteShot",
+                EditorButtonTone::Danger,
+                ImVec2(28.0f, 28.0f),
+                "Delete the selected camera shot")) {
             const uint64_t selectedShotId = canvas_.GetSelectedShotId();
             sequence->cameraCutTrack.clips.erase(
                 std::remove_if(

@@ -11,6 +11,8 @@
 #include "Editor/Commands/HIKARI_SceneObjectCommandService.h"
 #include "Editor/HIKARI_EditorContext.h"
 #include "Editor/HIKARI_SelectionSyncService.h"
+#include "Editor/Style/HIKARI_EditorGlyphs.h"
+#include "Editor/Style/HIKARI_EditorWidgets.h"
 #include "Editor/Widgets/HIKARI_InspectorPropertyLayout.h"
 #include "Render3D/HIKARI_Math3D.h"
 #include "Scene/Components/HIKARI_CameraComponent.h"
@@ -107,13 +109,12 @@ namespace HIKARI::EDITOR {
             if (message.empty()) {
                 return;
             }
-            ImGui::TextColored(
+            const std::string text(message);
+            StatusBadge(
+                text.c_str(),
                 error
-                    ? ImVec4(1.0f, 0.35f, 0.35f, 1.0f)
-                    : ImVec4(0.45f, 1.0f, 0.45f, 1.0f),
-                "%.*s",
-                static_cast<int>(message.size()),
-                message.data());
+                    ? EditorStatusTone::Error
+                    : EditorStatusTone::Ready);
         }
     }
 
@@ -150,15 +151,14 @@ namespace HIKARI::EDITOR {
             ? selectionSync.FindDocumentObjectByRuntime(scene, selected)
             : nullptr;
         if (selected == nullptr || target == nullptr) {
-            ImGui::TextDisabled("No object selected");
-            ImGui::Spacing();
-            ImGui::TextWrapped(
-                "Select an object in the hierarchy or click it in the editor view.");
+            EmptyState(
+                "No object selected",
+                "Select one in the hierarchy or editor view.");
             return;
         }
 
         ImGui::PushID(static_cast<int>(target->id.value));
-        ImGui::TextUnformatted(target->name.c_str());
+        PanelTitle(target->name.c_str());
         if (ImGui::IsItemHovered()) {
             ImGui::SetTooltip(
                 "%s\nObject ID: %llu",
@@ -180,7 +180,12 @@ namespace HIKARI::EDITOR {
             (std::max)(
                 ImGui::GetCursorPosX(),
                 ImGui::GetWindowContentRegionMax().x - menuWidth));
-        if (ImGui::Button("...", ImVec2(menuWidth, 0.0f))) {
+        if (IconButton(
+                EditorGlyph::More,
+                "ObjectActionsButton",
+                EditorButtonTone::Quiet,
+                ImVec2(menuWidth, menuWidth),
+                "Object actions")) {
             ImGui::OpenPopup("ObjectActions");
         }
         if (ImGui::BeginPopup("ObjectActions")) {
@@ -194,11 +199,16 @@ namespace HIKARI::EDITOR {
         }
         ImGui::PopID();
 
-        ImGui::Separator();
         DrawTransform(scene, context, *target);
 
         ImGui::Spacing();
-        if (ImGui::Button("+ Add Component", ImVec2(-1.0f, 0.0f))) {
+        if (IconTextButton(
+                EditorGlyph::Add,
+                "Add Component",
+                "AddComponent",
+                EditorButtonTone::Neutral,
+                ImVec2(-1.0f, 30.0f),
+                "Add a component to this object")) {
             openComponentPicker_ = true;
         }
 

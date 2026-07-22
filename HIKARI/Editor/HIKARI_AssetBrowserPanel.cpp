@@ -24,7 +24,9 @@
 #include "Assets/Material/HIKARI_MaterialAssetData.h"
 #include "Core/HIKARI_Logger.h"
 #include "Editor/DragDrop/HIKARI_EditorAssetDragDrop.h"
-#include "Editor/Style/HIKARI_EditorIconManager.h"
+#include "Editor/Style/HIKARI_EditorAssetIcons.h"
+#include "Editor/Style/HIKARI_EditorGlyphs.h"
+#include "Editor/Style/HIKARI_EditorWidgets.h"
 #include "Editor/HIKARI_EditorContext.h"
 #include "Platform/HIKARI_Win32Window.h"
 #include "Project/HIKARI_ProjectSettings.h"
@@ -52,10 +54,6 @@ namespace HIKARI {
             case AssetType::Unknown:
             default: return "Unknown";
             }
-        }
-
-        const char* ToAssetIcon(AssetType type) {
-            return EDITOR::EditorIconManager::GetAssetFallbackText(type);
         }
 
         std::string ToLowerCopy(std::string value) {
@@ -1404,7 +1402,9 @@ namespace HIKARI {
             }
 
             const AssetImportState state = GetImportState(record);
-            ImGui::Text("%s %s", ToAssetIcon(record.type), record.displayName.c_str());
+            EDITOR::DrawAssetTypeGlyph(record.type, ImVec2(18.0f, 18.0f));
+            ImGui::SameLine();
+            ImGui::TextUnformatted(record.displayName.c_str());
             ImGui::TextDisabled("%s | %s", ToAssetTypeText(record.type), ToString(state));
             ImGui::Separator();
             ImGui::Text("GUID: %s", record.guid.value.empty() ? "<none>" : record.guid.value.c_str());
@@ -1465,9 +1465,6 @@ namespace HIKARI {
             return ImVec4(0.62f, 0.66f, 0.72f, 1.0f);
         }
 
-        bool DrawAssetTypeIcon(AssetType type, const ImVec2& size = ImVec2(38.0f, 38.0f)) {
-            return EDITOR::EditorIconManager::DrawAssetIcon(type, size);
-        }
 #endif
 
         std::filesystem::path MakeUniqueFolderPath(const std::filesystem::path& parentDirectory) {
@@ -1790,13 +1787,9 @@ namespace HIKARI {
                 ImGui::TableNextRow();
                 ImGui::TableSetColumnIndex(0);
                 const bool isSelected = selection.selectedAssetGuid == record->guid.value;
-                const bool drewIcon = DrawAssetTypeIcon(record->type);
-                if (drewIcon) {
-                    ImGui::SameLine();
-                }
+                EDITOR::DrawAssetTypeGlyph(record->type);
+                ImGui::SameLine();
                 const std::string label =
-                    std::string(drewIcon ? "" : ToAssetIcon(record->type)) +
-                    (drewIcon ? "" : " ") +
                     DisplayNameWithSceneBadges(*record, context) + "##" +
                     record->sourcePath.generic_string();
                 if (ImGui::Selectable(label.c_str(), isSelected, ImGuiSelectableFlags_SpanAllColumns)) {
@@ -1897,13 +1890,9 @@ namespace HIKARI {
                 ImGui::TableSetColumnIndex(0);
                 const bool isSelected = selection.selectedAssetGuid == record->guid.value;
                 const std::string displayName = DisplayNameWithSceneBadges(*record, context);
-                const bool drewIcon = DrawAssetTypeIcon(record->type);
-                if (drewIcon) {
-                    ImGui::SameLine();
-                }
+                EDITOR::DrawAssetTypeGlyph(record->type);
+                ImGui::SameLine();
                 const std::string label =
-                    std::string(drewIcon ? "" : ToAssetIcon(record->type)) +
-                    (drewIcon ? "" : " ") +
                     displayName + "##compact_" +
                     record->sourcePath.generic_string();
                 if (ImGui::Selectable(
@@ -2087,7 +2076,9 @@ namespace HIKARI {
                     cardMin.y + 15.0f
                 };
                 ImGui::SetCursorScreenPos(iconPos);
-                DrawAssetTypeIcon(record->type, ImVec2(iconSize, iconSize));
+                EDITOR::DrawAssetTypeGlyph(
+                    record->type,
+                    ImVec2(iconSize, iconSize));
 
                 const std::string displayName = record->displayName.empty()
                     ? record->sourcePath.stem().string()
@@ -2227,17 +2218,7 @@ namespace HIKARI {
         }
         ProcessDroppedFiles(assetDatabase, currentDirectory_, selection, lastOperationMessage_);
 
-        ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(8.0f, 6.0f));
-        ImGui::TextUnformatted(ToScopeTitle(scope));
-        ImGui::SameLine();
-        if (scope == AssetBrowserScope::Project) {
-            ImGui::TextDisabled("%s", currentDirectory_.generic_string().c_str());
-        } else {
-            ImGui::TextDisabled("project-wide");
-        }
-        ImGui::SameLine();
-        ImGui::TextDisabled("Drop files/folders here to import");
-        ImGui::Separator();
+        ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(6.0f, 4.0f));
         if (scope == AssetBrowserScope::Scenes) {
             ImGui::TextDisabled("Scenes are project assets. Open, duplicate, delete, and set startup scene here.");
             if (context) {
@@ -2248,7 +2229,13 @@ namespace HIKARI {
             ImGui::Separator();
         }
 
-        if (ImGui::Button("+ New")) {
+        if (EDITOR::IconTextButton(
+                EDITOR::EditorGlyph::Add,
+                "New",
+                "AssetBrowserNew",
+                EDITOR::EditorButtonTone::Neutral,
+                ImVec2(0.0f, 26.0f),
+                "Create an asset or folder in the current directory")) {
             ImGui::OpenPopup("AssetBrowserCreateMenu");
         }
         if (ImGui::BeginPopup("AssetBrowserCreateMenu")) {
@@ -2265,9 +2252,32 @@ namespace HIKARI {
             ImGui::EndPopup();
         }
         ImGui::SameLine();
-        static const char* ViewModeItems[] = { "Compact", "List", "Grid" };
-        ImGui::SetNextItemWidth(104.0f);
-        ImGui::Combo("##AssetViewMode", &viewMode_, ViewModeItems, IM_ARRAYSIZE(ViewModeItems));
+        if (EDITOR::IconToggleButton(
+                EDITOR::EditorGlyph::Compact,
+                "AssetViewCompact",
+                viewMode_ == 0,
+                ImVec2(26.0f, 26.0f),
+                "Compact view")) {
+            viewMode_ = 0;
+        }
+        ImGui::SameLine();
+        if (EDITOR::IconToggleButton(
+                EDITOR::EditorGlyph::List,
+                "AssetViewList",
+                viewMode_ == 1,
+                ImVec2(26.0f, 26.0f),
+                "List view")) {
+            viewMode_ = 1;
+        }
+        ImGui::SameLine();
+        if (EDITOR::IconToggleButton(
+                EDITOR::EditorGlyph::Grid,
+                "AssetViewGrid",
+                viewMode_ == 2,
+                ImVec2(26.0f, 26.0f),
+                "Grid view")) {
+            viewMode_ = 2;
+        }
         ImGui::SameLine();
         const int activeFilterCount =
             (searchBuffer_[0] != '\0' ? 1 : 0) +
@@ -2278,12 +2288,25 @@ namespace HIKARI {
             : (activeFilterCount > 0
                 ? "Filters (" + std::to_string(activeFilterCount) + ")"
                 : "Filters");
-        if (ImGui::SmallButton(filterButtonLabel.c_str())) {
+        if (EDITOR::IconTextButton(
+                EDITOR::EditorGlyph::Filter,
+                filterButtonLabel.c_str(),
+                "AssetBrowserFilters",
+                filtersExpanded_
+                    ? EDITOR::EditorButtonTone::Primary
+                    : EDITOR::EditorButtonTone::Quiet,
+                ImVec2(0.0f, 26.0f),
+                filtersExpanded_ ? "Hide asset filters" : "Show asset filters")) {
             filtersExpanded_ = !filtersExpanded_;
         }
         if (activeFilterCount > 0) {
             ImGui::SameLine();
-            if (ImGui::SmallButton("Clear##AssetFilters")) {
+            if (EDITOR::IconButton(
+                    EDITOR::EditorGlyph::Close,
+                    "AssetFiltersClear",
+                    EDITOR::EditorButtonTone::Quiet,
+                    ImVec2(26.0f, 26.0f),
+                    "Clear all asset filters")) {
                 searchBuffer_.fill('\0');
                 typeFilter_ = 0;
                 stateFilter_ = 0;
@@ -2291,10 +2314,16 @@ namespace HIKARI {
         }
         ImGui::SameLine();
         ImGui::Checkbox("Recursive", &recursive_);
+        ImGui::SameLine();
+        ImGui::TextDisabled("Drop files/folders here to import");
 
         if (filtersExpanded_) {
-            ImGui::SetNextItemWidth((std::max)(220.0f, ImGui::GetContentRegionAvail().x * 0.42f));
-            ImGui::InputTextWithHint("##AssetSearch", "Search assets...", searchBuffer_.data(), searchBuffer_.size());
+            EDITOR::SearchField(
+                "AssetSearch",
+                "Search assets...",
+                searchBuffer_.data(),
+                searchBuffer_.size(),
+                (std::max)(220.0f, ImGui::GetContentRegionAvail().x * 0.42f));
             ImGui::SameLine();
             static const char* TypeFilterItems[] = { "All", "Texture", "Model", "Scene", "Sky", "Material", "VFX", "Sequence", "Animation State Machine" };
             ImGui::TextUnformatted("Type");
@@ -2318,6 +2347,24 @@ namespace HIKARI {
 
         const ImVec2 available = ImGui::GetContentRegionAvail();
         const bool showFolderTree = scope == AssetBrowserScope::Project;
+        std::vector<const AssetRecord*> records = showFolderTree
+            ? assetDatabase.CollectInDirectory(currentDirectory_, recursive_)
+            : assetDatabase.CollectAll();
+        records.erase(std::remove_if(records.begin(), records.end(), [&](const AssetRecord* record) {
+            return !record ||
+                !MatchesScope(*record, usageSummary, scope) ||
+                !MatchesTypeFilter(*record, typeFilter_) ||
+                !MatchesStateFilter(*record, stateFilter_) ||
+                !MatchesSearch(*record, searchBuffer_.data());
+        }), records.end());
+
+        std::sort(records.begin(), records.end(), [](const AssetRecord* lhs, const AssetRecord* rhs) {
+            if (!lhs || !rhs) {
+                return lhs < rhs;
+            }
+            return ToLowerCopy(lhs->displayName) < ToLowerCopy(rhs->displayName);
+        });
+
         if (showFolderTree) {
             const float treeWidth = (std::min)(280.0f, (std::max)(180.0f, available.x * 0.24f));
             ImGui::BeginChild("##AssetFolderTree", ImVec2(treeWidth, 0.0f), true);
@@ -2325,7 +2372,7 @@ namespace HIKARI {
             ImGui::Separator();
             for (const std::filesystem::path& directory : assetDatabase.CollectDirectories()) {
                 const bool selected = directory.lexically_normal().generic_string() == currentDirectory_.lexically_normal().generic_string();
-                EDITOR::EditorIconManager::DrawIcon(EDITOR::EditorIconKind::Folder, ImVec2(15.0f, 15.0f));
+                EDITOR::DrawFolderGlyph(ImVec2(15.0f, 15.0f));
                 ImGui::SameLine();
                 if (ImGui::Selectable(directory.generic_string().c_str(), selected)) {
                     currentDirectory_ = directory;
@@ -2339,6 +2386,8 @@ namespace HIKARI {
         ImGui::Text("%s", scope == AssetBrowserScope::Project
             ? currentDirectory_.generic_string().c_str()
             : ToScopeTitle(scope));
+        ImGui::SameLine();
+        ImGui::TextDisabled("%d assets", static_cast<int>(records.size()));
         ImGui::Separator();
         if (ImGui::BeginPopupContextWindow(
             "AssetBrowserEmptyContext",
@@ -2359,27 +2408,6 @@ namespace HIKARI {
             }
             ImGui::EndPopup();
         }
-
-        std::vector<const AssetRecord*> records = showFolderTree
-            ? assetDatabase.CollectInDirectory(currentDirectory_, recursive_)
-            : assetDatabase.CollectAll();
-        records.erase(std::remove_if(records.begin(), records.end(), [&](const AssetRecord* record) {
-            return !record ||
-                !MatchesScope(*record, usageSummary, scope) ||
-                !MatchesTypeFilter(*record, typeFilter_) ||
-                !MatchesStateFilter(*record, stateFilter_) ||
-                !MatchesSearch(*record, searchBuffer_.data());
-        }), records.end());
-
-        std::sort(records.begin(), records.end(), [](const AssetRecord* lhs, const AssetRecord* rhs) {
-            if (!lhs || !rhs) {
-                return lhs < rhs;
-            }
-            return ToLowerCopy(lhs->displayName) < ToLowerCopy(rhs->displayName);
-        });
-
-        ImGui::TextDisabled("%d assets shown", static_cast<int>(records.size()));
-        ImGui::Separator();
 
         if (records.empty()) {
             ImGui::Dummy(ImVec2(0.0f, 16.0f));

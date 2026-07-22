@@ -24,6 +24,7 @@ namespace HIKARI {
         int failed = 0;
         bool hasResult = false;
         std::string label{};
+        double visibleUntilSeconds = 0.0;
     };
 
     class ResourceWorkspacePanel {

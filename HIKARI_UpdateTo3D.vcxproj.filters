@@ -103,6 +103,9 @@
     <Filter Include="Header Files\Editor\Gizmos">
       <UniqueIdentifier>{46685F6C-8C77-4145-99E7-E722A90B7CB8}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Header Files\Editor\Viewport">
+      <UniqueIdentifier>{1A4F7E51-BB28-4A58-8B3F-8F202ED90C36}</UniqueIdentifier>
+    </Filter>
     <Filter Include="Header Files\Editor\Style">
       <UniqueIdentifier>{A1E743A7-EA84-4FD8-BCE4-F5E8F933BE49}</UniqueIdentifier>
     </Filter>
@@ -456,6 +459,9 @@
     </Filter>
     <Filter Include="Source Files\Editor\Gizmos">
       <UniqueIdentifier>{D8D5CF59-1ED5-4355-B8ED-92920E2FE422}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Editor\Viewport">
+      <UniqueIdentifier>{6B879C72-1E21-4BB8-8D12-832AE735E89F}</UniqueIdentifier>
     </Filter>
     <Filter Include="Source Files\Editor\Style">
       <UniqueIdentifier>{E205462B-E487-4770-A020-E1D96E8A5A2A}</UniqueIdentifier>
@@ -1095,10 +1101,25 @@
     <ClCompile Include="HIKARI\Editor\Gizmos\HIKARI_ReflectionProbeGizmoRenderer.cpp">
       <Filter>Source Files\Editor\Gizmos</Filter>
     </ClCompile>
+    <ClCompile Include="HIKARI\Editor\Viewport\HIKARI_ViewportAuthoringToolbar.cpp">
+      <Filter>Source Files\Editor\Viewport</Filter>
+    </ClCompile>
     <ClCompile Include="HIKARI\Editor\Gizmos\HIKARI_LightProbeVolumeGizmoRenderer.cpp">
       <Filter>Source Files\Editor\Gizmos</Filter>
     </ClCompile>
     <ClCompile Include="HIKARI\Editor\Style\HIKARI_EditorIconManager.cpp">
+      <Filter>Source Files\Editor\Style</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Editor\Style\HIKARI_EditorAssetIcons.cpp">
+      <Filter>Source Files\Editor\Style</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Editor\Style\HIKARI_EditorFontManager.cpp">
+      <Filter>Source Files\Editor\Style</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Editor\Style\HIKARI_EditorGlyphs.cpp">
+      <Filter>Source Files\Editor\Style</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Editor\Style\HIKARI_EditorTheme.cpp">
       <Filter>Source Files\Editor\Style</Filter>
     </ClCompile>
     <ClCompile Include="HIKARI\Editor\Style\HIKARI_EditorWidgets.cpp">
@@ -2659,10 +2680,25 @@
     <ClInclude Include="HIKARI\Editor\Gizmos\HIKARI_ReflectionProbeGizmoRenderer.h">
       <Filter>Header Files\Editor\Gizmos</Filter>
     </ClInclude>
+    <ClInclude Include="HIKARI\Editor\Viewport\HIKARI_ViewportAuthoringToolbar.h">
+      <Filter>Header Files\Editor\Viewport</Filter>
+    </ClInclude>
     <ClInclude Include="HIKARI\Editor\Gizmos\HIKARI_LightProbeVolumeGizmoRenderer.h">
       <Filter>Header Files\Editor\Gizmos</Filter>
     </ClInclude>
     <ClInclude Include="HIKARI\Editor\Style\HIKARI_EditorIconManager.h">
+      <Filter>Header Files\Editor\Style</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Editor\Style\HIKARI_EditorAssetIcons.h">
+      <Filter>Header Files\Editor\Style</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Editor\Style\HIKARI_EditorFontManager.h">
+      <Filter>Header Files\Editor\Style</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Editor\Style\HIKARI_EditorGlyphs.h">
+      <Filter>Header Files\Editor\Style</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Editor\Style\HIKARI_EditorTheme.h">
       <Filter>Header Files\Editor\Style</Filter>
     </ClInclude>
     <ClInclude Include="HIKARI\Editor\Style\HIKARI_EditorWidgets.h">

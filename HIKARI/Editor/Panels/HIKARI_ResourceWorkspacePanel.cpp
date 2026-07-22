@@ -3,12 +3,13 @@
 #include <algorithm>
 #include <filesystem>
 #include <string>
+#include <utility>
 
 #include "Assets/HIKARI_AssetDatabase.h"
 #include "Assets/HIKARI_AssetImportState.h"
 #include "Assets/HIKARI_AssetUsageAnalyzer.h"
 #include "Editor/HIKARI_EditorContext.h"
-#include "Editor/Style/HIKARI_EditorIconManager.h"
+#include "Editor/Style/HIKARI_EditorGlyphs.h"
 #include "Editor/Style/HIKARI_EditorWidgets.h"
 #include "Scene/HIKARI_SceneDocument.h"
 
@@ -42,6 +43,34 @@ namespace HIKARI {
                 }
             }
             return count;
+        }
+
+        ResourceImportBatchMonitor MakeImportMonitor(
+            int attempted,
+            int succeeded,
+            int failed,
+            std::string label) {
+            const double visibilitySeconds = failed > 0
+                ? 8.0
+                : (attempted > 0 ? 3.5 : 2.0);
+            return ResourceImportBatchMonitor{
+                attempted,
+                succeeded,
+                failed,
+                true,
+                std::move(label),
+                ImGui::GetTime() + visibilitySeconds
+            };
+        }
+
+        ResourceImportBatchMonitor MakeImportMonitor(
+            const AssetImportBatchResult& result,
+            std::string label) {
+            return MakeImportMonitor(
+                result.attempted,
+                result.succeeded,
+                result.failed,
+                std::move(label));
         }
 
         const char* ScopeLabel(AssetBrowserScope scope) {
@@ -205,60 +234,79 @@ namespace HIKARI {
             ? nullptr
             : assetDatabase.FindByGuid(AssetGuid{ selection.selectedAssetGuid });
 
-        ImGui::TextUnformatted("Resources");
-        ImGui::SameLine();
         DrawScopeCombo(assetDatabase, usageSummary, activeScope_);
         ImGui::SameLine();
-        ImGui::TextDisabled("%d items", static_cast<int>(assetDatabase.CollectAll().size()));
+        ImGui::TextDisabled(
+            "%d assets  |  %d used",
+            static_cast<int>(assetDatabase.CollectAll().size()),
+            static_cast<int>(usageSummary.usedGuids.size()));
         ImGui::SameLine();
-        ImGui::TextDisabled("%d used in scene", static_cast<int>(usageSummary.usedGuids.size()));
+        if (EDITOR::IconToggleButton(
+                EDITOR::EditorGlyph::Inspector,
+                "ResourceInspectorToggle",
+                showInspector_,
+                ImVec2(28.0f, 28.0f),
+                showInspector_ ? "Hide asset inspector" : "Show asset inspector")) {
+            showInspector_ = !showInspector_;
+        }
         ImGui::SameLine();
-        if (EDITOR::ActionButton(
-                "Refresh",
+        if (EDITOR::IconToggleButton(
+                EDITOR::EditorGlyph::Log,
+                "ResourceImportLogToggle",
+                showPreviewLog_,
+                ImVec2(28.0f, 28.0f),
+                showPreviewLog_ ? "Hide import log" : "Show import log")) {
+            showPreviewLog_ = !showPreviewLog_;
+        }
+        const bool compactToolbar = ImGui::GetContentRegionAvail().x < 900.0f;
+
+        if (EDITOR::IconButton(
+                EDITOR::EditorGlyph::Refresh,
                 "ResourceRefresh",
                 EDITOR::EditorButtonTone::Quiet,
-                ImVec2(0.0f, 26.0f),
+                ImVec2(28.0f, 28.0f),
                 "Refresh AssetDatabase and reload resources used by the current scene")) {
             assetDatabase.ScanAssets(true);
             refreshCurrentSceneResourcesRequested_ = true;
         }
         ImGui::SameLine();
-        if (EDITOR::ActionButton(
+        if (EDITOR::IconTextButton(
+                EDITOR::EditorGlyph::Import,
                 "Import Outdated",
                 "ResourceImportOutdated",
                 EDITOR::EditorButtonTone::Primary,
-                ImVec2(0.0f, 26.0f))) {
+                ImVec2(0.0f, 28.0f),
+                "Import every asset whose source is newer than its artifact")) {
             const AssetImportBatchResult result = assetDatabase.ImportAllOutdated();
             assetDatabase.ScanAssets(false);
-            importMonitor_ = ResourceImportBatchMonitor{
-                result.attempted,
-                result.succeeded,
-                result.failed,
-                true,
-                "Outdated assets"
-            };
+            importMonitor_ = MakeImportMonitor(result, "Outdated assets");
         }
         ImGui::SameLine();
         if (activeScope_ != AssetBrowserScope::Project) {
             ImGui::BeginDisabled();
         }
-        if (EDITOR::ActionButton(
-                "Import Current Folder",
+        const bool importCurrentFolder = compactToolbar
+            ? EDITOR::IconButton(
+                EDITOR::EditorGlyph::Folder,
                 "ResourceImportCurrentFolder",
                 EDITOR::EditorButtonTone::Neutral,
-                ImVec2(0.0f, 26.0f),
-                "Import outdated assets in the selected folder; recursive follows the browser toggle")) {
+                ImVec2(28.0f, 28.0f),
+                "Import outdated assets in the selected folder; recursive follows the browser toggle")
+            : EDITOR::IconTextButton(
+                EDITOR::EditorGlyph::Folder,
+                "Current Folder",
+                "ResourceImportCurrentFolder",
+                EDITOR::EditorButtonTone::Neutral,
+                ImVec2(0.0f, 28.0f),
+                "Import outdated assets in the selected folder; recursive follows the browser toggle");
+        if (importCurrentFolder) {
             const std::filesystem::path currentDirectory = assetBrowserPanel_.CurrentDirectory();
             const AssetImportBatchResult result =
                 assetDatabase.ImportOutdatedInDirectory(currentDirectory, assetBrowserPanel_.IsRecursiveEnabled());
             assetDatabase.ScanAssets(false);
-            importMonitor_ = ResourceImportBatchMonitor{
-                result.attempted,
-                result.succeeded,
-                result.failed,
-                true,
-                "Current folder " + currentDirectory.generic_string()
-            };
+            importMonitor_ = MakeImportMonitor(
+                result,
+                "Current folder " + currentDirectory.generic_string());
         }
         if (activeScope_ != AssetBrowserScope::Project) {
             ImGui::EndDisabled();
@@ -267,65 +315,65 @@ namespace HIKARI {
         if (selectedRecord == nullptr) {
             ImGui::BeginDisabled();
         }
-        if (EDITOR::ActionButton(
-                "Import Dependencies",
+        const bool importDependencies = compactToolbar
+            ? EDITOR::IconButton(
+                EDITOR::EditorGlyph::Dependency,
                 "ResourceImportDependencies",
                 EDITOR::EditorButtonTone::Quiet,
-                ImVec2(0.0f, 26.0f))) {
+                ImVec2(28.0f, 28.0f),
+                "Import dependencies of the selected asset")
+            : EDITOR::IconTextButton(
+                EDITOR::EditorGlyph::Dependency,
+                "Dependencies",
+                "ResourceImportDependencies",
+                EDITOR::EditorButtonTone::Quiet,
+                ImVec2(0.0f, 28.0f),
+                "Import dependencies of the selected asset");
+        if (importDependencies) {
             const AssetImportBatchResult result = assetDatabase.ImportDependencies(selectedRecord->guid, false);
             assetDatabase.ScanAssets(false);
-            importMonitor_ = ResourceImportBatchMonitor{
-                result.attempted,
-                result.succeeded,
-                result.failed,
-                true,
-                "Selected dependencies"
-            };
+            importMonitor_ = MakeImportMonitor(result, "Selected dependencies");
         }
         ImGui::SameLine();
-        if (EDITOR::ActionButton(
-                "Reimport Selected",
+        const bool reimportSelected = compactToolbar
+            ? EDITOR::IconButton(
+                EDITOR::EditorGlyph::Reimport,
                 "ResourceReimportSelected",
                 EDITOR::EditorButtonTone::Neutral,
-                ImVec2(0.0f, 26.0f))) {
+                ImVec2(28.0f, 28.0f),
+                "Reimport the selected asset")
+            : EDITOR::IconTextButton(
+                EDITOR::EditorGlyph::Reimport,
+                "Reimport",
+                "ResourceReimportSelected",
+                EDITOR::EditorButtonTone::Neutral,
+                ImVec2(0.0f, 28.0f),
+                "Reimport the selected asset");
+        if (reimportSelected) {
             const bool ok = assetDatabase.ImportAsset(selectedRecord->guid);
             assetDatabase.ScanAssets(false);
-            importMonitor_ = ResourceImportBatchMonitor{
+            importMonitor_ = MakeImportMonitor(
                 selectedRecord != nullptr ? 1 : 0,
                 ok ? 1 : 0,
                 ok ? 0 : 1,
-                true,
-                "Selected asset"
-            };
+                "Selected asset");
         }
         if (selectedRecord == nullptr) {
             ImGui::EndDisabled();
         }
-        ImGui::SameLine();
-        if (EDITOR::ToggleButton(
-                "Inspector",
-                "ResourceInspectorToggle",
-                showInspector_,
-                ImVec2(0.0f, 26.0f),
-                showInspector_ ? "Hide asset inspector" : "Show asset inspector")) {
-            showInspector_ = !showInspector_;
-        }
-        ImGui::SameLine();
-        if (EDITOR::EditorIconManager::IconButton(
-            EDITOR::EditorIconKind::Settings,
-            "ResourceImportLogToggle",
-            ImVec2(24.0f, 24.0f),
-            showPreviewLog_,
-            showPreviewLog_ ? "Hide import log" : "Show import log")) {
-            showPreviewLog_ = !showPreviewLog_;
-        }
-        ImGui::Separator();
-        if (importMonitor_.hasResult) {
-            const float progress = importMonitor_.attempted > 0
-                ? static_cast<float>(importMonitor_.succeeded + importMonitor_.failed) /
-                    static_cast<float>(importMonitor_.attempted)
-                : 1.0f;
-            ImGui::ProgressBar(progress, ImVec2(220.0f, 0.0f));
+        if (importMonitor_.hasResult &&
+            ImGui::GetTime() <= importMonitor_.visibleUntilSeconds) {
+            const bool failed = importMonitor_.failed > 0;
+            const char* statusLabel = failed
+                ? "Import failed"
+                : (importMonitor_.attempted > 0
+                    ? "Import complete"
+                    : "Up to date");
+            EDITOR::StatusBadge(
+                statusLabel,
+                failed
+                    ? EDITOR::EditorStatusTone::Error
+                    : EDITOR::EditorStatusTone::Ready);
             ImGui::SameLine();
             ImGui::TextDisabled(
                 "%s: %d attempted, %d ok, %d failed",
@@ -333,8 +381,10 @@ namespace HIKARI {
                 importMonitor_.attempted,
                 importMonitor_.succeeded,
                 importMonitor_.failed);
-            ImGui::Separator();
+        } else {
+            importMonitor_.hasResult = false;
         }
+        ImGui::Separator();
 
         const ImVec2 available = ImGui::GetContentRegionAvail();
         const bool wideLayout = available.x >= 980.0f;

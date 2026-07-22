@@ -1,5 +1,7 @@
 #include "Editor/Workspaces/HIKARI_CameraTimelineKeyframeToolbar.h"
 
+#include "Editor/Style/HIKARI_EditorGlyphs.h"
+#include "Editor/Style/HIKARI_EditorWidgets.h"
 #include "Editor/Workspaces/HIKARI_CameraTimelineKeyframeAuthoring.h"
 #include "Editor/Workspaces/HIKARI_SequenceBindingPanel.h"
 
@@ -37,7 +39,13 @@ namespace HIKARI::EDITOR {
         if (!canCapture) {
             ImGui::BeginDisabled();
         }
-        if (ImGui::Button("Add Transform Key")) {
+        if (IconTextButton(
+                EditorGlyph::Transform,
+                "Transform Key",
+                "CameraTimelineAddTransformKey",
+                EditorButtonTone::Neutral,
+                ImVec2(0.0f, 28.0f),
+                "Capture camera transform at the playhead")) {
             const CameraKeyframeCaptureResult capture =
                 CaptureCameraTransformKeyframe(
                     document,
@@ -54,7 +62,13 @@ namespace HIKARI::EDITOR {
             }
         }
         ImGui::SameLine();
-        if (ImGui::Button("Add Lens Key")) {
+        if (IconTextButton(
+                EditorGlyph::Lens,
+                "Lens Key",
+                "CameraTimelineAddLensKey",
+                EditorButtonTone::Neutral,
+                ImVec2(0.0f, 28.0f),
+                "Capture camera lens settings at the playhead")) {
             const CameraKeyframeCaptureResult capture =
                 CaptureCameraLensKeyframe(
                     document,
@@ -71,7 +85,15 @@ namespace HIKARI::EDITOR {
             }
         }
         ImGui::SameLine();
-        if (ImGui::Button("Add Camera Key")) {
+        if (IconTextButton(
+                EditorGlyph::Camera,
+                "Camera Key",
+                "CameraTimelineAddCameraKey",
+                EditorButtonTone::Primary,
+                ImVec2(0.0f, 28.0f),
+                canCapture
+                    ? "Capture transform and lens at the playhead"
+                    : "Select a Camera object to capture a keyframe")) {
             const CameraKeyframeCaptureResult capture =
                 CaptureCameraKeyframe(
                     document,
@@ -90,12 +112,6 @@ namespace HIKARI::EDITOR {
         if (!canCapture) {
             ImGui::EndDisabled();
         }
-        if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled)) {
-            ImGui::SetTooltip(
-                canCapture
-                    ? "Capture transform and lens at the playhead"
-                    : "Select a Camera object to capture a keyframe");
-        }
 
         ImGui::SameLine();
         const bool canDelete = editingAllowed &&
@@ -107,7 +123,13 @@ namespace HIKARI::EDITOR {
         const std::string deleteLabel = selectedKeyCount > 1
             ? "Delete Keys (" + std::to_string(selectedKeyCount) + ")"
             : "Delete Key";
-        if (ImGui::Button(deleteLabel.c_str())) {
+        if (IconTextButton(
+                EditorGlyph::Delete,
+                deleteLabel.c_str(),
+                "CameraTimelineDeleteKeyframes",
+                EditorButtonTone::Danger,
+                ImVec2(0.0f, 28.0f),
+                "Delete the selected keyframe or keyframes")) {
             const bool deleted = canvas.DeleteSelectedKeyframe(sequence);
             result.sequenceChanged |= deleted;
             result.previewRequested |= deleted;
