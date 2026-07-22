@@ -185,6 +185,7 @@ namespace HIKARI {
             }
         }
 
+        const size_t dependenciesBegin = result.addedComponents.size();
         for (const std::string& dependencyType : info->requiredComponents) {
             if (HasComponent(object, dependencyType)) {
                 continue;
@@ -196,6 +197,16 @@ namespace HIKARI {
                 }
                 return false;
             }
+        }
+
+        if (info->configureDependencies) {
+            std::vector<std::string> newlyAddedDependencies(
+                result.addedComponents.begin() +
+                    static_cast<std::ptrdiff_t>(dependenciesBegin),
+                result.addedComponents.end());
+            info->configureDependencies(
+                object,
+                newlyAddedDependencies);
         }
 
         nlohmann::json properties = nlohmann::json::object();

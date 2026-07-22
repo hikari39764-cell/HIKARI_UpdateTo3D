@@ -31,6 +31,9 @@ namespace HIKARI {
     struct ComponentTypeInfo {
         using FactoryFn = std::function<std::unique_ptr<IComponent>()>;
         using InitializeDefaultsFn = std::function<void(const SceneObjectData& object, nlohmann::json& properties)>;
+        using ConfigureDependenciesFn = std::function<void(
+            SceneObjectData& object,
+            const std::vector<std::string>& newlyAddedDependencies)>;
 
         std::string typeName{};
         FactoryFn factory{};
@@ -41,6 +44,7 @@ namespace HIKARI {
         ComponentRuntimeApplyPolicy runtimeApplyPolicy =
             ComponentRuntimeApplyPolicy::Immediate;
         InitializeDefaultsFn initializeDefaults{};
+        ConfigureDependenciesFn configureDependencies{};
         ComponentTypePresentation presentation{};
     };
 

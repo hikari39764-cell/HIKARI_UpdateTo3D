@@ -164,6 +164,7 @@ namespace HIKARI::PHYSICS::JOLT_BACKEND {
             .overlap = true,
             .continuousCollision = true,
             .triggerEvents = true,
+            .virtualCharacters = true,
         };
     }
 
@@ -209,6 +210,8 @@ namespace HIKARI::PHYSICS::JOLT_BACKEND {
         }
 
         if (physicsSystem_) {
+            characterRecords_.clear();
+            freeCharacterSlots_.clear();
             physicsSystem_->SetContactListener(nullptr);
             JPH::BodyInterface& bodyInterface =
                 physicsSystem_->GetBodyInterface();
@@ -224,6 +227,7 @@ namespace HIKARI::PHYSICS::JOLT_BACKEND {
             }
             bodyRecords_.clear();
             freeSlots_.clear();
+            bodyIds_.clear();
         }
         {
             std::scoped_lock lock(contactMutex_);
@@ -232,6 +236,7 @@ namespace HIKARI::PHYSICS::JOLT_BACKEND {
         }
 
         contactListener_.reset();
+        characterContactListener_.reset();
         physicsSystem_.reset();
         jobSystem_.reset();
         tempAllocator_.reset();
@@ -399,6 +404,9 @@ namespace HIKARI::PHYSICS::JOLT_BACKEND {
         record.motionType = createInfo.body.motionType;
         record.shapes = createInfo.shapes;
         record.hasPendingKinematicTarget = false;
+        bodyIds_.insert_or_assign(
+            bodyId.GetIndexAndSequenceNumber(),
+            handle);
         createResult.handle = handle;
         createResult.error = PhysicsErrorCode::None;
         createResult.message = "Jolt body created";
@@ -417,6 +425,7 @@ namespace HIKARI::PHYSICS::JOLT_BACKEND {
                 return false;
             }
             bodyId = record->bodyId;
+            bodyIds_.erase(bodyId.GetIndexAndSequenceNumber());
             record->occupied = false;
             record->object = {};
             record->shapes.clear();

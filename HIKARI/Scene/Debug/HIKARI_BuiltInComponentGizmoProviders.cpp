@@ -5,7 +5,6 @@
 
 #include "Render3D/Debug/HIKARI_Renderer3D_Debug.h"
 #include "Scene/Components/HIKARI_CameraComponent.h"
-#include "Scene/Components/HIKARI_PlayerControllerComponent.h"
 #include "Scene/Components/HIKARI_SpawnPointComponent.h"
 #include "Scene/Debug/HIKARI_ComponentGizmoRegistry.h"
 #include "Scene/HIKARI_GameObject.h"
@@ -13,8 +12,6 @@
 namespace HIKARI {
     namespace {
         constexpr unsigned int kSpawnColor = 0x55FF66FF;
-        constexpr unsigned int kPlayerBoundsColor = 0x43D9FFFF;
-        constexpr unsigned int kPlayerBoundsCornerColor = 0x96FF8AFF;
         constexpr unsigned int kCameraFrustumColor = 0x65D9FFFF;
         constexpr unsigned int kSelectedCameraFrustumColor = 0xFFD166FF;
 
@@ -38,67 +35,6 @@ namespace HIKARI {
                     to,
                     headBase - sideA * 0.12f,
                     color });
-        }
-
-        void SubmitXRayLine(
-            const MATH::Vec3& from,
-            const MATH::Vec3& to,
-            unsigned int color) {
-
-            RENDERER3D::DEBUG::Line3D line{};
-            line.from = from;
-            line.to = to;
-            line.rgba = color;
-            line.depthMode =
-                RENDERER3D::DEBUG::DebugDepthMode::XRay;
-            RENDERER3D::DEBUG::SubmitLine3D(line);
-        }
-
-        void DrawPlayerBounds(
-            const GameObject& object,
-            const ComponentGizmoDrawContext&) {
-
-            const PlayerControllerComponent* player =
-                object.GetComponent<PlayerControllerComponent>();
-            if (player == nullptr || !player->IsEnabled() ||
-                !player->GetUseBounds()) {
-                return;
-            }
-
-            const Transform3D& transform = object.GetTransform();
-            const float minX = player->GetMinX();
-            const float maxX = player->GetMaxX();
-            const float minZ = player->GetMinZ();
-            const float maxZ = player->GetMaxZ();
-            const float y = transform.position.y + 0.08f;
-            const MATH::Vec3 p00{ minX, y, minZ };
-            const MATH::Vec3 p10{ maxX, y, minZ };
-            const MATH::Vec3 p11{ maxX, y, maxZ };
-            const MATH::Vec3 p01{ minX, y, maxZ };
-            SubmitXRayLine(p00, p10, kPlayerBoundsColor);
-            SubmitXRayLine(p10, p11, kPlayerBoundsColor);
-            SubmitXRayLine(p11, p01, kPlayerBoundsColor);
-            SubmitXRayLine(p01, p00, kPlayerBoundsColor);
-
-            const MATH::Vec3 height{ 0.0f, 0.6f, 0.0f };
-            SubmitXRayLine(p00, p00 + height, kPlayerBoundsCornerColor);
-            SubmitXRayLine(p10, p10 + height, kPlayerBoundsCornerColor);
-            SubmitXRayLine(p11, p11 + height, kPlayerBoundsCornerColor);
-            SubmitXRayLine(p01, p01 + height, kPlayerBoundsCornerColor);
-
-            const MATH::Vec3 center{
-                (minX + maxX) * 0.5f,
-                y,
-                (minZ + maxZ) * 0.5f
-            };
-            SubmitXRayLine(
-                { minX, y, center.z },
-                { maxX, y, center.z },
-                0x43D9FF88);
-            SubmitXRayLine(
-                { center.x, y, minZ },
-                { center.x, y, maxZ },
-                0x43D9FF88);
         }
 
         MATH::Vec3 TransformFrustumPoint(
@@ -204,12 +140,6 @@ namespace HIKARI {
             "Spawn Points",
             false,
             DrawSpawnPoint
-        });
-        (void)registry.Register(ComponentGizmoProvider{
-            std::string(kPlayerBoundsGizmoProviderId),
-            "Player Bounds",
-            true,
-            DrawPlayerBounds
         });
         RegisterColliderGizmoProvider(registry);
     }

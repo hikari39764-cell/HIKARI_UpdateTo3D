@@ -17,6 +17,8 @@ namespace HIKARI::PHYSICS {
     class PhysicsWorldService;
     class PhysicsCollisionGeometryStore;
     class PhysicsRuntimeStatusService;
+    class KinematicMotionService;
+    struct KinematicControllerSettings;
 
     class PhysicsSystem final : public ISystem {
     public:
@@ -46,6 +48,8 @@ namespace HIKARI::PHYSICS {
         struct BodyBinding {
             RuntimeObjectHandle object{};
             PhysicsBodyHandle body{};
+            PhysicsBodyDesc bodyDesc{};
+            std::vector<PhysicsShapeDesc> shapes{};
             PhysicsMotionType requestedMotionType =
                 PhysicsMotionType::Static;
             PhysicsMotionType effectiveMotionType =
@@ -57,6 +61,8 @@ namespace HIKARI::PHYSICS {
             PhysicsBodyState previousFixedState{};
             PhysicsBodyState currentFixedState{};
             bool hasFixedState = false;
+            PhysicsCharacterHandle kinematicSolver{};
+            uint64_t kinematicSolverSignature = 0u;
         };
 
         struct ReconcileFailure {
@@ -73,6 +79,16 @@ namespace HIKARI::PHYSICS {
         void ReconcileBodies(World& world, uint64_t frameIndex);
         void DestroyBindings() noexcept;
         void PushSceneDrivenPoses(World& world);
+        void ProcessKinematicMotions(
+            World& world,
+            const FrameContext& frame);
+        void DestroyKinematicSolver(BodyBinding& binding) noexcept;
+        bool EnsureKinematicSolver(
+            BodyBinding& binding,
+            const KinematicControllerSettings& settings,
+            const PhysicsBodyState& bodyState,
+            bool& outRetainedPrevious,
+            std::string& outError);
         void PullDynamicPoses(World& world);
         void UpdatePresentationPoses(
             World& world,
@@ -96,6 +112,7 @@ namespace HIKARI::PHYSICS {
         PhysicsWorldService* service_ = nullptr;
         PhysicsCollisionGeometryStore* collisionGeometryStore_ = nullptr;
         PhysicsRuntimeStatusService* runtimeStatus_ = nullptr;
+        KinematicMotionService* kinematicMotion_ = nullptr;
         ::HIKARI::PresentationTransformService*
             presentationTransforms_ = nullptr;
         const RuntimePlayStateService* runtimePlayState_ = nullptr;

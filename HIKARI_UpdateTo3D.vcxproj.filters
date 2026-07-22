@@ -1212,6 +1212,9 @@
     <ClCompile Include="HIKARI\Editor\Inspectors\HIKARI_ImGuiInspectorBuilder.cpp">
       <Filter>Source Files\Editor\Inspectors</Filter>
     </ClCompile>
+    <ClCompile Include="HIKARI\Editor\Inspectors\HIKARI_PhysicsCollisionFilterInspector.cpp">
+      <Filter>Source Files\Editor\Inspectors</Filter>
+    </ClCompile>
     <ClCompile Include="HIKARI\Scene\HIKARI_SceneManager.cpp">
       <Filter>Source Files\Scene</Filter>
     </ClCompile>
@@ -1242,11 +1245,14 @@
     <ClCompile Include="HIKARI\Scene\Components\HIKARI_PhysicsBodyComponent.cpp">
       <Filter>Source Files\Scene\Components</Filter>
     </ClCompile>
-    <ClCompile Include="HIKARI\Scene\Components\HIKARI_PlayerControllerComponent.cpp">
+    <ClCompile Include="HIKARI\Scene\Components\HIKARI_CharacterInputComponent.cpp">
       <Filter>Source Files\Scene\Components</Filter>
     </ClCompile>
-    <ClCompile Include="HIKARI\Scene\Components\HIKARI_PlayerInputComponent.cpp">
+    <ClCompile Include="HIKARI\Scene\Components\HIKARI_CharacterLocomotionComponent.cpp">
       <Filter>Source Files\Scene\Components</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Gameplay\Motion\HIKARI_MotionIntentService.cpp">
+      <Filter>Source Files\Scene\Systems</Filter>
     </ClCompile>
     <ClCompile Include="HIKARI\Scene\Scenes\HIKARI_DocumentSceneBase.cpp">
       <Filter>Source Files\Scene\Scenes</Filter>
@@ -1653,10 +1659,10 @@
     <ClCompile Include="HIKARI\Scene\Sequencer\Serialization\HIKARI_CameraAnimationTrackJson.cpp">
       <Filter>Source Files\Scene\Sequencer\Serialization</Filter>
     </ClCompile>
-    <ClCompile Include="HIKARI\Scene\HIKARI_PlayerMovementSystem.cpp">
+    <ClCompile Include="HIKARI\Scene\HIKARI_CharacterInputSystem.cpp">
       <Filter>Source Files\Scene\Systems</Filter>
     </ClCompile>
-    <ClCompile Include="HIKARI\Scene\HIKARI_PlayerInputSystem.cpp">
+    <ClCompile Include="HIKARI\Scene\HIKARI_CharacterLocomotionSystem.cpp">
       <Filter>Source Files\Scene\Systems</Filter>
     </ClCompile>
     <ClCompile Include="HIKARI\Scene\HIKARI_ComponentSystemPolicy.cpp">
@@ -1695,6 +1701,12 @@
     <ClCompile Include="HIKARI\Physics\HIKARI_PhysicsSystemBodyLifecycle.cpp">
       <Filter>Source Files\Physics</Filter>
     </ClCompile>
+    <ClCompile Include="HIKARI\Physics\HIKARI_PhysicsSystemKinematicMotion.cpp">
+      <Filter>Source Files\Physics</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Physics\HIKARI_PhysicsSystemKinematicSolver.cpp">
+      <Filter>Source Files\Physics</Filter>
+    </ClCompile>
     <ClCompile Include="HIKARI\Physics\HIKARI_PhysicsSystemSynchronization.cpp">
       <Filter>Source Files\Physics</Filter>
     </ClCompile>
@@ -1713,6 +1725,9 @@
     <ClCompile Include="HIKARI\Physics\HIKARI_PhysicsSceneBridge.cpp">
       <Filter>Source Files\Physics</Filter>
     </ClCompile>
+    <ClCompile Include="HIKARI\Physics\HIKARI_KinematicMotionService.cpp">
+      <Filter>Source Files\Physics</Filter>
+    </ClCompile>
     <ClCompile Include="HIKARI\Physics\HIKARI_PhysicsWorldService.cpp">
       <Filter>Source Files\Physics</Filter>
     </ClCompile>
@@ -1720,6 +1735,12 @@
       <Filter>Source Files\Physics</Filter>
     </ClCompile>
     <ClCompile Include="HIKARI\Physics\Backends\Jolt\HIKARI_JoltPhysicsBackend.cpp">
+      <Filter>Source Files\Physics</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Physics\Backends\Jolt\HIKARI_JoltCharacters.cpp">
+      <Filter>Source Files\Physics</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Physics\Backends\Jolt\HIKARI_JoltCharacterSimulation.cpp">
       <Filter>Source Files\Physics</Filter>
     </ClCompile>
     <ClCompile Include="HIKARI\Physics\Backends\Jolt\HIKARI_JoltContacts.cpp">
@@ -1819,6 +1840,9 @@
       <Filter>Source Files\Editor\Panels</Filter>
     </ClCompile>
     <ClCompile Include="HIKARI\Editor\Widgets\HIKARI_AssetFieldWidget.cpp">
+      <Filter>Source Files\Editor\Panels</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Editor\Widgets\HIKARI_InputActionFieldWidget.cpp">
       <Filter>Source Files\Editor\Panels</Filter>
     </ClCompile>
     <ClCompile Include="HIKARI\Editor\Widgets\HIKARI_AssetPickerPopup.cpp">
@@ -2227,11 +2251,17 @@
     <ClInclude Include="HIKARI\Scene\Components\HIKARI_PhysicsBodyComponent.h">
       <Filter>Header Files\Scene\Components</Filter>
     </ClInclude>
-    <ClInclude Include="HIKARI\Scene\Components\HIKARI_PlayerControllerComponent.h">
+    <ClInclude Include="HIKARI\Scene\Components\HIKARI_CharacterInputComponent.h">
       <Filter>Header Files\Scene\Components</Filter>
     </ClInclude>
-    <ClInclude Include="HIKARI\Scene\Components\HIKARI_PlayerInputComponent.h">
+    <ClInclude Include="HIKARI\Scene\Components\HIKARI_CharacterLocomotionComponent.h">
       <Filter>Header Files\Scene\Components</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Gameplay\Motion\HIKARI_MotionIntentTypes.h">
+      <Filter>Header Files\Scene\Systems</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Gameplay\Motion\HIKARI_MotionIntentService.h">
+      <Filter>Header Files\Scene\Systems</Filter>
     </ClInclude>
     <ClInclude Include="HIKARI\Vfx\HIKARI_VfxTypes.h">
       <Filter>Header Files\Vfx\Common</Filter>
@@ -2749,6 +2779,9 @@
     <ClInclude Include="HIKARI\Editor\Inspectors\HIKARI_IInspectorBuilder.h">
       <Filter>Header Files\Editor\Inspectors</Filter>
     </ClInclude>
+    <ClInclude Include="HIKARI\Editor\Inspectors\HIKARI_PhysicsCollisionFilterInspector.h">
+      <Filter>Header Files\Editor\Inspectors</Filter>
+    </ClInclude>
     <ClInclude Include="HIKARI\Editor\Inspectors\HIKARI_ImGuiInspectorBuilder.h">
       <Filter>Header Files\Editor\Inspectors</Filter>
     </ClInclude>
@@ -3031,10 +3064,10 @@
     <ClInclude Include="HIKARI\Scene\HIKARI_SceneObjectId.h">
       <Filter>Header Files\Scene</Filter>
     </ClInclude>
-    <ClInclude Include="HIKARI\Scene\HIKARI_PlayerMovementSystem.h">
+    <ClInclude Include="HIKARI\Scene\HIKARI_CharacterInputSystem.h">
       <Filter>Header Files\Scene\Systems</Filter>
     </ClInclude>
-    <ClInclude Include="HIKARI\Scene\HIKARI_PlayerInputSystem.h">
+    <ClInclude Include="HIKARI\Scene\HIKARI_CharacterLocomotionSystem.h">
       <Filter>Header Files\Scene\Systems</Filter>
     </ClInclude>
     <ClInclude Include="HIKARI\Scene\HIKARI_ComponentSystemPolicy.h">
@@ -3089,6 +3122,12 @@
       <Filter>Header Files\Physics</Filter>
     </ClInclude>
     <ClInclude Include="HIKARI\Physics\HIKARI_PhysicsRuntimeStatusService.h">
+      <Filter>Header Files\Physics</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Physics\HIKARI_KinematicMotionService.h">
+      <Filter>Header Files\Physics</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Physics\HIKARI_KinematicMotionTypes.h">
       <Filter>Header Files\Physics</Filter>
     </ClInclude>
     <ClInclude Include="HIKARI\Physics\HIKARI_PhysicsSystem.h">
@@ -3188,6 +3227,9 @@
       <Filter>Header Files\ThirdParty\MeshOptimizer</Filter>
     </ClInclude>
     <ClInclude Include="HIKARI\Editor\Widgets\HIKARI_AssetFieldWidget.h">
+      <Filter>Header Files\Editor\Panels</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Editor\Widgets\HIKARI_InputActionFieldWidget.h">
       <Filter>Header Files\Editor\Panels</Filter>
     </ClInclude>
     <ClInclude Include="HIKARI\Editor\Widgets\HIKARI_AssetPickerPopup.h">

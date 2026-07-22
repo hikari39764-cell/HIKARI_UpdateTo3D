@@ -17,6 +17,8 @@
 #include "Render3D/Lighting/HIKARI_SceneEnvironment.h"
 #include "Render3D/Lighting/HIKARI_SkyManager.h"
 #include "Physics/HIKARI_PhysicsWorldService.h"
+#include "Gameplay/Motion/HIKARI_MotionIntentService.h"
+#include "Physics/HIKARI_KinematicMotionService.h"
 #include "Physics/HIKARI_PhysicsCollisionGeometryStore.h"
 #include "Physics/HIKARI_PhysicsRuntimeStatusService.h"
 #include "Physics/HIKARI_PhysicsProjectSettings.h"
@@ -259,18 +261,27 @@ namespace HIKARI {
         ViewportPerformanceState editorViewportPerformanceSnapshot_{};
         ViewportDebugViewState editorViewportDebugViewSnapshot_{};
         SceneObjectId editorSelectedGizmoObjectSnapshot_{};
+        SceneDocument editorSceneDocumentSnapshot_{};
+        SceneEnvironment editorSceneEnvironmentSnapshot_{};
         SceneObjectId editorCameraPreviewObjectId_{};
         CameraOverrideToken editorCameraPreviewToken_{};
         bool editorCameraCutPending_ = false;
         bool runtimePreviewCameraActive_ = false;
         bool runtimeSceneCameraActive_ = false;
         bool runtimePlayActive_ = false;
+        bool runtimeInputContextSnapshotValid_ = false;
+        bool editorInputContextWasActive_ = false;
+        bool gameplayInputContextWasActive_ = false;
+        bool editorSceneDocumentSnapshotValid_ = false;
+        bool editorSceneDocumentDirtySnapshot_ = false;
         bool runtimeParkedForStandalone_ = false;
         bool runtimeInitialized_ = false;
         World world_{};
         FixedStepClock fixedStepClock_{};
         RuntimePlayStateService runtimePlayStateService_{};
         GameplayCameraService gameplayCameraService_{};
+        GAMEPLAY::MotionIntentService motionIntentService_{};
+        PHYSICS::KinematicMotionService kinematicMotionService_{};
         PHYSICS::PhysicsWorldService physicsWorldService_{};
         PHYSICS::PhysicsCollisionGeometryStore
             physicsCollisionGeometryStore_{};

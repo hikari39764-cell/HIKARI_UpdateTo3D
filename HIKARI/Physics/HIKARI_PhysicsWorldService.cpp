@@ -137,6 +137,68 @@ namespace HIKARI::PHYSICS {
             backend_->TryGetBodyState(body, outState);
     }
 
+    PhysicsCharacterCreateResult PhysicsWorldService::CreateCharacter(
+        const PhysicsCharacterCreateInfo& createInfo) {
+        if (!backend_ || world_ == nullptr) {
+            PhysicsCharacterCreateResult result{};
+            result.error = PhysicsErrorCode::WorldUnavailable;
+            result.message = "physics world is not available";
+            result.recoverable = true;
+            return result;
+        }
+        return backend_->CreateCharacter(createInfo);
+    }
+
+    bool PhysicsWorldService::DestroyCharacter(
+        PhysicsCharacterHandle character) {
+        return backend_ && world_ != nullptr && character.IsValid() &&
+            backend_->DestroyCharacter(character);
+    }
+
+    bool PhysicsWorldService::SetCharacterPose(
+        PhysicsCharacterHandle character,
+        const PhysicsPose& pose) {
+        return backend_ && world_ != nullptr && character.IsValid() &&
+            backend_->SetCharacterPose(character, pose);
+    }
+
+    bool PhysicsWorldService::SetCharacterVelocity(
+        PhysicsCharacterHandle character,
+        const MATH::Vec3& linearVelocity) {
+        return backend_ && world_ != nullptr && character.IsValid() &&
+            backend_->SetCharacterVelocity(character, linearVelocity);
+    }
+
+    bool PhysicsWorldService::RefreshCharacterGroundVelocity(
+        PhysicsCharacterHandle character) {
+        return backend_ && world_ != nullptr && character.IsValid() &&
+            backend_->RefreshCharacterGroundVelocity(character);
+    }
+
+    bool PhysicsWorldService::RefreshCharacterContacts(
+        PhysicsCharacterHandle character) {
+        return backend_ && world_ != nullptr && character.IsValid() &&
+            backend_->RefreshCharacterContacts(character);
+    }
+
+    bool PhysicsWorldService::StepCharacter(
+        PhysicsCharacterHandle character,
+        float fixedDeltaSeconds,
+        const PhysicsCharacterStepSettings& settings) {
+        return backend_ && world_ != nullptr && character.IsValid() &&
+            fixedDeltaSeconds > 0.0f && backend_->StepCharacter(
+                character,
+                fixedDeltaSeconds,
+                settings);
+    }
+
+    bool PhysicsWorldService::TryGetCharacterState(
+        PhysicsCharacterHandle character,
+        PhysicsCharacterState& outState) const {
+        return backend_ && world_ != nullptr && character.IsValid() &&
+            backend_->TryGetCharacterState(character, outState);
+    }
+
     PhysicsStepResult PhysicsWorldService::Step(
         float fixedDeltaSeconds) {
         if (!backend_ || world_ == nullptr ||

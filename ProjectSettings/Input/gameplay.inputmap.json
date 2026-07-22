@@ -20,6 +20,8 @@
     { "action": "Gameplay.Look", "source": "GamepadAxis", "control": "RightY", "scale": 1.0, "component": 1, "deadZone": 0.15 },
     { "action": "Gameplay.Jump", "source": "Keyboard", "control": "Space", "scale": 1.0, "component": 0 },
     { "action": "Gameplay.Jump", "source": "GamepadButton", "control": "A", "scale": 1.0, "component": 0 },
+    { "action": "Gameplay.Sprint", "source": "Keyboard", "control": "Shift", "scale": 1.0, "component": 0 },
+    { "action": "Gameplay.Sprint", "source": "GamepadButton", "control": "LeftStick", "scale": 1.0, "component": 0 },
     { "action": "Gameplay.Interact", "source": "Keyboard", "control": "E", "scale": 1.0, "component": 0 },
     { "action": "Gameplay.Interact", "source": "GamepadButton", "control": "X", "scale": 1.0, "component": 0 }
   ]

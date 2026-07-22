@@ -21,6 +21,10 @@ namespace HIKARI {
             float maximum,
             float speed = 0.1f) override;
         bool String(std::string_view label, std::string& value) override;
+        bool InputActionIdPicker(
+            std::string_view label,
+            INPUT::InputActionValueType expectedType,
+            std::string& value) override;
         bool Choice(
             std::string_view label,
             int& selectedIndex,

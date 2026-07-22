@@ -668,23 +668,23 @@
           "properties": {
             "center": [
               0.0,
-              0.800000011920929,
+              0.8999999761581421,
               0.0
             ],
-            "collisionAssetId": "b5495438c8743f173e2cf1a7536224af",
+            "collisionAssetId": "",
             "enabled": true,
             "filter": {
-              "layer": 1,
+              "layer": 8,
               "mask": 4294967295
             },
-            "fitMode": "CollisionAsset",
+            "fitMode": "Manual",
             "height": 1.7999999523162842,
             "material": {
               "density": 1.0,
               "friction": 0.5,
               "restitution": 0.0
             },
-            "radius": 0.4000000059604645,
+            "radius": 0.3499999940395355,
             "rotation": [
               0.0,
               0.0,
@@ -702,9 +702,9 @@
         },
         {
           "properties": {
-            "allowSleeping": true,
+            "allowSleeping": false,
             "angularDamping": 0.05000000074505806,
-            "continuousCollision": false,
+            "continuousCollision": true,
             "enabled": true,
             "gravityScale": 1.0,
             "initialAngularVelocity": [
@@ -728,10 +728,48 @@
               0.0,
               0.0
             ],
-            "mass": 1.0,
-            "motionType": "Dynamic"
+            "mass": 70.0,
+            "motionType": "Kinematic"
           },
           "type": "PhysicsBodyComponent"
+        },
+        {
+          "properties": {
+            "acceleration": 30.0,
+            "airAcceleration": 10.0,
+            "characterPadding": 0.019999999552965164,
+            "deceleration": 40.0,
+            "enabled": true,
+            "enhancedInternalEdgeRemoval": true,
+            "inputDeadZone": 0.07999999821186066,
+            "jumpHeight": 1.2000000476837158,
+            "maximumCollisionHits": 256,
+            "maximumFallSpeed": 55.0,
+            "maximumSlopeAngleDegrees": 50.0,
+            "maximumSpeed": 5.0,
+            "motionPriority": 100,
+            "movementSpace": "World",
+            "penetrationRecoverySpeed": 1.0,
+            "predictiveContactDistance": 0.10000000149011612,
+            "rotateToMove": true,
+            "sprintMultiplier": 1.5,
+            "stepForwardTestDistance": 0.15000000596046448,
+            "stepHeight": 0.4000000059604645,
+            "stickToFloorDistance": 0.5,
+            "turnSpeedDegrees": 720.0
+          },
+          "type": "CharacterLocomotionComponent"
+        },
+        {
+          "properties": {
+            "enabled": true,
+            "jumpAction": "Gameplay.Jump",
+            "lookAction": "Gameplay.Look",
+            "moveAction": "Gameplay.Move",
+            "priority": 100,
+            "sprintAction": "Gameplay.Sprint"
+          },
+          "type": "CharacterInputComponent"
         }
       ],
       "editorVisible": true,

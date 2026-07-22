@@ -1556,12 +1556,26 @@ namespace HIKARI {
         editorViewportPerformanceSnapshot_ = viewportPerformanceState_;
         editorViewportDebugViewSnapshot_ = viewportDebugViewState_;
         editorSelectedGizmoObjectSnapshot_ = selectedGizmoObjectId_;
-        if (!ReloadSceneDocument()) {
+        editorSceneDocumentSnapshot_ = sceneDocument_;
+        editorSceneEnvironmentSnapshot_ = environment_;
+        editorSceneDocumentDirtySnapshot_ = sceneDocumentDirty_;
+        editorSceneDocumentSnapshotValid_ = true;
+
+        // In-process Play must test the document currently visible in the
+        // editor, including unsaved component changes. Rebuilding from disk
+        // here silently discarded the user's latest authoring state.
+        if (!RebuildRuntimeWorld()) {
+            sceneDocument_ = std::move(editorSceneDocumentSnapshot_);
+            environment_ = editorSceneEnvironmentSnapshot_;
+            sceneDocumentDirty_ = editorSceneDocumentDirtySnapshot_;
+            editorSceneDocumentSnapshotValid_ = false;
+            (void)RebuildRuntimeWorld();
             camera_ = editorCameraSnapshot_;
             debugCamera_ = editorDebugCameraSnapshot_;
             HIKARI_LOG_ERROR("Runtime Play scene rebuild failed.");
             return false;
         }
+        ++sceneDocumentRevision_;
 
         camera_ = editorCameraSnapshot_;
         gameplayCamera_ = editorCameraSnapshot_;
@@ -1580,10 +1594,17 @@ namespace HIKARI {
         viewportOverlayState_ = {};
         viewportDebugViewState_ = {};
         selectedGizmoObjectId_ = {};
+        INPUT::InputContextStack& inputContexts =
+            SERVICES::GetInputService().Contexts();
+        editorInputContextWasActive_ =
+            inputContexts.IsActive("Editor");
+        gameplayInputContextWasActive_ =
+            inputContexts.IsActive("Gameplay");
+        runtimeInputContextSnapshotValid_ = true;
+        inputContexts.SetActive("Editor", false);
+        inputContexts.SetActive("Gameplay", true);
         runtimePlayActive_ = true;
         fixedStepClock_.Reset();
-        SERVICES::GetInputService().Contexts().SetActive(
-            "Gameplay", true);
         HIKARI_LOG_INFO("Document scene entered runtime Play state.");
         return true;
     }
@@ -1594,14 +1615,31 @@ namespace HIKARI {
 
         runtimePlayActive_ = false;
         fixedStepClock_.Reset();
-        SERVICES::GetInputService().Contexts().SetActive(
-            "Gameplay", !SERVICES::IsEditorHost());
+        if (runtimeInputContextSnapshotValid_) {
+            INPUT::InputContextStack& inputContexts =
+                SERVICES::GetInputService().Contexts();
+            inputContexts.SetActive(
+                "Editor",
+                editorInputContextWasActive_);
+            inputContexts.SetActive(
+                "Gameplay",
+                gameplayInputContextWasActive_);
+            runtimeInputContextSnapshotValid_ = false;
+        }
         runtimePreviewCameraActive_ = false;
         runtimeSceneCameraActive_ = false;
         sequencePlaybackService_.Reset();
         currentCameraSequenceHandle_ = {};
         cameraDirector_.Reset();
-        const bool restored = ReloadSceneDocument();
+        bool restored = editorSceneDocumentSnapshotValid_;
+        if (editorSceneDocumentSnapshotValid_) {
+            sceneDocument_ = std::move(editorSceneDocumentSnapshot_);
+            environment_ = editorSceneEnvironmentSnapshot_;
+            sceneDocumentDirty_ = editorSceneDocumentDirtySnapshot_;
+            editorSceneDocumentSnapshotValid_ = false;
+            restored = RebuildRuntimeWorld();
+            ++sceneDocumentRevision_;
+        }
         camera_ = editorCameraSnapshot_;
         gameplayCamera_ = camera_;
         debugCamera_ = editorDebugCameraSnapshot_;
@@ -2883,6 +2921,8 @@ namespace HIKARI {
         success = services.Register(sequencePlaybackService_) && success;
         success = services.Register(runtimePlayStateService_) && success;
         success = services.Register(gameplayCameraService_) && success;
+        success = services.Register(motionIntentService_) && success;
+        success = services.Register(kinematicMotionService_) && success;
         success = services.Register(presentationTransformService_) &&
             success;
         success = services.Register(physicsCollisionGeometryStore_) &&

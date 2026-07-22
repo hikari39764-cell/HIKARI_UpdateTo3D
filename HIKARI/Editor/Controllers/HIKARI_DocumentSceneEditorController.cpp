@@ -1671,22 +1671,6 @@ namespace HIKARI {
             }
             const ComponentGizmoRegistry& gizmoRegistry =
                 scene.GetComponentGizmoRegistry();
-            const ComponentGizmoProvider* playerBoundsProvider =
-                gizmoRegistry.Find(kPlayerBoundsGizmoProviderId);
-            const bool playerBoundsVisible =
-                playerBoundsProvider != nullptr &&
-                context_.gizmos.IsProviderVisible(
-                    playerBoundsProvider->providerId,
-                    playerBoundsProvider->defaultVisible);
-            if (DrawMiniTextToggle(
-                    "P",
-                    "ViewportPlayerBounds",
-                    playerBoundsVisible,
-                    "Player Bounds")) {
-                context_.gizmos.SetProviderVisible(
-                    std::string(kPlayerBoundsGizmoProviderId),
-                    !playerBoundsVisible);
-            }
             if (EDITOR::EditorIconManager::IconButton(
                     EDITOR::EditorIconKind::Settings,
                     "ViewportToolSettings",

@@ -10,6 +10,7 @@ inline const std::string CloseProgram = "Global.CloseProgram";
 inline const std::string GameplayMove = "Gameplay.Move";
 inline const std::string GameplayLook = "Gameplay.Look";
 inline const std::string GameplayJump = "Gameplay.Jump";
+inline const std::string GameplaySprint = "Gameplay.Sprint";
 inline const std::string GameplayInteract = "Gameplay.Interact";
 inline const std::string EditorCameraMove = "Editor.CameraMove";
 inline const std::string EditorCameraMoveVertical = "Editor.CameraMoveVertical";

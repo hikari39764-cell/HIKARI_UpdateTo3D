@@ -7,6 +7,7 @@
 #include "Core/HIKARI_FrameContext.h"
 #include "Core/HIKARI_Logger.h"
 #include "Physics/HIKARI_PhysicsCollisionGeometryStore.h"
+#include "Physics/HIKARI_KinematicMotionService.h"
 #include "Physics/HIKARI_PhysicsRuntimeStatusService.h"
 #include "Physics/HIKARI_PhysicsWorldService.h"
 #include "Scene/HIKARI_PresentationTransformService.h"
@@ -27,10 +28,15 @@ namespace HIKARI::PHYSICS {
             world.Services().Find<PhysicsCollisionGeometryStore>();
         runtimeStatus_ =
             world.Services().Find<PhysicsRuntimeStatusService>();
+        kinematicMotion_ =
+            world.Services().Find<KinematicMotionService>();
         presentationTransforms_ =
             world.Services().Find<PresentationTransformService>();
         if (runtimeStatus_ != nullptr) {
             runtimeStatus_->Clear();
+        }
+        if (kinematicMotion_ != nullptr) {
+            kinematicMotion_->Clear();
         }
         if (service_ == nullptr) {
             HIKARI_LOG_ERROR(
@@ -58,6 +64,9 @@ namespace HIKARI::PHYSICS {
         if (runtimeStatus_ != nullptr) {
             runtimeStatus_->Clear();
         }
+        if (kinematicMotion_ != nullptr) {
+            kinematicMotion_->Clear();
+        }
         failures_.clear();
         lastStepResult_ = {};
         lastReconcileFrame_ =
@@ -65,6 +74,7 @@ namespace HIKARI::PHYSICS {
         service_ = nullptr;
         collisionGeometryStore_ = nullptr;
         runtimeStatus_ = nullptr;
+        kinematicMotion_ = nullptr;
         presentationTransforms_ = nullptr;
         runtimePlayState_ = nullptr;
     }
@@ -87,6 +97,7 @@ namespace HIKARI::PHYSICS {
         if (!ShouldSimulate() || service_ == nullptr) {
             return;
         }
+        ProcessKinematicMotions(world, frame);
         PhysicsStepResult stepResult = service_->Step(frame.fixedDt);
         if (runtimeStatus_ != nullptr) {
             runtimeStatus_->SetStepResult(

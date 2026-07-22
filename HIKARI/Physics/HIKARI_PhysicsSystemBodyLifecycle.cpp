@@ -6,6 +6,7 @@
 #include <utility>
 
 #include "Core/HIKARI_Logger.h"
+#include "Physics/HIKARI_KinematicMotionService.h"
 #include "Physics/HIKARI_PhysicsRuntimeStatusService.h"
 #include "Physics/HIKARI_PhysicsSceneBridge.h"
 #include "Physics/HIKARI_PhysicsWorldService.h"
@@ -54,6 +55,7 @@ namespace HIKARI::PHYSICS {
             if (!build.hasDefinition) {
                 auto stale = bindings_.find(objectKey);
                 if (stale != bindings_.end()) {
+                    DestroyKinematicSolver(stale->second);
                     (void)service_->DestroyBody(stale->second.body);
                     bindings_.erase(stale);
                 }
@@ -63,6 +65,9 @@ namespace HIKARI::PHYSICS {
                 }
                 if (presentationTransforms_ != nullptr) {
                     presentationTransforms_->Remove(objectHandle);
+                }
+                if (kinematicMotion_ != nullptr) {
+                    kinematicMotion_->Remove(objectHandle);
                 }
                 continue;
             }
@@ -165,12 +170,15 @@ namespace HIKARI::PHYSICS {
             }
 
             if (retainedBinding != nullptr) {
+                DestroyKinematicSolver(*retainedBinding);
                 (void)service_->DestroyBody(retainedBinding->body);
             }
 
             BodyBinding binding{};
             binding.object = objectHandle;
             binding.body = created.handle;
+            binding.bodyDesc = createInfo.body;
+            binding.shapes = createInfo.shapes;
             binding.requestedMotionType = createInfo.body.motionType;
             binding.effectiveMotionType = created.effectiveMotionType;
             binding.definitionSignature = signature;
@@ -216,12 +224,16 @@ namespace HIKARI::PHYSICS {
                 continue;
             }
             const RuntimeObjectHandle object = it->second.object;
+            DestroyKinematicSolver(it->second);
             (void)service_->DestroyBody(it->second.body);
             if (presentationTransforms_ != nullptr) {
                 presentationTransforms_->Remove(object);
             }
             if (runtimeStatus_ != nullptr) {
                 runtimeStatus_->Remove(object);
+            }
+            if (kinematicMotion_ != nullptr) {
+                kinematicMotion_->Remove(object);
             }
             failures_.erase(it->first);
             it = bindings_.erase(it);
@@ -230,7 +242,8 @@ namespace HIKARI::PHYSICS {
 
     void PhysicsSystem::DestroyBindings() noexcept {
         if (service_ != nullptr) {
-            for (const auto& [_, binding] : bindings_) {
+            for (auto& [_, binding] : bindings_) {
+                DestroyKinematicSolver(binding);
                 (void)service_->DestroyBody(binding.body);
             }
         }
@@ -240,6 +253,9 @@ namespace HIKARI::PHYSICS {
             }
         }
         bindings_.clear();
+        if (kinematicMotion_ != nullptr) {
+            kinematicMotion_->Clear();
+        }
     }
 
     void PhysicsSystem::ReportFailure(

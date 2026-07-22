@@ -7,6 +7,7 @@
     { "id": "Gameplay.Move", "displayName": "Move", "valueType": "Axis2D", "clamp": true },
     { "id": "Gameplay.Look", "displayName": "Look", "valueType": "Axis2D", "clamp": true },
     { "id": "Gameplay.Jump", "displayName": "Jump", "valueType": "Button", "clamp": true },
+    { "id": "Gameplay.Sprint", "displayName": "Sprint", "valueType": "Button", "clamp": true },
     { "id": "Gameplay.Interact", "displayName": "Interact", "valueType": "Button", "clamp": true },
     { "id": "Editor.CameraMove", "displayName": "Camera Move", "valueType": "Axis2D", "clamp": true },
     { "id": "Editor.CameraMoveVertical", "displayName": "Camera Move Vertical", "valueType": "Axis1D", "clamp": true },

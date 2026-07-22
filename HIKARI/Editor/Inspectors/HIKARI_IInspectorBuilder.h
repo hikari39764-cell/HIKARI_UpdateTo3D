@@ -7,6 +7,10 @@
 
 namespace HIKARI {
 
+    namespace INPUT {
+        enum class InputActionValueType;
+    }
+
     enum class AssetType;
     class AssetDatabase;
     class AssetRegistry;
@@ -42,6 +46,10 @@ namespace HIKARI {
             float maximum,
             float speed = 0.1f) = 0;
         virtual bool String(std::string_view label, std::string& value) = 0;
+        virtual bool InputActionIdPicker(
+            std::string_view label,
+            INPUT::InputActionValueType expectedType,
+            std::string& value) = 0;
         virtual bool Choice(
             std::string_view label,
             int& selectedIndex,

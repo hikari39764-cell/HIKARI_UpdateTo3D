@@ -11,6 +11,9 @@
 #include "Assets/HIKARI_AssetRegistry.h"
 #include "Assets/HIKARI_AssetTypes.h"
 #include "Editor/Widgets/HIKARI_AssetFieldWidget.h"
+#include "Editor/Widgets/HIKARI_InputActionFieldWidget.h"
+#include "Input/Runtime/HIKARI_InputService.h"
+#include "Scene/HIKARI_WorldServiceRegistry.h"
 #include "Scene/HIKARI_SceneDocument.h"
 
 #if defined(HIKARI_WITH_EDITOR)
@@ -147,6 +150,31 @@ namespace HIKARI {
         (void)label;
         (void)value;
         return false;
+#endif
+    }
+
+    bool ImGuiInspectorBuilder::InputActionIdPicker(
+        std::string_view label,
+        INPUT::InputActionValueType expectedType,
+        std::string& value) {
+#if defined(HIKARI_WITH_EDITOR)
+        const auto* inputService = context_.worldServices != nullptr
+            ? context_.worldServices->Find<INPUT::InputService>()
+            : nullptr;
+        if (inputService == nullptr) {
+            ImGui::TextDisabled(
+                "%s: input action map unavailable",
+                std::string(label).c_str());
+            return false;
+        }
+        return EDITOR::DrawInputActionField(
+            inputService->GetActionMap(),
+            label,
+            expectedType,
+            value);
+#else
+        (void)expectedType;
+        return String(label, value);
 #endif
     }
 

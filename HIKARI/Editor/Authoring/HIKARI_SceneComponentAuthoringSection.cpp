@@ -82,10 +82,19 @@ namespace HIKARI {
             historyRequest{};
         bool needsRebuild = false;
         bool forceImmediateRebuild = false;
+        RuntimeObjectHandle runtimeObject{};
+        if (context.selection.selectedObject != nullptr &&
+            context.selection.selectedObject->GetDocumentId() ==
+                target.id) {
+            runtimeObject = context.selection.selectedObject
+                ->GetRuntimeHandle();
+        }
         const InspectorContext inspectorContext{
             &scene.GetAssetRegistry(),
             &scene.GetAssetDatabase(),
-            &scene.GetSceneDocument()
+            &scene.GetSceneDocument(),
+            &scene.GetWorld().Services(),
+            runtimeObject.IsValid() ? &runtimeObject : nullptr
         };
 
         ImGui::SeparatorText("Document Components");

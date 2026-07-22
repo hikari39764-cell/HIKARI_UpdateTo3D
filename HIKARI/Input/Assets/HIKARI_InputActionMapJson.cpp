@@ -95,6 +95,7 @@ InputActionMap CreateDefaultInputActionMap() {
         { "Gameplay.Move", "Move", InputActionValueType::Axis2D },
         { "Gameplay.Look", "Look", InputActionValueType::Axis2D },
         { "Gameplay.Jump", "Jump", InputActionValueType::Button },
+        { "Gameplay.Sprint", "Sprint", InputActionValueType::Button },
         { "Gameplay.Interact", "Interact", InputActionValueType::Button },
         { "Editor.CameraMove", "Camera Move", InputActionValueType::Axis2D, true },
         { "Editor.CameraMoveVertical", "Camera Move Vertical", InputActionValueType::Axis1D, true },
@@ -158,6 +159,8 @@ InputActionMap CreateDefaultInputActionMap() {
         Binding("Gameplay.Look", InputBindingSource::GamepadAxis, "RightY", 1.0f, 1, {}, 0.15f),
         Binding("Gameplay.Jump", InputBindingSource::Keyboard, "Space"),
         Binding("Gameplay.Jump", InputBindingSource::GamepadButton, "A"),
+        Binding("Gameplay.Sprint", InputBindingSource::Keyboard, "Shift"),
+        Binding("Gameplay.Sprint", InputBindingSource::GamepadButton, "LeftStick"),
         Binding("Gameplay.Interact", InputBindingSource::Keyboard, "E"),
         Binding("Gameplay.Interact", InputBindingSource::GamepadButton, "X"),
     };

@@ -99,13 +99,13 @@ namespace HIKARI::EDITOR {
                 "Updates gameplay cameras that follow scene targets.",
                 "Target, offset, and smoothing are configured on Camera Follow components."),
             ComponentOwned(
-                "PlayerInputSystem",
-                "Maps project input actions into per-player commands.",
-                "Action names are configured on Player Input components; physical bindings are edited in Project Input."),
+                "CharacterInputSystem",
+                "Maps project input actions into motion intent.",
+                "Action names are configured on Character Input components; physical bindings are edited in Project Input."),
             ComponentOwned(
-                "PlayerMovementSystem",
-                "Applies player commands to controlled scene objects.",
-                "Movement, rotation, bounds, and animation behavior are configured on Player Controller components."),
+                "CharacterLocomotionSystem",
+                "Converts motion intent into kinematic physics requests.",
+                "Movement rules are configured on Character Locomotion; collision remains on Collider and Physics Body."),
             ComponentOwned(
                 "SequencePlayerSystem",
                 "Runs reusable Sequence assets during gameplay.",

@@ -16,7 +16,9 @@
 #include "Assets/HIKARI_AssetRegistry.h"
 #include "Assets/HIKARI_AssetTypes.h"
 #include "Editor/Inspectors/HIKARI_IInspectorBuilder.h"
+#include "Editor/Widgets/HIKARI_InputActionFieldWidget.h"
 #include "HIKARI_Services.h"
+#include "Input/Runtime/HIKARI_InputService.h"
 #include "Scene/HIKARI_GameObject.h"
 #include "Scene/HIKARI_World.h"
 #include "Scene/Scenes/HIKARI_DocumentSceneBase.h"
@@ -113,6 +115,23 @@ namespace HIKARI::RUNTIME_TOOLS {
                 }
                 value = buffer.data();
                 return true;
+            }
+
+            bool InputActionIdPicker(
+                std::string_view label,
+                INPUT::InputActionValueType expectedType,
+                std::string& value) override {
+
+                const auto* inputService = context_.worldServices != nullptr
+                    ? context_.worldServices->Find<INPUT::InputService>()
+                    : nullptr;
+                return inputService != nullptr
+                    ? EDITOR::DrawInputActionField(
+                        inputService->GetActionMap(),
+                        label,
+                        expectedType,
+                        value)
+                    : String(label, value);
             }
 
             bool Choice(

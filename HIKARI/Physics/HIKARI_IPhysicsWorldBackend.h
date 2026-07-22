@@ -38,6 +38,28 @@ namespace HIKARI::PHYSICS {
             PhysicsBodyHandle body,
             PhysicsBodyState& outState) const = 0;
 
+        virtual PhysicsCharacterCreateResult CreateCharacter(
+            const PhysicsCharacterCreateInfo& createInfo) = 0;
+        virtual bool DestroyCharacter(
+            PhysicsCharacterHandle character) = 0;
+        virtual bool SetCharacterPose(
+            PhysicsCharacterHandle character,
+            const PhysicsPose& pose) = 0;
+        virtual bool SetCharacterVelocity(
+            PhysicsCharacterHandle character,
+            const MATH::Vec3& linearVelocity) = 0;
+        virtual bool RefreshCharacterGroundVelocity(
+            PhysicsCharacterHandle character) = 0;
+        virtual bool RefreshCharacterContacts(
+            PhysicsCharacterHandle character) = 0;
+        virtual bool StepCharacter(
+            PhysicsCharacterHandle character,
+            float fixedDeltaSeconds,
+            const PhysicsCharacterStepSettings& settings) = 0;
+        virtual bool TryGetCharacterState(
+            PhysicsCharacterHandle character,
+            PhysicsCharacterState& outState) const = 0;
+
         virtual PhysicsStepResult Step(float fixedDeltaSeconds) = 0;
         virtual PhysicsBackendStatistics GetStatistics()
             const noexcept = 0;

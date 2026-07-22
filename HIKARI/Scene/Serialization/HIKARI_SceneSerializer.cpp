@@ -17,42 +17,6 @@ namespace HIKARI {
     using nlohmann::json;
 
     namespace {
-        void MigrateLegacyPlayerInput(SceneDocument& document) {
-            if (document.version >= 2) {
-                return;
-            }
-            for (SceneObjectData& object : document.objects) {
-                SceneComponentData* playerController = nullptr;
-                bool hasPlayerInput = false;
-                for (SceneComponentData& component : object.components) {
-                    if (component.type == "PlayerControllerComponent") {
-                        playerController = &component;
-                    } else if (component.type == "PlayerInputComponent") {
-                        hasPlayerInput = true;
-                    }
-                }
-                if (playerController == nullptr) {
-                    continue;
-                }
-                playerController->properties.erase("moveXAxisName");
-                playerController->properties.erase("moveYAxisName");
-                if (!hasPlayerInput) {
-                    object.components.push_back(SceneComponentData{
-                        "PlayerInputComponent",
-                        {
-                            { "enabled", true },
-                            { "userId", 0 },
-                            { "moveAction", "Gameplay.Move" },
-                            { "lookAction", "Gameplay.Look" },
-                            { "jumpAction", "Gameplay.Jump" },
-                            { "interactAction", "Gameplay.Interact" },
-                        }
-                    });
-                }
-            }
-            document.version = (std::max)(document.version, 2u);
-        }
-
         void MigrateLegacyProceduralModels(SceneDocument& document) {
             if (document.version >= 3) {
                 return;
@@ -720,7 +684,6 @@ namespace HIKARI {
             }
         }
 
-        MigrateLegacyPlayerInput(outDocument);
         MigrateLegacyProceduralModels(outDocument);
         outDocument.version = (std::max)(
             outDocument.version,

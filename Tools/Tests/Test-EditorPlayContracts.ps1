@@ -138,12 +138,19 @@ $drawDebugHelpers = Get-CppFunctionBody $sceneSource 'bool DocumentSceneBase::Dr
 Assert-Contains $drawDebugHelpers 'runtimePlayActive_' `
     'Editor debug helpers must be suppressed during runtime Play.'
 $beginRuntimePlay = Get-CppFunctionBody $sceneSource 'bool DocumentSceneBase::BeginRuntimePlay()'
-Assert-NotContains $beginRuntimePlay 'RebuildRuntimeWorld()' `
-    'ReloadSceneDocument already rebuilds the World; Play must not rebuild it twice.'
+Assert-Contains $beginRuntimePlay 'editorSceneDocumentSnapshot_ = sceneDocument_' `
+    'In-process Play must preserve the current editor document before simulation.'
+Assert-Contains $beginRuntimePlay 'RebuildRuntimeWorld()' `
+    'In-process Play must build from the current in-memory authoring state.'
+Assert-NotContains $beginRuntimePlay 'ReloadSceneDocument()' `
+    'In-process Play must not discard unsaved authoring changes by reloading from disk.'
 Assert-NotContains $beginRuntimePlay 'camera_ = Camera3D{}' `
     'Play must not replace the editor viewpoint with a hard-coded camera.'
 Assert-Contains $beginRuntimePlay 'runtimePreviewCamera_ = editorDebugCameraSnapshot_' `
     'Play must initialize a separate runtime preview camera from the editor viewpoint.'
+$endRuntimePlay = Get-CppFunctionBody $sceneSource 'bool DocumentSceneBase::EndRuntimePlay()'
+Assert-Contains $endRuntimePlay 'sceneDocument_ = std::move(editorSceneDocumentSnapshot_)' `
+    'Stopping in-process Play must restore the exact pre-Play editor document.'
 $sceneUpdate = Get-CppFunctionBody $sceneSource 'void DocumentSceneBase::Update(float dt)'
 Assert-Contains $sceneUpdate 'CameraControlInputContext::RuntimeWindow' `
     'Runtime preview camera input must bypass stale editor ImGui capture state.'

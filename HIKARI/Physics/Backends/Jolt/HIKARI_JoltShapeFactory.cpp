@@ -167,12 +167,15 @@ namespace HIKARI::PHYSICS::JOLT_BACKEND {
                         }
                         return {};
                     }
+                    // Runtime filters decode sub-shape user data as the
+                    // owning Collider slot. Every triangle in this mesh leaf
+                    // must therefore retain the same leaf identity.
                     triangles.emplace_back(
                         first,
                         second,
                         third,
                         0u,
-                        static_cast<uint32_t>(index / 3u));
+                        static_cast<uint32_t>(userData));
                 }
                 JPH::MeshShapeSettings settings(
                     std::move(vertices),

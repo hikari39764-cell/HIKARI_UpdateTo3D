@@ -47,6 +47,7 @@ $workspaceWindows = Read-Source 'HIKARI\Editor\Workspaces\HIKARI_ModelCollisionW
 $interaction = Read-Source 'HIKARI\Editor\Workspaces\HIKARI_ModelCollisionWorkspaceInteraction.cpp'
 $raycast = Read-Source 'HIKARI\Editor\Workspaces\HIKARI_ModelCollisionRaycast.cpp'
 $gizmo = Read-Source 'HIKARI\Scene\Debug\HIKARI_ColliderGizmoProvider.cpp'
+$joltShapeFactory = Read-Source 'HIKARI\Physics\Backends\Jolt\HIKARI_JoltShapeFactory.cpp'
 
 Assert-Contains $types 'enum class PhysicsErrorCode' `
     'Physics failures must use structured error codes.'
@@ -114,6 +115,12 @@ Assert-Contains $interaction 'IntersectModelCollisionShapeExact(' `
     'Workspace interaction must delegate narrow-phase picking to the raycast module.'
 Assert-Contains $gizmo 'BuildPhysicsShapeDesc(' `
     'Authored collider gizmos and runtime bodies must share one shape conversion contract.'
+Assert-Contains $gizmo 'shape.key.sourceShapeId == 0u' `
+    'Manual collider gizmos must bypass stale runtime shape caches.'
+Assert-Contains $joltShapeFactory 'static_cast<uint32_t>(userData)' `
+    'Triangle mesh sub-shapes must preserve their owning Collider identity.'
+Assert-NotContains $joltShapeFactory 'static_cast<uint32_t>(index / 3u)' `
+    'Triangle indices must not be decoded as Collider indices by runtime filters.'
 
 $settingsPath = Join-Path $repoRoot 'ProjectSettings\Physics\collision.json'
 $settings = Get-Content -LiteralPath $settingsPath -Raw | ConvertFrom-Json

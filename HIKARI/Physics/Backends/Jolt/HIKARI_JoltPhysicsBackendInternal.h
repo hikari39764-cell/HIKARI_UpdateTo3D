@@ -11,6 +11,7 @@
 #include <Jolt/Core/TempAllocator.h>
 #include <Jolt/Physics/Collision/BroadPhase/BroadPhaseLayer.h>
 #include <Jolt/Physics/Collision/ContactListener.h>
+#include <Jolt/Physics/Character/CharacterVirtual.h>
 #include <Jolt/Physics/PhysicsSystem.h>
 
 #include "Physics/Backends/Jolt/HIKARI_JoltPhysicsBackend.h"
@@ -45,6 +46,28 @@ namespace HIKARI::PHYSICS::JOLT_BACKEND {
             PhysicsBodyHandle body,
             PhysicsBodyState& outState) const override;
 
+        PhysicsCharacterCreateResult CreateCharacter(
+            const PhysicsCharacterCreateInfo& createInfo) override;
+        bool DestroyCharacter(
+            PhysicsCharacterHandle character) override;
+        bool SetCharacterPose(
+            PhysicsCharacterHandle character,
+            const PhysicsPose& pose) override;
+        bool SetCharacterVelocity(
+            PhysicsCharacterHandle character,
+            const MATH::Vec3& linearVelocity) override;
+        bool RefreshCharacterGroundVelocity(
+            PhysicsCharacterHandle character) override;
+        bool RefreshCharacterContacts(
+            PhysicsCharacterHandle character) override;
+        bool StepCharacter(
+            PhysicsCharacterHandle character,
+            float fixedDeltaSeconds,
+            const PhysicsCharacterStepSettings& settings) override;
+        bool TryGetCharacterState(
+            PhysicsCharacterHandle character,
+            PhysicsCharacterState& outState) const override;
+
         PhysicsStepResult Step(float fixedDeltaSeconds) override;
         PhysicsBackendStatistics GetStatistics()
             const noexcept override;
@@ -71,6 +94,14 @@ namespace HIKARI::PHYSICS::JOLT_BACKEND {
             std::vector<PhysicsShapeDesc> shapes{};
             PhysicsPose pendingKinematicTarget{};
             bool hasPendingKinematicTarget = false;
+        };
+
+        struct CharacterRecord {
+            uint32_t generation = 0;
+            bool occupied = false;
+            RuntimeObjectHandle object{};
+            PhysicsCharacterDesc desc{};
+            JPH::Ref<JPH::CharacterVirtual> character{};
         };
 
         struct ContactKey {
@@ -112,10 +143,22 @@ namespace HIKARI::PHYSICS::JOLT_BACKEND {
             JoltPhysicsBackend& owner_;
         };
 
+        class CharacterContactListener;
+        class CharacterBodyFilter;
+
         PhysicsBodyHandle AllocateHandle();
+        PhysicsCharacterHandle AllocateCharacterHandle();
         BodyRecord* FindRecord(PhysicsBodyHandle body) noexcept;
         const BodyRecord* FindRecord(PhysicsBodyHandle body) const noexcept;
         const BodyRecord* FindRecordFromUserData(uint64_t value) const noexcept;
+        CharacterRecord* FindCharacter(
+            PhysicsCharacterHandle character) noexcept;
+        const CharacterRecord* FindCharacter(
+            PhysicsCharacterHandle character) const noexcept;
+        const CharacterRecord* FindCharacter(
+            const JPH::CharacterVirtual* character) const noexcept;
+        const BodyRecord* FindRecordFromBodyId(
+            const JPH::BodyID& bodyId) const noexcept;
         const PhysicsShapeDesc* ResolveShape(
             const JPH::Body& body,
             const JPH::SubShapeID& subShapeId,
@@ -128,6 +171,16 @@ namespace HIKARI::PHYSICS::JOLT_BACKEND {
             const BodyRecord& body,
             uint32_t shapeIndex,
             const PhysicsQueryFilter& filter) const noexcept;
+        bool CharacterFilterAcceptsBody(
+            const PhysicsCharacterDesc& character,
+            const JPH::Body& body) const noexcept;
+        bool CharacterFilterAcceptsShape(
+            const PhysicsCharacterDesc& character,
+            const JPH::BodyID& bodyId,
+            const JPH::SubShapeID& subShapeId) const noexcept;
+        void FillCharacterState(
+            const CharacterRecord& record,
+            PhysicsCharacterState& outState) const noexcept;
 
         void ApplyContactSettings(
             const JPH::Body& body1,
@@ -157,6 +210,12 @@ namespace HIKARI::PHYSICS::JOLT_BACKEND {
         mutable std::mutex recordsMutex_{};
         std::vector<BodyRecord> bodyRecords_{};
         std::vector<uint32_t> freeSlots_{};
+        std::unordered_map<uint32_t, PhysicsBodyHandle> bodyIds_{};
+
+        std::vector<CharacterRecord> characterRecords_{};
+        std::vector<uint32_t> freeCharacterSlots_{};
+        std::unique_ptr<JPH::CharacterContactListener>
+            characterContactListener_{};
 
         mutable std::mutex contactMutex_{};
         std::vector<PhysicsContactEvent> pendingContactEvents_{};

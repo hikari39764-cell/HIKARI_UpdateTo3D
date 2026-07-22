@@ -56,16 +56,23 @@ namespace HIKARI {
                 ? runtimeStatus->FindBodyDebugShapes(
                     object.GetRuntimeHandle())
                 : nullptr;
-            if (runtimeShapes != nullptr && !runtimeShapes->empty()) {
+            // Collision assets expand into runtime-only shapes, so those must
+            // come from the physics cache. Manual and geometry-fitted
+            // colliders stay component-authored and must be drawn live;
+            // otherwise inspector edits keep showing the stale body cache
+            // until the next world rebuild.
+            if (runtimeShapes != nullptr) {
                 for (const PHYSICS::PhysicsShapeDesc& shape :
                         *runtimeShapes) {
+                    if (shape.key.sourceShapeId == 0u) {
+                        continue;
+                    }
                     DEBUG::DrawPhysicsShape(
                         bodyWorld,
                         shape,
                         ResolveShapeColor(shape.isTrigger, selected),
                         selected);
                 }
-                return;
             }
 
             uint32_t componentOrdinal = 0u;

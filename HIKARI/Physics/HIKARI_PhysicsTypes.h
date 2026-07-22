@@ -76,6 +76,27 @@ namespace HIKARI::PHYSICS {
             const PhysicsBodyHandle&) = default;
     };
 
+    struct PhysicsCharacterHandle {
+        static constexpr uint32_t InvalidSlot =
+            (std::numeric_limits<uint32_t>::max)();
+
+        uint32_t slot = InvalidSlot;
+        uint32_t generation = 0;
+
+        bool IsValid() const noexcept {
+            return slot != InvalidSlot && generation != 0;
+        }
+
+        uint64_t ToValue() const noexcept {
+            return (static_cast<uint64_t>(generation) << 32u) |
+                static_cast<uint64_t>(slot);
+        }
+
+        friend bool operator==(
+            const PhysicsCharacterHandle&,
+            const PhysicsCharacterHandle&) = default;
+    };
+
     struct PhysicsPose {
         MATH::Vec3 position{};
         MATH::Quat rotation = MATH::Quat::Identity();
@@ -174,6 +195,68 @@ namespace HIKARI::PHYSICS {
 
         bool Succeeded() const noexcept {
             return handle.IsValid() && error == PhysicsErrorCode::None;
+        }
+    };
+
+    enum class PhysicsCharacterGroundState : uint8_t {
+        OnGround,
+        OnSteepGround,
+        NotSupported,
+        InAir,
+    };
+
+    struct PhysicsCharacterDesc {
+        RuntimeObjectHandle object{};
+        std::vector<PhysicsShapeDesc> shapes{};
+        float mass = 70.0f;
+        float maxSlopeAngleRadians = 0.87266463f;
+        float characterPadding = 0.02f;
+        float predictiveContactDistance = 0.1f;
+        float penetrationRecoverySpeed = 1.0f;
+        uint32_t maxCollisionHits = 256u;
+        bool enhancedInternalEdgeRemoval = true;
+        PhysicsCollisionFilter filter{};
+    };
+
+    struct PhysicsCharacterCreateInfo {
+        PhysicsCharacterDesc character{};
+        PhysicsPose initialPose{};
+        MATH::Vec3 initialLinearVelocity{};
+    };
+
+    struct PhysicsCharacterCreateResult {
+        PhysicsCharacterHandle handle{};
+        PhysicsErrorCode error = PhysicsErrorCode::None;
+        std::string message{};
+        bool recoverable = false;
+
+        bool Succeeded() const noexcept {
+            return handle.IsValid() && error == PhysicsErrorCode::None;
+        }
+    };
+
+    struct PhysicsCharacterStepSettings {
+        MATH::Vec3 gravity{ 0.0f, -9.81f, 0.0f };
+        float stepUpHeight = 0.4f;
+        float stickToFloorDistance = 0.5f;
+        float stepForwardTestDistance = 0.15f;
+    };
+
+    struct PhysicsCharacterState {
+        PhysicsPose pose{};
+        MATH::Vec3 linearVelocity{};
+        MATH::Vec3 groundVelocity{};
+        MATH::Vec3 groundPosition{};
+        MATH::Vec3 groundNormal{ 0.0f, 1.0f, 0.0f };
+        RuntimeObjectHandle groundObject{};
+        PhysicsCharacterGroundState groundState =
+            PhysicsCharacterGroundState::InAir;
+        bool hitWall = false;
+        bool hitCeiling = false;
+        bool maxHitsExceeded = false;
+
+        bool IsGrounded() const noexcept {
+            return groundState == PhysicsCharacterGroundState::OnGround;
         }
     };
 
@@ -280,6 +363,7 @@ namespace HIKARI::PHYSICS {
         bool overlap = false;
         bool continuousCollision = false;
         bool triggerEvents = false;
+        bool virtualCharacters = false;
     };
 
 } // namespace HIKARI::PHYSICS

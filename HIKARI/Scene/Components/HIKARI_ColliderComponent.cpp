@@ -11,6 +11,7 @@
 #include "Assets/HIKARI_AssetTypes.h"
 #include "Core/HIKARI_JsonRead.h"
 #include "Editor/Inspectors/HIKARI_IInspectorBuilder.h"
+#include "Editor/Inspectors/HIKARI_PhysicsCollisionFilterInspector.h"
 #include "Physics/HIKARI_PhysicsBodyValidator.h"
 #include "Physics/HIKARI_PhysicsProjectSettings.h"
 #include "Physics/HIKARI_PhysicsRuntimeStatusService.h"
@@ -249,72 +250,10 @@ namespace HIKARI {
         builder.Float("Friction", friction_);
         builder.Float("Restitution", restitution_);
         builder.Float("Density", density_);
-        if (projectSettings != nullptr &&
-            !projectSettings->GetLayers().empty()) {
-            std::vector<const char*> layerNames{};
-            for (const PHYSICS::PhysicsCollisionLayerSetting& layer :
-                    projectSettings->GetLayers()) {
-                layerNames.push_back(layer.name.c_str());
-            }
-            int selectedLayer = projectSettings->FindLayerIndex(
-                collisionLayer_);
-            int layerIndexOffset = 0;
-            std::string unmappedLayerName{};
-            if (selectedLayer < 0) {
-                unmappedLayerName = "Unmapped (" +
-                    std::to_string(collisionLayer_) + ")";
-                layerNames.insert(
-                    layerNames.begin(),
-                    unmappedLayerName.c_str());
-                selectedLayer = 0;
-                layerIndexOffset = 1;
-            }
-            if (builder.Choice(
-                    "Collision Layer",
-                    selectedLayer,
-                layerNames)) {
-                const int configuredLayerIndex =
-                    selectedLayer - layerIndexOffset;
-                if (configuredLayerIndex >= 0) {
-                    collisionLayer_ = projectSettings->GetLayers()[
-                        static_cast<size_t>(configuredLayerIndex)].bit;
-                }
-            }
-            const int activeLayerIndex =
-                projectSettings->FindLayerIndex(collisionLayer_);
-            if (activeLayerIndex >= 0) {
-                if (builder.Button("Use Layer Default Mask")) {
-                    collisionMask_ = projectSettings->GetLayers()[
-                        static_cast<size_t>(activeLayerIndex)].defaultMask;
-                }
-            } else {
-                builder.Text(
-                    "This layer is not present in ProjectSettings/Physics/collision.json.");
-            }
-            for (const PHYSICS::PhysicsCollisionLayerSetting& layer :
-                    projectSettings->GetLayers()) {
-                bool enabled = (collisionMask_ & layer.bit) != 0u;
-                if (builder.Bool(
-                        "Collides With " + layer.name,
-                        enabled)) {
-                    if (enabled) {
-                        collisionMask_ |= layer.bit;
-                    } else {
-                        collisionMask_ &= ~layer.bit;
-                    }
-                }
-            }
-        } else {
-            int layer = static_cast<int>(collisionLayer_);
-            int mask = static_cast<int>(collisionMask_);
-            if (builder.Int("Collision Layer", layer)) {
-                collisionLayer_ = static_cast<uint32_t>(
-                    (std::max)(layer, 0));
-            }
-            if (builder.Int("Collision Mask", mask)) {
-                collisionMask_ = static_cast<uint32_t>(mask);
-            }
-        }
+        DrawPhysicsCollisionFilterInspector(
+            builder,
+            collisionLayer_,
+            collisionMask_);
         ClampSettings();
 
         const auto* statusService = context.worldServices != nullptr
