@@ -12,7 +12,7 @@ namespace HIKARI {
     namespace {
         constexpr float kDegreesToRadians = 0.01745329252f;
         constexpr std::array<const char*, 3> kMovementSpaces{
-            "World", "Camera", "Object"
+            "World Axes", "Camera Relative", "Object Local"
         };
 
         const char* ToString(CharacterMovementSpace space) noexcept {
@@ -78,8 +78,11 @@ namespace HIKARI {
         out["acceleration"] = acceleration_;
         out["deceleration"] = deceleration_;
         out["airAcceleration"] = airAcceleration_;
+        out["airDeceleration"] = airDeceleration_;
         out["turnSpeedDegrees"] = turnSpeedDegrees_;
         out["jumpHeight"] = jumpHeight_;
+        out["jumpBufferSeconds"] = jumpBufferSeconds_;
+        out["groundGraceSeconds"] = groundGraceSeconds_;
         out["maximumFallSpeed"] = maximumFallSpeed_;
         out["maximumSlopeAngleDegrees"] = maximumSlopeAngleDegrees_;
         out["stepHeight"] = stepHeight_;
@@ -112,9 +115,15 @@ namespace HIKARI {
         deceleration_ = in.value("deceleration", deceleration_);
         airAcceleration_ = in.value(
             "airAcceleration", airAcceleration_);
+        airDeceleration_ = in.value(
+            "airDeceleration", airDeceleration_);
         turnSpeedDegrees_ = in.value(
             "turnSpeedDegrees", turnSpeedDegrees_);
         jumpHeight_ = in.value("jumpHeight", jumpHeight_);
+        jumpBufferSeconds_ = in.value(
+            "jumpBufferSeconds", jumpBufferSeconds_);
+        groundGraceSeconds_ = in.value(
+            "groundGraceSeconds", groundGraceSeconds_);
         maximumFallSpeed_ = in.value(
             "maximumFallSpeed", maximumFallSpeed_);
         maximumSlopeAngleDegrees_ = in.value(
@@ -152,13 +161,20 @@ namespace HIKARI {
             movementSpace_ = static_cast<CharacterMovementSpace>(
                 (std::clamp)(movementSpace, 0, 2));
         }
+        if (builder.Button("Use Third-Person Movement")) {
+            movementSpace_ = CharacterMovementSpace::Camera;
+            rotateToMove_ = true;
+        }
         builder.Float("Maximum Speed", maximumSpeed_);
         builder.Float("Sprint Multiplier", sprintMultiplier_);
-        builder.Float("Acceleration", acceleration_);
-        builder.Float("Deceleration", deceleration_);
+        builder.Float("Ground Acceleration", acceleration_);
+        builder.Float("Ground Deceleration", deceleration_);
         builder.Float("Air Acceleration", airAcceleration_);
+        builder.Float("Air Deceleration", airDeceleration_);
         builder.Float("Turn Speed (deg/s)", turnSpeedDegrees_);
         builder.Float("Jump Height", jumpHeight_);
+        builder.Float("Jump Buffer Time (s)", jumpBufferSeconds_);
+        builder.Float("Ground Grace Time (s)", groundGraceSeconds_);
         builder.Float("Maximum Fall Speed", maximumFallSpeed_);
         builder.FloatRange(
             "Maximum Slope (deg)",
@@ -233,8 +249,11 @@ namespace HIKARI {
         acceleration_ = (std::max)(acceleration_, 0.0f);
         deceleration_ = (std::max)(deceleration_, 0.0f);
         airAcceleration_ = (std::max)(airAcceleration_, 0.0f);
+        airDeceleration_ = (std::max)(airDeceleration_, 0.0f);
         turnSpeedDegrees_ = (std::max)(turnSpeedDegrees_, 0.0f);
         jumpHeight_ = (std::max)(jumpHeight_, 0.0f);
+        jumpBufferSeconds_ = (std::max)(jumpBufferSeconds_, 0.0f);
+        groundGraceSeconds_ = (std::max)(groundGraceSeconds_, 0.0f);
         maximumFallSpeed_ = (std::max)(maximumFallSpeed_, 0.0f);
         maximumSlopeAngleDegrees_ = (std::clamp)(
             maximumSlopeAngleDegrees_, 0.0f, 89.0f);

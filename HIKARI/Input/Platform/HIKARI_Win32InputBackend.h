@@ -6,7 +6,13 @@ namespace HIKARI::INPUT {
 
 class Win32InputBackend final : public IInputBackend {
 public:
+    ~Win32InputBackend() override;
+
     void SetHostWindow(void* nativeWindow) override;
+    void SetMouseCaptureMode(MouseCaptureMode mode) override;
+    MouseCaptureMode GetMouseCaptureMode() const noexcept override {
+        return mouseCaptureMode_;
+    }
     void SetExternalMouseWheel(float delta) override;
     void Reset() override;
     void Poll(InputDeviceState& out) override;
@@ -30,9 +36,15 @@ public:
         float highFrequency) override;
 
 private:
+    void ReleaseRelativeMouseCapture() noexcept;
+
     void* hostWindow_ = nullptr;
+    MouseCaptureMode mouseCaptureMode_ = MouseCaptureMode::Free;
     float externalWheel_ = 0.0f;
     bool hasPreviousMouse_ = false;
+    bool relativeMouseActive_ = false;
+    bool relativeMousePrimed_ = false;
+    bool cursorHiddenByBackend_ = false;
     long previousMouseX_ = 0;
     long previousMouseY_ = 0;
 };

@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <iterator>
+#include <utility>
 
 namespace HIKARI::GAMEPLAY {
 
@@ -49,22 +50,7 @@ namespace HIKARI::GAMEPLAY {
         MotionIntent& outIntent,
         MotionIntentSourceId* outSource) {
         outIntent = {};
-        const auto actor = intents_.find(object.ToValue());
-        if (!object.IsValid() || actor == intents_.end()) {
-            return false;
-        }
-
-        IntentSlot* selected = nullptr;
-        for (IntentSlot& slot : actor->second) {
-            if (slot.submittedFrame != frameIndex) {
-                continue;
-            }
-            if (selected == nullptr || slot.priority > selected->priority ||
-                (slot.priority == selected->priority &&
-                    slot.source < selected->source)) {
-                selected = &slot;
-            }
-        }
+        IntentSlot* selected = FindSelectedSlot(object, frameIndex);
         if (selected == nullptr) {
             return false;
         }
@@ -76,6 +62,58 @@ namespace HIKARI::GAMEPLAY {
             *outSource = selected->source;
         }
         return true;
+    }
+
+    bool MotionIntentService::PeekIntent(
+        RuntimeObjectHandle object,
+        uint64_t frameIndex,
+        MotionIntent& outIntent,
+        MotionIntentSourceId* outSource) const {
+        outIntent = {};
+        const IntentSlot* selected = FindSelectedSlot(object, frameIndex);
+        if (selected == nullptr) {
+            return false;
+        }
+
+        outIntent = selected->intent;
+        outIntent.jumpPressed = selected->jumpLatched;
+        if (outSource != nullptr) {
+            *outSource = selected->source;
+        }
+        return true;
+    }
+
+    MotionIntentService::IntentSlot* MotionIntentService::FindSelectedSlot(
+        RuntimeObjectHandle object,
+        uint64_t frameIndex) noexcept {
+        return const_cast<IntentSlot*>(
+            std::as_const(*this).FindSelectedSlot(object, frameIndex));
+    }
+
+    const MotionIntentService::IntentSlot*
+    MotionIntentService::FindSelectedSlot(
+        RuntimeObjectHandle object,
+        uint64_t frameIndex) const noexcept {
+        if (!object.IsValid()) {
+            return nullptr;
+        }
+        const auto actor = intents_.find(object.ToValue());
+        if (actor == intents_.end()) {
+            return nullptr;
+        }
+
+        const IntentSlot* selected = nullptr;
+        for (const IntentSlot& slot : actor->second) {
+            if (slot.submittedFrame != frameIndex) {
+                continue;
+            }
+            if (selected == nullptr || slot.priority > selected->priority ||
+                (slot.priority == selected->priority &&
+                    slot.source < selected->source)) {
+                selected = &slot;
+            }
+        }
+        return selected;
     }
 
     void MotionIntentService::Remove(

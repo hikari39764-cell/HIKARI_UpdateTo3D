@@ -1987,6 +1987,12 @@ namespace HIKARI {
                         continue;
                     }
 
+                    const std::string interpolation = sampler.value(
+                        "interpolation",
+                        "LINEAR");
+                    const bool cubicSpline =
+                        interpolation == "CUBICSPLINE";
+
                     NodeAnimationChannel channel{};
                     channel.targetNode = ch["target"].value("node", -1);
                     const std::string path = ch["target"].value("path", "translation");
@@ -1996,17 +2002,36 @@ namespace HIKARI {
                         if (!readAccessorFloats(outputAccessor, 4, values, nullptr)) {
                             continue;
                         }
-                        const size_t keyCount = std::min(times.size(), values.size() / 4u);
+                        const size_t valueStride = cubicSpline ? 12u : 4u;
+                        const size_t keyCount = std::min(
+                            times.size(),
+                            values.size() / valueStride);
                         channel.quatKeys.reserve(keyCount);
                         for (size_t i = 0; i < keyCount; ++i) {
                             AnimationKeyframe<MATH::Quat> key{};
                             key.timeSec = times[i];
+                            const size_t base = i * valueStride;
+                            const size_t valueOffset = cubicSpline ? 4u : 0u;
                             key.value = {
-                                values[i * 4u + 0u],
-                                values[i * 4u + 1u],
-                                values[i * 4u + 2u],
-                                values[i * 4u + 3u]
+                                values[base + valueOffset + 0u],
+                                values[base + valueOffset + 1u],
+                                values[base + valueOffset + 2u],
+                                values[base + valueOffset + 3u]
                             };
+                            if (cubicSpline) {
+                                key.inTangent = {
+                                    values[base + 0u],
+                                    values[base + 1u],
+                                    values[base + 2u],
+                                    values[base + 3u]
+                                };
+                                key.outTangent = {
+                                    values[base + 8u],
+                                    values[base + 9u],
+                                    values[base + 10u],
+                                    values[base + 11u]
+                                };
+                            }
                             channel.quatKeys.push_back(key);
                             if (key.timeSec > clip.durationSec) {
                                 clip.durationSec = key.timeSec;
@@ -2018,16 +2043,33 @@ namespace HIKARI {
                         if (!readAccessorFloats(outputAccessor, 3, values, nullptr)) {
                             continue;
                         }
-                        const size_t keyCount = std::min(times.size(), values.size() / 3u);
+                        const size_t valueStride = cubicSpline ? 9u : 3u;
+                        const size_t keyCount = std::min(
+                            times.size(),
+                            values.size() / valueStride);
                         channel.vec3Keys.reserve(keyCount);
                         for (size_t i = 0; i < keyCount; ++i) {
                             AnimationKeyframe<MATH::Vec3> key{};
                             key.timeSec = times[i];
+                            const size_t base = i * valueStride;
+                            const size_t valueOffset = cubicSpline ? 3u : 0u;
                             key.value = {
-                                values[i * 3u + 0u],
-                                values[i * 3u + 1u],
-                                values[i * 3u + 2u]
+                                values[base + valueOffset + 0u],
+                                values[base + valueOffset + 1u],
+                                values[base + valueOffset + 2u]
                             };
+                            if (cubicSpline) {
+                                key.inTangent = {
+                                    values[base + 0u],
+                                    values[base + 1u],
+                                    values[base + 2u]
+                                };
+                                key.outTangent = {
+                                    values[base + 6u],
+                                    values[base + 7u],
+                                    values[base + 8u]
+                                };
+                            }
                             channel.vec3Keys.push_back(key);
                             if (key.timeSec > clip.durationSec) {
                                 clip.durationSec = key.timeSec;
@@ -2035,7 +2077,6 @@ namespace HIKARI {
                         }
                     }
 
-                    const std::string interpolation = sampler.value("interpolation", "LINEAR");
                     if (interpolation == "STEP") {
                         channel.interpolation = AnimationInterpolation::Step;
                     } else if (interpolation == "CUBICSPLINE") {

@@ -12,6 +12,7 @@ namespace HIKARI::GAMEPLAY {
         kPlayerInputMotionSource = 1u;
 
     struct MotionIntent {
+        // Local control axes: +X is right and +Y is forward.
         MATH::Vec2 move{};
         MATH::Vec2 look{};
         bool jumpPressed = false;

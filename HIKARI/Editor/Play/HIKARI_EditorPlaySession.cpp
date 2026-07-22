@@ -11,7 +11,7 @@ namespace HIKARI::EDITOR {
     EditorPlaySession::~EditorPlaySession() {
         standaloneSession_.Stop();
     }
-
+	// エディタ内でのプレイを開始するリクエストを処理します。プレイセッションの状態を更新し、必要に応じてプレイモードをInProcessに設定します。
     void EditorPlaySession::RequestInProcessStart() {
         if (IsRunning() || state_ == EditorPlayState::Starting) {
             return;
@@ -19,7 +19,7 @@ namespace HIKARI::EDITOR {
         pendingAction_ = PendingAction::StartInProcess;
         statusMessage_ = "Play in New Window requested.";
     }
-
+	// スタンドアロンモードでのプレイを開始するリクエストを処理します。プロジェクトのルートパスと起動シーンのGUIDを受け取り、プレイセッションの状態を更新します。
     void EditorPlaySession::RequestStandaloneStart(
         const std::filesystem::path& projectRoot,
         const std::string& startupSceneGuid) {
@@ -31,7 +31,7 @@ namespace HIKARI::EDITOR {
         pendingAction_ = PendingAction::StartStandalone;
         statusMessage_ = "Standalone Game requested.";
     }
-
+	// プレイセッションの停止をリクエストします。停止理由を指定し、プレイセッションの状態を更新します。すでに停止中または停止要求中の場合は何も行いません。
     void EditorPlaySession::RequestStop(PlayStopReason reason) {
         if (mode_ == EditorPlayMode::None &&
             state_ != EditorPlayState::Starting) {
@@ -46,7 +46,7 @@ namespace HIKARI::EDITOR {
         state_ = EditorPlayState::StopRequested;
         statusMessage_ = "Stopping Play...";
     }
-
+	//  プレイセッションの状態を更新します。シーンを引数として受け取り、現在のプレイモードに応じて適切な処理を行います
     void EditorPlaySession::Update(DocumentSceneBase& scene) {
         UpdateStandaloneState(scene);
 
@@ -80,7 +80,7 @@ namespace HIKARI::EDITOR {
             break;
         }
     }
-
+	// プレイセッションをシャットダウンします。シーンを引数として受け取り、現在のプレイモードに応じて適切な処理を行い、プレイセッションの状態をリセットします。
     void EditorPlaySession::Shutdown(DocumentSceneBase* scene) {
         pendingAction_ = PendingAction::None;
         if (mode_ == EditorPlayMode::InProcess) {
@@ -96,7 +96,7 @@ namespace HIKARI::EDITOR {
         mode_ = EditorPlayMode::None;
         state_ = EditorPlayState::Stopped;
     }
-
+	// スタンドアロンモードのプレイセッションが終了するまで待機します。タイムアウト時間をミリ秒単位で指定し、終了した場合はtrue、タイムアウトした場合はfalseを返します。
     bool EditorPlaySession::WaitForStandaloneExit(
         uint32_t timeoutMilliseconds) const {
         if (!IsStandaloneRunning()) {
@@ -163,7 +163,7 @@ namespace HIKARI::EDITOR {
         state_ = EditorPlayState::Running;
         statusMessage_ = standaloneSession_.GetStatusMessage();
     }
-
+	// In-processプレイセッションの停止を進めます。シーンを引数として受け取り、現在の停止状態に応じて適切な処理を行います。プレイセッションの状態を更新し、必要に応じてエディタのプレゼンテーションを復元します。
     void EditorPlaySession::AdvanceInProcessStop(DocumentSceneBase& scene) {
         if (state_ == EditorPlayState::StopRequested) {
             if (!SERVICES::BeginInProcessGamePresentationStop()) {

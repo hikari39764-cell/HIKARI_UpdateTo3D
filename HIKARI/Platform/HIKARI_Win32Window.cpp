@@ -113,6 +113,25 @@ bool Win32Window::SetTitle(const wchar_t* title) {
         SetWindowTextW(hwnd_, title) != FALSE;
 }
 
+bool Win32Window::RefreshClientSize() {
+    if (hwnd_ == nullptr) {
+        return false;
+    }
+    RECT clientRect{};
+    if (GetClientRect(hwnd_, &clientRect) == FALSE) {
+        return false;
+    }
+    const int clientWidth = clientRect.right - clientRect.left;
+    const int clientHeight = clientRect.bottom - clientRect.top;
+    if (clientWidth <= 0 || clientHeight <= 0) {
+        return false;
+    }
+    width_ = clientWidth;
+    height_ = clientHeight;
+    isMinimized_ = IsIconic(hwnd_) != FALSE;
+    return !isMinimized_;
+}
+
 bool Win32Window::ApplyWindowMode(WindowMode mode, int clientWidth, int clientHeight) {
     if (!hwnd_) {
         return false;

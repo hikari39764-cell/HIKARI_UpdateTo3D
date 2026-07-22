@@ -5,7 +5,9 @@
 namespace HIKARI {
 
     namespace {
+		// -------- メッシュバッファ作成の共通処理 --------
         template<class TVertex>
+		// 指定された頂点とインデックスのデータを GPU に転送し、バッファビューを設定します。
         bool CreateMeshBuffers(
             ID3D12Device* device,
             const std::vector<TVertex>& vertices,
@@ -72,27 +74,27 @@ namespace HIKARI {
             return true;
         }
     }
-
+	// -------- メッシュ作成の共通処理 --------
     bool Mesh::CreateStatic(ID3D12Device* device, const std::vector<VertexStatic3D>& vertices, const std::vector<uint32_t>& indices) {
         return CreateMeshBuffers(device, vertices, indices, vertexBuffer_, indexBuffer_, vbView_, ibView_, indexCount_);
     }
-
+	// -------- スキンメッシュ作成の共通処理 --------
     bool Mesh::CreateSkinned(ID3D12Device* device, const std::vector<VertexSkinnedGpu3D>& vertices, const std::vector<uint32_t>& indices) {
         return CreateMeshBuffers(device, vertices, indices, vertexBuffer_, indexBuffer_, vbView_, ibView_, indexCount_);
     }
-
+	// -------- メッシュの有効性チェック --------
     bool Mesh::IsValid() const {
         return vertexBuffer_ && indexBuffer_ && indexCount_ > 0;
     }
-
+	// -------- 頂点バッファビューの取得 --------
     const D3D12_VERTEX_BUFFER_VIEW& Mesh::GetVBView() const {
         return vbView_;
     }
-
+	// -------- インデックスバッファビューの取得 --------
     const D3D12_INDEX_BUFFER_VIEW& Mesh::GetIBView() const {
         return ibView_;
     }
-
+	// -------- インデックス数の取得 --------
     uint32_t Mesh::GetIndexCount() const {
         return indexCount_;
     }

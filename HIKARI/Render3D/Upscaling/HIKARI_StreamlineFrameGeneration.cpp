@@ -144,34 +144,23 @@ namespace HIKARI::RENDER3D::UPSCALING {
                 std::string(operation) + ": " + state.stats.lastResult);
         }
 
-        std::string DescribeStatusFlags(uint32_t flags) {
-            if (flags == 0u) {
-                return {};
-            }
-            std::string result;
-            auto append = [&result](const char* value) {
-                if (!result.empty()) {
-                    result += ", ";
-                }
-                result += value;
-            };
-            if ((flags & (1u << 0)) != 0u) append("resolution too low");
-            if ((flags & (1u << 1)) != 0u) append("Reflex inactive");
-            if ((flags & (1u << 2)) != 0u) append("HDR format unsupported");
-            if ((flags & (1u << 3)) != 0u) append("common constants invalid");
-            if ((flags & (1u << 4)) != 0u) append("back-buffer index missing");
-            if ((flags & ~0x1Fu) != 0u) append("unknown SDK status");
-            return result;
-        }
-
         bool NeedsConfiguration(
             const INTERNAL::StreamlineFrameGenerationRuntimeState& state,
             const TEMPORAL::TemporalInputs& temporal,
             const RenderTarget2D& hudless,
             const RenderTarget2D& ui) {
+            const uint32_t supportedFrames =
+                state.stats.stateValid && state.stats.maxGeneratedFrames > 0
+                ? state.stats.maxGeneratedFrames
+                : 1u;
+            const uint32_t requestedGeneratedFrames = std::clamp(
+                state.settings.generatedFrames,
+                1u,
+                supportedFrames);
             return
                 !state.stats.optionsConfigured ||
                 !SameSettings(state.settings, state.configuredSettings) ||
+                state.configuredGeneratedFrames != requestedGeneratedFrames ||
                 state.configuredRenderWidth != temporal.frame.renderWidth ||
                 state.configuredRenderHeight != temporal.frame.renderHeight ||
                 state.configuredOutputWidth !=
@@ -265,8 +254,11 @@ namespace HIKARI::RENDER3D::UPSCALING {
             frameGeneration.configuredMotionFormat = temporal.motionVectors.format;
             frameGeneration.configuredHudlessFormat = hudless.GetFormat();
             frameGeneration.configuredUiFormat = ui.GetFormat();
+            frameGeneration.configuredGeneratedFrames =
+                options.numFramesToGenerate;
             frameGeneration.stats.optionsConfigured = true;
             frameGeneration.resourcesReleased = false;
+            frameGeneration.completionStateCapturedAfterPresent = false;
             SetStatus(
                 frameGeneration.stats,
                 frameGeneration.settings.enabled
@@ -284,42 +276,6 @@ namespace HIKARI::RENDER3D::UPSCALING {
             return true;
         }
 
-        bool RefreshState(
-            INTERNAL::StreamlineState& state,
-            const TEMPORAL::TemporalInputs& temporal,
-            const RenderTarget2D& hudless,
-            const sl::DLSSGOptions* options = nullptr) {
-            sl::DLSSGState nativeState{};
-            const sl::Result result = slDLSSGGetState(
-                state.viewport,
-                nativeState,
-                options);
-            if (result != sl::Result::eOk) {
-                RecordFailure(
-                    state,
-                    "slDLSSGGetState",
-                    result,
-                    temporal,
-                    hudless);
-                state.frameGeneration.stats.stateValid = false;
-                return false;
-            }
-            StreamlineFrameGenerationStats& stats =
-                state.frameGeneration.stats;
-            stats.stateValid = true;
-            stats.estimatedVramBytes = nativeState.estimatedVRAMUsageInBytes;
-            stats.statusFlags = static_cast<uint32_t>(nativeState.status);
-            stats.presentedFrames = nativeState.numFramesActuallyPresented;
-            stats.maxGeneratedFrames = nativeState.numFramesToGenerateMax;
-            if (stats.statusFlags != 0u) {
-                SetStatus(
-                    stats,
-                    StreamlineFrameGenerationStatus::SdkRejectedInputs,
-                    DescribeStatusFlags(stats.statusFlags));
-                return false;
-            }
-            return true;
-        }
     }
 #endif
 
@@ -496,22 +452,8 @@ namespace HIKARI::RENDER3D::UPSCALING {
             }
         }
 
-        if (!stats.stateValid) {
-            sl::DLSSGOptions probeOptions = BuildOptions(
-                frameGeneration,
-                temporal,
-                hudlessColor,
-                uiColorAndAlpha);
-            probeOptions.flags |= sl::DLSSGFlags::eRequestVRAMEstimate;
-            (void)RefreshState(
-                state,
-                temporal,
-                hudlessColor,
-                &probeOptions);
-            if (stats.status ==
-                StreamlineFrameGenerationStatus::SdkRejectedInputs) {
-                return false;
-            }
+        if (stats.stateValid && stats.statusFlags != 0u) {
+            return false;
         }
 
         if (stats.retryPending &&
@@ -543,9 +485,6 @@ namespace HIKARI::RENDER3D::UPSCALING {
             }
         }
 
-        if (!RefreshState(state, temporal, hudlessColor)) {
-            return false;
-        }
         if (!frameGeneration.settings.enabled) {
             SetStatus(stats, StreamlineFrameGenerationStatus::Disabled);
             return true;
@@ -600,6 +539,7 @@ namespace HIKARI::RENDER3D::UPSCALING {
             return false;
         }
         stats.tagsSubmitted = true;
+        frameGeneration.completionStateCapturedAfterPresent = false;
         SetStatus(stats, StreamlineFrameGenerationStatus::Active);
         return true;
 #endif
@@ -626,6 +566,14 @@ namespace HIKARI::RENDER3D::UPSCALING {
         }
 
         bool success = true;
+        if (releaseResources &&
+            !frameGeneration.resourcesReleased &&
+            !frameGeneration.completionStateCapturedAfterPresent &&
+            !CaptureStreamlineFrameGenerationCompletionAfterPresent()) {
+            HIKARI_LOG_ERROR(
+                "[Streamline] DLSS-G resource release blocked because the last Present completion state could not be captured.");
+            return false;
+        }
         if (frameGeneration.stats.optionsConfigured) {
             sl::DLSSGOptions options{};
             options.mode = sl::DLSSGMode::eOff;
@@ -646,6 +594,11 @@ namespace HIKARI::RENDER3D::UPSCALING {
             }
         }
         if (releaseResources && !frameGeneration.resourcesReleased) {
+            if (!WaitForStreamlineFrameGenerationInputs()) {
+                HIKARI_LOG_ERROR(
+                    "[Streamline] DLSS-G resource release blocked because input processing did not finish.");
+                return false;
+            }
             if (!INTERNAL::RecordResult(
                 state,
                 "slFreeResources(DLSS-G)",
@@ -655,6 +608,9 @@ namespace HIKARI::RENDER3D::UPSCALING {
                 success = false;
             } else {
                 frameGeneration.resourcesReleased = true;
+                frameGeneration.inputsProcessingCompletionFence = nullptr;
+                frameGeneration.inputsProcessingCompletionFenceValue = 0;
+                frameGeneration.completionStateCapturedAfterPresent = false;
             }
         }
         if (!success) {

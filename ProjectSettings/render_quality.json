@@ -1,6 +1,6 @@
 {
   "renderQuality": {
-    "antiAliasingMode": "DLSS",
+    "antiAliasingMode": "DLAA",
     "dlssQualityMode": "UltraPerformance",
     "forwardCostMode": "Full",
     "frameGenerationMode": "Off",

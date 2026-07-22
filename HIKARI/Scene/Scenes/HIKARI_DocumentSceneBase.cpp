@@ -550,6 +550,7 @@ namespace HIKARI {
     void DocumentSceneBase::OnExit() {
         sequencePlaybackService_.Reset();
         currentCameraSequenceHandle_ = {};
+        cameraRigService_.Clear();
         sequenceAssetStore_.Clear();
         systemScheduler_.DetachWorld(world_);
         systemScheduler_.Clear();
@@ -569,6 +570,7 @@ namespace HIKARI {
             fixedStepClock_.SetSettings(settings);
         }
         world_.BeginFrame(frame.frameIndex);
+        cameraRigService_.BeginFrame(frame.frameIndex);
         if (runtimePlayActive_ && runtimePreviewCameraActive_) {
             runtimePreviewCamera_.Update(
                 dt,
@@ -1581,6 +1583,7 @@ namespace HIKARI {
         gameplayCamera_ = editorCameraSnapshot_;
         sequencePlaybackService_.Reset();
         currentCameraSequenceHandle_ = {};
+        cameraRigService_.Clear();
         cameraDirector_.Reset();
         cameraDirector_.SetBaseCamera(
             sceneDocument_.camera.defaultCameraObjectId.value_or(SceneObjectId{}));
@@ -1631,6 +1634,7 @@ namespace HIKARI {
         sequencePlaybackService_.Reset();
         currentCameraSequenceHandle_ = {};
         cameraDirector_.Reset();
+        cameraRigService_.Clear();
         bool restored = editorSceneDocumentSnapshotValid_;
         if (editorSceneDocumentSnapshotValid_) {
             sceneDocument_ = std::move(editorSceneDocumentSnapshot_);
@@ -1793,6 +1797,7 @@ namespace HIKARI {
         sequencePlaybackService_.Reset();
         currentCameraSequenceHandle_ = {};
         cameraDirector_.Reset();
+        cameraRigService_.Clear();
         sceneDocument_ = SceneDocument{};
         ++sceneDocumentRevision_;
         sceneDocument_.sceneName = "Untitled Scene";
@@ -2921,7 +2926,12 @@ namespace HIKARI {
         success = services.Register(sequencePlaybackService_) && success;
         success = services.Register(runtimePlayStateService_) && success;
         success = services.Register(gameplayCameraService_) && success;
+        success = services.Register(cameraDirector_) && success;
+        success = services.Register(cameraRigService_) && success;
+        success = services.Register(animationPoseService_) && success;
         success = services.Register(motionIntentService_) && success;
+        success = services.Register(characterMotionStateService_) &&
+            success;
         success = services.Register(kinematicMotionService_) && success;
         success = services.Register(presentationTransformService_) &&
             success;
@@ -3042,7 +3052,9 @@ namespace HIKARI {
                 continue;
             }
             const auto* follow = object->GetComponent<CameraFollowComponent>();
-            if (follow != nullptr && follow->IsEnabled()) {
+            const auto* camera = object->GetComponent<CameraComponent>();
+            if (follow != nullptr && follow->IsEnabled() &&
+                camera != nullptr && camera->IsEnabled()) {
                 return true;
             }
         }

@@ -177,12 +177,16 @@ namespace HIKARI::PHYSICS {
             if (onGround && relativeVertical < 0.1f) {
                 velocity = before.groundVelocity +
                     request.horizontalVelocity;
-                if (request.jumpRequested && request.jumpSpeed > 0.0f) {
-                    velocity.y += request.jumpSpeed;
-                }
             } else {
                 velocity = request.horizontalVelocity;
                 velocity.y = before.linearVelocity.y;
+            }
+            const bool canApplyJump = onGround ||
+                request.allowJumpWithoutGroundContact;
+            if (request.jumpRequested && canApplyJump &&
+                request.jumpSpeed > 0.0f) {
+                velocity.y = request.jumpSpeed +
+                    (onGround ? before.groundVelocity.y : 0.0f);
             }
             velocity = velocity + gravity * frame.fixedDt;
             if (request.maximumFallSpeed > 0.0f) {

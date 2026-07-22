@@ -37,7 +37,7 @@ if ($recordResult -notmatch $resourcePressurePattern) {
 }
 
 $submitFrameGeneration = Get-CppFunctionBody $frameGeneration 'bool SubmitStreamlineFrameGenerationInputs('
-$pressureReleasePattern = '(?s)const bool releaseFrameGenerationResources\s*=\s*state\.stats\.status\s*==\s*StreamlineRuntimeStatus::ResourcePressure;.*?SuspendStreamlineFrameGeneration\(\s*releaseFrameGenerationResources\);'
+$pressureReleasePattern = '(?s)const bool releaseFrameGenerationResources\s*=\s*state\.stats\.status\s*==\s*StreamlineRuntimeStatus::ResourcePressure;.*?DeactivateStreamlineFrameGeneration\(\s*releaseFrameGenerationResources\);'
 if ($submitFrameGeneration -notmatch $pressureReleasePattern) {
     throw 'DLSS resource pressure must release retained frame-generation resources before retry.'
 }

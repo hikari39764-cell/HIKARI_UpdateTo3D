@@ -1,8 +1,8 @@
 #pragma once
 
-#include <string_view>
 #include <vector>
 
+#include "Animation/Runtime/HIKARI_AnimationPose.h"
 #include "Render3D/Core/HIKARI_ModelAsset.h"
 #include "Render3D/Runtime/HIKARI_RenderModelAsset.h"
 
@@ -13,9 +13,7 @@ namespace HIKARI::RENDER3D::RUNTIME {
     std::vector<MATH::Mat4> BuildRenderModelNodeGlobals(
         const RenderModelAsset& renderModel,
         const ModelAsset* model,
-        std::string_view animationClipName,
-        float animationTimeSec,
-        bool animationLoop);
+        const ANIMATION::AnimationLocalPose& pose);
 
     bool ResolveRenderSurfaceDrawWorldMatrix(
         const Transform3D& objectWorldTransform,

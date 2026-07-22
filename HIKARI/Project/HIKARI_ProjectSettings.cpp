@@ -3,6 +3,7 @@
 #include <filesystem>
 #include <fstream>
 #include <algorithm>
+#include <iterator>
 #include <unordered_set>
 #include <utility>
 
@@ -43,7 +44,8 @@ namespace HIKARI {
         }
 
         settings_ = ProjectSettings{};
-        settings_.version = (std::max)(root.value("version", 1u), 2u);
+        const uint32_t sourceVersion = root.value("version", 1u);
+        settings_.version = (std::max)(sourceVersion, 3u);
         settings_.startupSceneGuid.value = root.value("startupSceneGuid", std::string{});
         if (root.contains("enabledRuntimeFeatures") &&
             root["enabledRuntimeFeatures"].is_array()) {
@@ -59,6 +61,23 @@ namespace HIKARI {
                     settings_.enabledRuntimeFeatures.push_back(
                         std::move(featureId));
                 }
+            }
+        }
+        if (sourceVersion < 3u) {
+            const auto rendering = std::find(
+                settings_.enabledRuntimeFeatures.begin(),
+                settings_.enabledRuntimeFeatures.end(),
+                RuntimeFeatureIds::Rendering);
+            const bool hasAnimation = std::find(
+                settings_.enabledRuntimeFeatures.begin(),
+                settings_.enabledRuntimeFeatures.end(),
+                RuntimeFeatureIds::Animation) !=
+                settings_.enabledRuntimeFeatures.end();
+            if (rendering != settings_.enabledRuntimeFeatures.end() &&
+                !hasAnimation) {
+                settings_.enabledRuntimeFeatures.insert(
+                    std::next(rendering),
+                    std::string(RuntimeFeatureIds::Animation));
             }
         }
         return true;
@@ -122,7 +141,7 @@ namespace HIKARI {
                     std::move(featureId));
             }
         }
-        settings_.version = (std::max)(settings_.version, 2u);
+        settings_.version = (std::max)(settings_.version, 3u);
     }
 
 } // namespace HIKARI

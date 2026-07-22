@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstddef>
 #include <cstdint>
 #include <vector>
 
@@ -36,6 +37,14 @@ namespace HIKARI {
         }
     };
 
+    struct CameraDirectorStatus {
+        SceneObjectId baseCameraObjectId{};
+        SceneObjectId activeSourceCameraObjectId{};
+        size_t overrideCount = 0u;
+        bool blending = false;
+        bool activeOverrideAffectsControlBasis = false;
+    };
+
     class CameraDirector {
     public:
         void Reset();
@@ -58,6 +67,7 @@ namespace HIKARI {
 
         const RENDER3D::ResolvedCameraFrame& GetResolvedFrame() const noexcept;
         const Camera3D& GetControlCamera() const noexcept;
+        CameraDirectorStatus GetStatus() const noexcept;
         bool TryResolveCameraObject(
             const World& world,
             SceneObjectId cameraObjectId,

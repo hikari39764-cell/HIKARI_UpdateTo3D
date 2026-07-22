@@ -89,9 +89,9 @@ namespace HIKARI::RENDER3D::RUNTIME {
                 !EqualMaterialFxValues(oldDesc.materialFxParamValues, newDesc.materialFxParamValues);
 
             const bool animationDataChanged =
-                oldDesc.animationClipName != newDesc.animationClipName ||
-                oldDesc.animationTimeSec != newDesc.animationTimeSec ||
-                oldDesc.animationLoop != newDesc.animationLoop;
+                oldDesc.animationPoseRevision !=
+                    newDesc.animationPoseRevision ||
+                oldDesc.animationPose != newDesc.animationPose;
 
             flags.routing =
                 flags.material ||
@@ -143,9 +143,7 @@ namespace HIKARI::RENDER3D::RUNTIME {
             return BuildRenderModelNodeGlobals(
                 renderModel,
                 object.desc.model,
-                object.desc.animationClipName,
-                object.desc.animationTimeSec,
-                object.desc.animationLoop);
+                object.desc.animationPose->localPose);
         }
 
         SceneSurfaceInstance BuildSurfaceInstance(
@@ -174,9 +172,9 @@ namespace HIKARI::RENDER3D::RUNTIME {
             instance.castShadow = object.desc.castShadow && surface.castShadowDefault;
             instance.receiveShadow = object.desc.receiveShadow && surface.receiveShadowDefault;
             instance.hasRuntimeAnimation = object.desc.hasRuntimeAnimation;
-            instance.animationClipName = object.desc.animationClipName;
-            instance.animationTimeSec = object.desc.animationTimeSec;
-            instance.animationLoop = object.desc.animationLoop;
+            instance.animationPose = object.desc.animationPose;
+            instance.animationPoseRevision =
+                object.desc.animationPoseRevision;
             instance.hasSpecialRenderDebug = object.desc.hasSpecialRenderDebug;
             instance.allowStaticCachedForward = object.desc.allowStaticCachedForward;
             instance.skinned = surface.IsSkinned();

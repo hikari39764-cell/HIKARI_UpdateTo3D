@@ -334,6 +334,10 @@ namespace HIKARI::RENDER3D::UPSCALING {
         state.frameGeneration.resourcesReleased = true;
         state.frameGeneration.stats.optionsConfigured = false;
         state.frameGeneration.stats.tagsSubmitted = false;
+        state.frameGeneration.configuredGeneratedFrames = 0;
+        state.frameGeneration.inputsProcessingCompletionFence = nullptr;
+        state.frameGeneration.inputsProcessingCompletionFenceValue = 0;
+        state.frameGeneration.completionStateCapturedAfterPresent = false;
         state.frameGeneration.stats.status =
             StreamlineFrameGenerationStatus::Suspended;
         state.frameGeneration.stats.statusReason = loaded

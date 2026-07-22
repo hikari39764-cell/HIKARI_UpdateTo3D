@@ -53,6 +53,7 @@ foreach ($relativePath in $removedFiles) {
 }
 
 $intentTypes = Read-Source 'HIKARI\Gameplay\Motion\HIKARI_MotionIntentTypes.h'
+$intentServiceHeader = Read-Source 'HIKARI\Gameplay\Motion\HIKARI_MotionIntentService.h'
 $intentService = Read-Source 'HIKARI\Gameplay\Motion\HIKARI_MotionIntentService.cpp'
 $motionTypes = Read-Source 'HIKARI\Physics\HIKARI_KinematicMotionTypes.h'
 $motionService = Read-Source 'HIKARI\Physics\HIKARI_KinematicMotionService.cpp'
@@ -64,6 +65,7 @@ $joltCharacters = Read-Source 'HIKARI\Physics\Backends\Jolt\HIKARI_JoltCharacter
 $joltCharacterSimulation = Read-Source 'HIKARI\Physics\Backends\Jolt\HIKARI_JoltCharacterSimulation.cpp'
 $feature = Read-Source 'HIKARI\Scene\Features\HIKARI_GameplayRuntimeFeature.cpp'
 $locomotion = Read-Source 'HIKARI\Scene\HIKARI_CharacterLocomotionSystem.cpp'
+$locomotionComponent = Read-Source 'HIKARI\Scene\Components\HIKARI_CharacterLocomotionComponent.cpp'
 $componentRegistry = Read-Source 'HIKARI\Scene\HIKARI_ComponentRegistry.h'
 $componentAuthoring = Read-Source 'HIKARI\Editor\HIKARI_DocumentComponentAuthoringService.cpp'
 $inputDefaults = Read-Source 'HIKARI\Input\Assets\HIKARI_InputActionMapJson.cpp'
@@ -79,6 +81,10 @@ Assert-Contains $intentService 'slot.priority > selected->priority' `
     'Multiple intent sources must resolve deterministically by priority.'
 Assert-Contains $intentService 'found->jumpLatched || intent.jumpPressed' `
     'Short jump presses must survive until the next fixed step.'
+Assert-Contains $intentServiceHeader 'bool PeekIntent(' `
+    'Non-owning gameplay observers need to inspect motion intent without consuming it.'
+Assert-Contains $intentService 'std::as_const(*this).FindSelectedSlot' `
+    'Resolve and peek must share one deterministic intent arbitration path.'
 
 Assert-Contains $motionTypes 'struct KinematicMotionRequest' `
     'Gameplay controllers need a physics-owned movement request contract.'
@@ -133,12 +139,48 @@ Assert-Contains $locomotion 'KinematicMotionRequest' `
     'Locomotion must submit requests rather than own collision.'
 Assert-Contains $locomotion 'state->groundVelocity' `
     'Ground movement must remain relative to moving platforms.'
+Assert-Contains $locomotion 'GetAirDeceleration()' `
+    'Releasing movement while briefly unsupported must not preserve horizontal speed forever.'
+Assert-NotContains $locomotion 'acceleration = 0.0f' `
+    'Unsupported movement must use authored air braking instead of disabling deceleration.'
+Assert-Contains $locomotion 'runtime.jumpBufferRemaining' `
+    'Short jump input must remain available until a fixed step can use it.'
+Assert-Contains $locomotion 'runtime.groundGraceRemaining' `
+    'Brief support loss while crossing collision seams must retain jump permission.'
+Assert-Contains $locomotion 'intent.jumpHeld &&' `
+    'Fixed-step locomotion must recover a held-button rising edge if the render-frame press edge was missed.'
+Assert-Contains $locomotion '!runtime.jumpHeldLastFixedTick' `
+    'Held jump recovery must trigger once instead of auto-jumping every fixed tick.'
+Assert-Contains $locomotion 'request.jumpRequested = hasJumpRequest' `
+    'Standard locomotion must keep buffered jump requests visible to physics.'
+Assert-Contains $locomotion 'request.allowJumpWithoutGroundContact =' `
+    'Standard locomotion must submit explicit ground-grace authorization.'
+Assert-Contains $locomotion 'camera->GetTarget() - camera->GetPosition()' `
+    'Camera-relative W input must follow the viewed planar direction.'
+Assert-Contains $locomotion 'MATH::Cross(' `
+    'Camera-relative horizontal input must derive a matching screen-right axis.'
+Assert-Contains $locomotionComponent '"Camera Relative"' `
+    'Movement-space authoring must describe its gameplay behavior clearly.'
+Assert-Contains $locomotionComponent '"Use Third-Person Movement"' `
+    'Third-person movement needs a safe one-click authoring preset.'
+Assert-Contains $locomotionComponent '"airDeceleration"' `
+    'Air braking must remain an authored reusable locomotion setting.'
+Assert-Contains $locomotionComponent '"jumpBufferSeconds"' `
+    'Jump buffering must survive scene serialization.'
+Assert-Contains $locomotionComponent '"groundGraceSeconds"' `
+    'Ground grace must survive scene serialization.'
 Assert-Contains $kinematicSolver 'binding.shapes' `
     'PhysicsSystem must build its solver from the actual body shapes.'
 Assert-Contains $kinematicSystem 'SetKinematicTarget(' `
     'Solved motion must be applied to the actual Physics Body.'
 Assert-Contains $kinematicSystem 'ApplyPhysicsWorldPose' `
     'Solved motion must update the authoritative scene transform.'
+Assert-Contains $kinematicSystem 'velocity.y = request.jumpSpeed +' `
+    'Physics must apply accepted jump velocity through the kinematic solver.'
+Assert-Contains $kinematicSystem 'const bool canApplyJump = onGround ||' `
+    'Physics must use its current contact state for ordinary jump requests.'
+Assert-Contains $kinematicSystem 'request.allowJumpWithoutGroundContact' `
+    'Physics must accept explicit ground-grace authorization.'
 Assert-Contains $kinematicSolver 'const PhysicsCharacterHandle previous' `
     'Solver settings hot reload must replace only after candidate creation.'
 

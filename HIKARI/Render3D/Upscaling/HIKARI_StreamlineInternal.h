@@ -40,12 +40,16 @@ namespace HIKARI::RENDER3D::UPSCALING::INTERNAL {
         DXGI_FORMAT configuredMotionFormat = DXGI_FORMAT_UNKNOWN;
         DXGI_FORMAT configuredHudlessFormat = DXGI_FORMAT_UNKNOWN;
         DXGI_FORMAT configuredUiFormat = DXGI_FORMAT_UNKNOWN;
+        uint32_t configuredGeneratedFrames = 0;
         StreamlineFrameGenerationSettings failedSettings{};
         uint32_t failedRenderWidth = 0;
         uint32_t failedRenderHeight = 0;
         uint32_t failedOutputWidth = 0;
         uint32_t failedOutputHeight = 0;
         bool resourcesReleased = true;
+        void* inputsProcessingCompletionFence = nullptr;
+        uint64_t inputsProcessingCompletionFenceValue = 0;
+        bool completionStateCapturedAfterPresent = false;
 #if defined(HIKARI_WITH_STREAMLINE)
         sl::Result lastFailureResult = sl::Result::eOk;
 #endif

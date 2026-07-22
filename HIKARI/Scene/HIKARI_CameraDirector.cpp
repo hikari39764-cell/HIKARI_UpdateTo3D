@@ -4,6 +4,7 @@
 #include <cmath>
 
 #include "Scene/Components/HIKARI_CameraComponent.h"
+#include "Scene/Camera/HIKARI_CameraRigService.h"
 #include "Scene/HIKARI_GameObject.h"
 #include "Scene/HIKARI_World.h"
 
@@ -46,6 +47,17 @@ namespace HIKARI {
                 !NearlyEqual(lhs.GetAspect(), rhs.GetAspect()) ||
                 !NearlyEqual(lhs.GetNearZ(), rhs.GetNearZ()) ||
                 !NearlyEqual(lhs.GetFarZ(), rhs.GetFarZ());
+        }
+
+        bool IsCameraObjectEnabled(
+            const World& world,
+            SceneObjectId cameraObjectId) noexcept {
+
+            const GameObject* object = world.FindObject(cameraObjectId);
+            const CameraComponent* camera = object != nullptr
+                ? object->GetComponent<CameraComponent>()
+                : nullptr;
+            return camera != nullptr && camera->IsEnabled();
         }
 
         MATH::Vec3 SafeUpForForward(const MATH::Vec3& forward, MATH::Vec3 up);
@@ -234,9 +246,16 @@ namespace HIKARI {
 
         const float resolvedAspect = ClampAspect(aspect, fallbackCamera);
         const OverrideEntry* winningOverride = FindWinningOverride();
+        SceneObjectId gameplaySource = baseCameraObjectId_;
+        const CAMERA::CameraRigService* rigService =
+            world.Services().Find<CAMERA::CameraRigService>();
+        if (!IsCameraObjectEnabled(world, gameplaySource) &&
+            rigService != nullptr) {
+            (void)rigService->TryResolveFallbackCamera(gameplaySource);
+        }
         const SceneObjectId requestedSource = winningOverride != nullptr
             ? winningOverride->request.cameraObjectId
-            : baseCameraObjectId_;
+            : gameplaySource;
         const CameraOverrideToken requestedOverrideToken =
             winningOverride != nullptr
                 ? winningOverride->token
@@ -264,6 +283,13 @@ namespace HIKARI {
                 resolvedAspect,
                 fallbackCamera.GetNearZ(),
                 fallbackCamera.GetFarZ());
+        }
+
+        if (requestedSourceValid && rigService != nullptr) {
+            rigService->ApplyModifiers(
+                requestedSource,
+                winningOverride != nullptr,
+                targetCamera);
         }
 
         const SceneObjectId resolvedSource = requestedSourceValid
@@ -306,7 +332,7 @@ namespace HIKARI {
         Camera3D baseControlCamera{};
         const bool baseControlValid = TryResolveCameraObject(
             world,
-            baseCameraObjectId_,
+            gameplaySource,
             resolvedAspect,
             baseControlCamera);
         if (!baseControlValid) {
@@ -316,6 +342,11 @@ namespace HIKARI {
                 resolvedAspect,
                 fallbackCamera.GetNearZ(),
                 fallbackCamera.GetFarZ());
+        } else if (rigService != nullptr) {
+            rigService->ApplyModifiers(
+                gameplaySource,
+                false,
+                baseControlCamera);
         }
 
         activeOverrideAffectsControlBasis_ =
@@ -335,6 +366,17 @@ namespace HIKARI {
 
     const Camera3D& CameraDirector::GetControlCamera() const noexcept {
         return controlCamera_;
+    }
+
+    CameraDirectorStatus CameraDirector::GetStatus() const noexcept {
+        CameraDirectorStatus status{};
+        status.baseCameraObjectId = baseCameraObjectId_;
+        status.activeSourceCameraObjectId = activeSourceCameraObjectId_;
+        status.overrideCount = overrides_.size();
+        status.blending = blendActive_;
+        status.activeOverrideAffectsControlBasis =
+            activeOverrideAffectsControlBasis_;
+        return status;
     }
 
     const CameraDirector::OverrideEntry* CameraDirector::FindWinningOverride() const {
@@ -371,21 +413,44 @@ namespace HIKARI {
             return false;
         }
 
-        const MATH::Mat4 worldMatrix =
-            cameraObject->GetTransform().GetWorldMatrix();
-        const MATH::Vec3 eye = ExtractAxis(worldMatrix, 3);
-        MATH::Vec3 forward = MATH::Normalize(ExtractAxis(worldMatrix, 2));
-        if (MATH::Length(forward) <= kVectorEpsilon) {
-            forward = { 0.0f, 0.0f, 1.0f };
+        MATH::Vec3 eye{};
+        MATH::Vec3 target{};
+        MATH::Vec3 up{};
+        float verticalFov = component->GetFovYRad();
+
+        CAMERA::CameraRigSubmission rigSubmission{};
+        const CAMERA::CameraRigService* rigService =
+            world.Services().Find<CAMERA::CameraRigService>();
+        if (rigService != nullptr &&
+            rigService->TryResolvePose(cameraObjectId, rigSubmission)) {
+            eye = rigSubmission.pose.eye;
+            target = rigSubmission.pose.target;
+            MATH::Vec3 forward = MATH::Normalize(target - eye);
+            up = SafeUpForForward(forward, rigSubmission.pose.up);
+            if (rigSubmission.pose.overrideVerticalFov) {
+                verticalFov = rigSubmission.pose.verticalFovRadians;
+            }
+        } else {
+            const MATH::Mat4 worldMatrix =
+                cameraObject->GetTransform().GetWorldMatrix();
+            eye = ExtractAxis(worldMatrix, 3);
+            MATH::Vec3 forward = MATH::Normalize(
+                ExtractAxis(worldMatrix, 2));
+            if (MATH::Length(forward) <= kVectorEpsilon) {
+                forward = { 0.0f, 0.0f, 1.0f };
+            }
+            target = eye + forward;
+            up = SafeUpForForward(
+                forward,
+                ExtractAxis(worldMatrix, 1));
         }
-        const MATH::Vec3 up = SafeUpForForward(forward, ExtractAxis(worldMatrix, 1));
 
         outCamera.SetPerspective(
-            component->GetFovYRad(),
+            verticalFov,
             (std::max)(aspect, kMinAspect),
             component->GetNearClip(),
             component->GetFarClip());
-        outCamera.SetLookAt(eye, eye + forward, up);
+        outCamera.SetLookAt(eye, target, up);
         return true;
     }
 

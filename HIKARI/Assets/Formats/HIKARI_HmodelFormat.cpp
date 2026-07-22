@@ -10,7 +10,7 @@ namespace HIKARI {
 
     namespace {
         constexpr uint32_t kHmodelMagic = 0x4C444D48u; // 'HMDL'
-        constexpr uint32_t kHmodelVersion = 3;
+        constexpr uint32_t kHmodelVersion = 4;
         constexpr uint32_t kMaxStringBytes = 16u * 1024u * 1024u;
         constexpr uint32_t kMaxVectorCount = 16u * 1024u * 1024u;
 
@@ -107,6 +107,62 @@ namespace HIKARI {
                     static_cast<std::streamsize>(values.size() * sizeof(T)));
             }
             return ifs.good();
+        }
+
+        template<class T>
+        struct LegacyAnimationKeyframe {
+            float timeSec = 0.0f;
+            T value{};
+        };
+
+        template<class T>
+        bool WriteAnimationKeyframes(
+            std::ofstream& ofs,
+            const std::vector<AnimationKeyframe<T>>& keys) {
+            if (keys.size() > kMaxVectorCount) return false;
+            const uint32_t count = static_cast<uint32_t>(keys.size());
+            if (!WritePod(ofs, count)) return false;
+            for (const AnimationKeyframe<T>& key : keys) {
+                if (!WritePod(ofs, key.timeSec) ||
+                    !WritePod(ofs, key.value) ||
+                    !WritePod(ofs, key.inTangent) ||
+                    !WritePod(ofs, key.outTangent)) {
+                    return false;
+                }
+            }
+            return true;
+        }
+
+        template<class T>
+        bool ReadAnimationKeyframes(
+            std::ifstream& ifs,
+            uint32_t version,
+            std::vector<AnimationKeyframe<T>>& keys) {
+            if (version < 4u) {
+                std::vector<LegacyAnimationKeyframe<T>> legacy{};
+                if (!ReadPodVector(ifs, legacy)) return false;
+                keys.resize(legacy.size());
+                for (size_t index = 0u; index < legacy.size(); ++index) {
+                    keys[index].timeSec = legacy[index].timeSec;
+                    keys[index].value = legacy[index].value;
+                }
+                return true;
+            }
+
+            uint32_t count = 0u;
+            if (!ReadPod(ifs, count) || count > kMaxVectorCount) {
+                return false;
+            }
+            keys.resize(count);
+            for (AnimationKeyframe<T>& key : keys) {
+                if (!ReadPod(ifs, key.timeSec) ||
+                    !ReadPod(ifs, key.value) ||
+                    !ReadPod(ifs, key.inTangent) ||
+                    !ReadPod(ifs, key.outTangent)) {
+                    return false;
+                }
+            }
+            return true;
         }
 
         bool WriteTextureSlot(std::ofstream& ofs, const TextureSlot& slot) {
@@ -331,15 +387,22 @@ namespace HIKARI {
                 if (!WritePod(ofs, channel.targetNode) ||
                     !WritePod(ofs, channel.path) ||
                     !WritePod(ofs, channel.interpolation) ||
-                    !WritePodVector(ofs, channel.vec3Keys) ||
-                    !WritePodVector(ofs, channel.quatKeys)) {
+                    !WriteAnimationKeyframes(
+                        ofs,
+                        channel.vec3Keys) ||
+                    !WriteAnimationKeyframes(
+                        ofs,
+                        channel.quatKeys)) {
                     return false;
                 }
             }
             return true;
         }
 
-        bool ReadAnimation(std::ifstream& ifs, AnimationClip& clip) {
+        bool ReadAnimation(
+            std::ifstream& ifs,
+            AnimationClip& clip,
+            uint32_t version) {
             uint32_t channelCount = 0;
             if (!ReadString(ifs, clip.name) ||
                 !ReadPod(ifs, clip.durationSec) ||
@@ -352,8 +415,14 @@ namespace HIKARI {
                 if (!ReadPod(ifs, channel.targetNode) ||
                     !ReadPod(ifs, channel.path) ||
                     !ReadPod(ifs, channel.interpolation) ||
-                    !ReadPodVector(ifs, channel.vec3Keys) ||
-                    !ReadPodVector(ifs, channel.quatKeys)) {
+                    !ReadAnimationKeyframes(
+                        ifs,
+                        version,
+                        channel.vec3Keys) ||
+                    !ReadAnimationKeyframes(
+                        ifs,
+                        version,
+                        channel.quatKeys)) {
                     return false;
                 }
             }
@@ -486,7 +555,14 @@ namespace HIKARI {
                 return ReadString(stream, texture.name) && ReadString(stream, texture.sourcePath);
             }) &&
             ReadObjectVector(ifs, model.skins, ReadSkin) &&
-            ReadObjectVector(ifs, model.animations, ReadAnimation);
+            ReadObjectVector(
+                ifs,
+                model.animations,
+                [version = header.version](
+                    std::ifstream& stream,
+                    AnimationClip& animation) {
+                    return ReadAnimation(stream, animation, version);
+                });
 
         if (!ok || !ifs.good()) {
             outMessage = "[HMODEL] failed while reading: " + path.generic_string();

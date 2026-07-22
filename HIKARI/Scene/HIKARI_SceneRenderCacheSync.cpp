@@ -4,12 +4,12 @@
 #include <unordered_map>
 #include <utility>
 
+#include "Animation/Runtime/HIKARI_AnimationPoseService.h"
 #include "Assets/HIKARI_AssetRegistry.h"
 #include "Render3D/Core/HIKARI_BoundsUtils.h"
 #include "Render3D/Procedural/HIKARI_ProceduralModelFactory.h"
 #include "Render3D/Runtime/HIKARI_RenderModelCache.h"
 #include "Render3D/Runtime/HIKARI_SceneRenderCache.h"
-#include "Scene/Components/HIKARI_AnimatorComponent.h"
 #include "Scene/Components/HIKARI_ModelComponent.h"
 #include "Scene/Components/HIKARI_ProceduralMeshComponent.h"
 #include "Scene/HIKARI_GameObject.h"
@@ -124,7 +124,8 @@ namespace HIKARI {
             ModelComponent& model,
             RENDER3D::RUNTIME::RenderModelCache& renderModelCache,
             ClusteredGeometryPathResolver& clusteredGeometryPaths,
-            const PresentationTransformService* presentationTransforms) {
+            const PresentationTransformService* presentationTransforms,
+            const ANIMATION::AnimationPoseService* animationPoses) {
 
             RENDER3D::RUNTIME::SceneRenderObjectDesc desc{};
             desc.id = ResolveSceneRenderObjectId(object);
@@ -159,11 +160,20 @@ namespace HIKARI {
                 object, model);
             desc.castShadow = model.GetCastShadow();
             desc.receiveShadow = model.GetReceiveShadow();
-            if (const AnimatorComponent* animator = object.GetComponent<AnimatorComponent>()) {
-                desc.hasRuntimeAnimation = true;
-                desc.animationClipName = animator->GetClip();
-                desc.animationTimeSec = animator->GetTime();
-                desc.animationLoop = animator->GetLoop();
+            if (animationPoses != nullptr) {
+                desc.animationPose = animationPoses->Find(
+                    object.GetRuntimeHandle());
+                desc.hasRuntimeAnimation =
+                    desc.animationPose != nullptr &&
+                    desc.animationPose->valid &&
+                    desc.animationPose->localPose.IsValidFor(
+                        asset != nullptr
+                            ? asset->nodes.size()
+                            : 0u);
+                desc.animationPoseRevision =
+                    desc.animationPose != nullptr
+                        ? desc.animationPose->revision
+                        : 0u;
             }
             desc.hasSpecialRenderDebug = false;
             desc.allowStaticCachedForward =
@@ -197,6 +207,8 @@ namespace HIKARI {
             std::move(projectRoot));
         const PresentationTransformService* presentationTransforms =
             world.Services().Find<PresentationTransformService>();
+        const ANIMATION::AnimationPoseService* animationPoses =
+            world.Services().Find<ANIMATION::AnimationPoseService>();
 
         world.ForEachObjectWith<ModelComponent>([&](GameObject& object, ModelComponent& model) {
             sceneRenderCache.Upsert(BuildSceneRenderObjectDesc(
@@ -204,7 +216,8 @@ namespace HIKARI {
                 model,
                 renderModelCache,
                 clusteredGeometryPaths,
-                presentationTransforms));
+                presentationTransforms,
+                animationPoses));
         });
 
         sceneRenderCache.EndSync();
@@ -230,6 +243,8 @@ namespace HIKARI {
             std::move(projectRoot));
         const PresentationTransformService* presentationTransforms =
             world.Services().Find<PresentationTransformService>();
+        const ANIMATION::AnimationPoseService* animationPoses =
+            world.Services().Find<ANIMATION::AnimationPoseService>();
 
         for (GameObject* object : world.GetRenderDirtyObjects()) {
             if (object == nullptr) {
@@ -248,7 +263,8 @@ namespace HIKARI {
                 *model,
                 renderModelCache,
                 clusteredGeometryPaths,
-                presentationTransforms));
+                presentationTransforms,
+                animationPoses));
         }
 
         sceneRenderCache.EndPatchSync();

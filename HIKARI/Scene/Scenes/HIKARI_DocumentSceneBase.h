@@ -9,6 +9,7 @@
 #include "Assets/HIKARI_AssetDatabase.h"
 #include "Assets/HIKARI_AssetRegistry.h"
 #include "Assets/Sequence/HIKARI_SequenceAssetStore.h"
+#include "Animation/Runtime/HIKARI_AnimationPoseService.h"
 #include "Core/HIKARI_FixedStepClock.h"
 #include "Render3D/Core/HIKARI_Camera3D.h"
 #include "Render3D/Core/HIKARI_RenderView.h"
@@ -18,6 +19,7 @@
 #include "Render3D/Lighting/HIKARI_SkyManager.h"
 #include "Physics/HIKARI_PhysicsWorldService.h"
 #include "Gameplay/Motion/HIKARI_MotionIntentService.h"
+#include "Gameplay/Motion/HIKARI_CharacterMotionStateService.h"
 #include "Physics/HIKARI_KinematicMotionService.h"
 #include "Physics/HIKARI_PhysicsCollisionGeometryStore.h"
 #include "Physics/HIKARI_PhysicsRuntimeStatusService.h"
@@ -29,6 +31,7 @@
 #include "Scene/HIKARI_ComponentRegistry.h"
 #include "Scene/HIKARI_ComponentSystemPolicy.h"
 #include "Scene/HIKARI_CameraDirector.h"
+#include "Scene/Camera/HIKARI_CameraRigService.h"
 #include "Scene/HIKARI_CinematicCameraPlayback.h"
 #include "Scene/HIKARI_IScene.h"
 #include "Scene/HIKARI_SceneDocument.h"
@@ -249,6 +252,7 @@ namespace HIKARI {
         Camera3D camera_{};
         Camera3D gameplayCamera_{};
         CameraDirector cameraDirector_{};
+        CAMERA::CameraRigService cameraRigService_{};
         CinematicPlaybackHandle currentCameraSequenceHandle_{};
         RENDER3D::ResolvedCameraFrame resolvedCameraFrame_{};
         DebugCameraController3D debugCamera_{};
@@ -280,7 +284,10 @@ namespace HIKARI {
         FixedStepClock fixedStepClock_{};
         RuntimePlayStateService runtimePlayStateService_{};
         GameplayCameraService gameplayCameraService_{};
+        ANIMATION::AnimationPoseService animationPoseService_{};
         GAMEPLAY::MotionIntentService motionIntentService_{};
+        GAMEPLAY::CharacterMotionStateService
+            characterMotionStateService_{};
         PHYSICS::KinematicMotionService kinematicMotionService_{};
         PHYSICS::PhysicsWorldService physicsWorldService_{};
         PHYSICS::PhysicsCollisionGeometryStore

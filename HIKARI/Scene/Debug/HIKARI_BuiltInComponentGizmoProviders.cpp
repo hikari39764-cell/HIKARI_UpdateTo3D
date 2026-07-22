@@ -4,6 +4,7 @@
 #include <cmath>
 
 #include "Render3D/Debug/HIKARI_Renderer3D_Debug.h"
+#include "Scene/Components/HIKARI_CameraActivationVolumeComponent.h"
 #include "Scene/Components/HIKARI_CameraComponent.h"
 #include "Scene/Components/HIKARI_SpawnPointComponent.h"
 #include "Scene/Debug/HIKARI_ComponentGizmoRegistry.h"
@@ -14,6 +15,8 @@ namespace HIKARI {
         constexpr unsigned int kSpawnColor = 0x55FF66FF;
         constexpr unsigned int kCameraFrustumColor = 0x65D9FFFF;
         constexpr unsigned int kSelectedCameraFrustumColor = 0xFFD166FF;
+        constexpr unsigned int kCameraVolumeColor = 0x55D98BFF;
+        constexpr unsigned int kSelectedCameraVolumeColor = 0xFFD166FF;
 
         void SubmitArrow(
             const MATH::Vec3& from,
@@ -124,6 +127,46 @@ namespace HIKARI {
                 kSpawnColor);
         }
 
+        void DrawCameraActivationVolume(
+            const GameObject& object,
+            const ComponentGizmoDrawContext& context) {
+
+            const CameraActivationVolumeComponent* volume =
+                object.GetComponent<CameraActivationVolumeComponent>();
+            if (volume == nullptr || !volume->IsEnabled()) {
+                return;
+            }
+            const MATH::Vec3 extent = volume->GetHalfExtents();
+            const MATH::Mat4 world =
+                object.GetTransform().GetWorldMatrix();
+            const std::array<MATH::Vec3, 8> corners{ {
+                TransformFrustumPoint(world, -extent.x, -extent.y, -extent.z),
+                TransformFrustumPoint(world,  extent.x, -extent.y, -extent.z),
+                TransformFrustumPoint(world,  extent.x,  extent.y, -extent.z),
+                TransformFrustumPoint(world, -extent.x,  extent.y, -extent.z),
+                TransformFrustumPoint(world, -extent.x, -extent.y,  extent.z),
+                TransformFrustumPoint(world,  extent.x, -extent.y,  extent.z),
+                TransformFrustumPoint(world,  extent.x,  extent.y,  extent.z),
+                TransformFrustumPoint(world, -extent.x,  extent.y,  extent.z),
+            } };
+            constexpr std::array<std::array<int, 2>, 12> kEdges{ {
+                { 0, 1 }, { 1, 2 }, { 2, 3 }, { 3, 0 },
+                { 4, 5 }, { 5, 6 }, { 6, 7 }, { 7, 4 },
+                { 0, 4 }, { 1, 5 }, { 2, 6 }, { 3, 7 },
+            } };
+            const unsigned int color =
+                object.GetDocumentId() == context.selectedObjectId
+                ? kSelectedCameraVolumeColor
+                : kCameraVolumeColor;
+            for (const auto& edge : kEdges) {
+                RENDERER3D::DEBUG::SubmitLine3D(
+                    RENDERER3D::DEBUG::Line3D{
+                        corners[edge[0]],
+                        corners[edge[1]],
+                        color });
+            }
+        }
+
     }
 
     void RegisterBuiltInComponentGizmoProviders(
@@ -140,6 +183,12 @@ namespace HIKARI {
             "Spawn Points",
             false,
             DrawSpawnPoint
+        });
+        (void)registry.Register(ComponentGizmoProvider{
+            std::string(kCameraActivationVolumeGizmoProviderId),
+            "Camera Activation Volumes",
+            true,
+            DrawCameraActivationVolume
         });
         RegisterColliderGizmoProvider(registry);
     }

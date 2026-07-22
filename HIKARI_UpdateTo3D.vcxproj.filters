@@ -199,6 +199,21 @@
     <Filter Include="Header Files\Scene">
       <UniqueIdentifier>{450ED957-FA0B-5A80-9A92-7865F0B8E6F0}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Header Files\Animation">
+      <UniqueIdentifier>{42AB94C0-BF79-46E2-AF17-D4C251295B11}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\Animation\Assets">
+      <UniqueIdentifier>{0B447D52-07F9-47D5-8EA0-1A3F9E3135E8}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\Animation\Runtime">
+      <UniqueIdentifier>{BFE3BE7E-1DBF-4A0C-8F84-6AA276230D3C}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\Gameplay">
+      <UniqueIdentifier>{0316D94F-9A97-4C1D-873E-282C9CF14F4D}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\Gameplay\Motion">
+      <UniqueIdentifier>{489BF64A-474B-4974-A0A8-09DCD3371DB6}</UniqueIdentifier>
+    </Filter>
     <Filter Include="Header Files\Scene\Sequencer">
       <UniqueIdentifier>{862BD71C-43E8-4E86-9B5E-A035DA87D0D1}</UniqueIdentifier>
     </Filter>
@@ -528,6 +543,18 @@
     </Filter>
     <Filter Include="Source Files\Scene">
       <UniqueIdentifier>{CB53B66E-152E-5AD1-99ED-23C2A99E4867}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Animation">
+      <UniqueIdentifier>{0D46F600-E87C-4BD8-9303-3A228452A93D}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Animation\Runtime">
+      <UniqueIdentifier>{7D8C9049-940D-4A05-B673-6E138689C53A}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Gameplay">
+      <UniqueIdentifier>{F6FC7D6F-BB05-4DD5-96E1-5409FD2202E7}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Gameplay\Motion">
+      <UniqueIdentifier>{2C63E555-56C1-43B9-A5A6-ED6131F4CA2C}</UniqueIdentifier>
     </Filter>
     <Filter Include="Source Files\Scene\Sequencer">
       <UniqueIdentifier>{048A3C7C-73F9-44AE-81B3-DA3CC511D84E}</UniqueIdentifier>
@@ -1236,6 +1263,9 @@
     <ClCompile Include="HIKARI\Scene\Components\HIKARI_CameraFollowComponent.cpp">
       <Filter>Source Files\Scene\Components</Filter>
     </ClCompile>
+    <ClCompile Include="HIKARI\Scene\Components\HIKARI_CameraActivationVolumeComponent.cpp">
+      <Filter>Source Files\Scene\Components</Filter>
+    </ClCompile>
     <ClCompile Include="HIKARI\Scene\Components\HIKARI_CameraComponent.cpp">
       <Filter>Source Files\Scene\Components</Filter>
     </ClCompile>
@@ -1252,7 +1282,10 @@
       <Filter>Source Files\Scene\Components</Filter>
     </ClCompile>
     <ClCompile Include="HIKARI\Gameplay\Motion\HIKARI_MotionIntentService.cpp">
-      <Filter>Source Files\Scene\Systems</Filter>
+      <Filter>Source Files\Gameplay\Motion</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Gameplay\Motion\HIKARI_CharacterMotionStateService.cpp">
+      <Filter>Source Files\Gameplay\Motion</Filter>
     </ClCompile>
     <ClCompile Include="HIKARI\Scene\Scenes\HIKARI_DocumentSceneBase.cpp">
       <Filter>Source Files\Scene\Scenes</Filter>
@@ -1611,13 +1644,28 @@
     <ClCompile Include="HIKARI\Scene\HIKARI_SystemTypeRegistry.cpp">
       <Filter>Source Files\Scene\Systems</Filter>
     </ClCompile>
-    <ClCompile Include="HIKARI\Scene\HIKARI_AnimationSystem.cpp">
+    <ClCompile Include="HIKARI\Animation\Runtime\HIKARI_AnimationClipSampler.cpp">
+      <Filter>Source Files\Animation\Runtime</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Animation\Runtime\HIKARI_AnimationPoseService.cpp">
+      <Filter>Source Files\Animation\Runtime</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Animation\Runtime\HIKARI_AnimationSystem.cpp">
+      <Filter>Source Files\Animation\Runtime</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Scene\HIKARI_CharacterMotionStateSystem.cpp">
       <Filter>Source Files\Scene\Systems</Filter>
     </ClCompile>
     <ClCompile Include="HIKARI\Scene\HIKARI_CameraFollowSystem.cpp">
       <Filter>Source Files\Scene\Systems</Filter>
     </ClCompile>
+    <ClCompile Include="HIKARI\Scene\HIKARI_CameraActivationVolumeSystem.cpp">
+      <Filter>Source Files\Scene\Systems</Filter>
+    </ClCompile>
     <ClCompile Include="HIKARI\Scene\HIKARI_CameraDirector.cpp">
+      <Filter>Source Files\Scene</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Scene\Camera\HIKARI_CameraRigService.cpp">
       <Filter>Source Files\Scene</Filter>
     </ClCompile>
     <ClCompile Include="HIKARI\Scene\HIKARI_CinematicSequence.cpp">
@@ -1678,6 +1726,9 @@
       <Filter>Source Files\Scene\Features</Filter>
     </ClCompile>
     <ClCompile Include="HIKARI\Scene\Features\HIKARI_RenderingRuntimeFeature.cpp">
+      <Filter>Source Files\Scene\Features</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Scene\Features\HIKARI_AnimationRuntimeFeature.cpp">
       <Filter>Source Files\Scene\Features</Filter>
     </ClCompile>
     <ClCompile Include="HIKARI\Scene\Features\HIKARI_CameraRuntimeFeature.cpp">
@@ -2051,6 +2102,9 @@
     <ClCompile Include="HIKARI\Render3D\Upscaling\HIKARI_StreamlineFrameGeneration.cpp">
       <Filter>Source Files\Render3D\Upscaling</Filter>
     </ClCompile>
+    <ClCompile Include="HIKARI\Render3D\Upscaling\HIKARI_StreamlineFrameGenerationSynchronization.cpp">
+      <Filter>Source Files\Render3D\Upscaling</Filter>
+    </ClCompile>
     <ClCompile Include="HIKARI\Render3D\Upscaling\HIKARI_StreamlineFrameGenerationPolicy.cpp">
       <Filter>Source Files\Render3D\Upscaling</Filter>
     </ClCompile>
@@ -2239,6 +2293,9 @@
     <ClInclude Include="HIKARI\Scene\Components\HIKARI_CameraFollowComponent.h">
       <Filter>Header Files\Scene\Components</Filter>
     </ClInclude>
+    <ClInclude Include="HIKARI\Scene\Components\HIKARI_CameraActivationVolumeComponent.h">
+      <Filter>Header Files\Scene\Components</Filter>
+    </ClInclude>
     <ClInclude Include="HIKARI\Scene\Components\HIKARI_CameraComponent.h">
       <Filter>Header Files\Scene\Components</Filter>
     </ClInclude>
@@ -2258,10 +2315,16 @@
       <Filter>Header Files\Scene\Components</Filter>
     </ClInclude>
     <ClInclude Include="HIKARI\Gameplay\Motion\HIKARI_MotionIntentTypes.h">
-      <Filter>Header Files\Scene\Systems</Filter>
+      <Filter>Header Files\Gameplay\Motion</Filter>
     </ClInclude>
     <ClInclude Include="HIKARI\Gameplay\Motion\HIKARI_MotionIntentService.h">
-      <Filter>Header Files\Scene\Systems</Filter>
+      <Filter>Header Files\Gameplay\Motion</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Gameplay\Motion\HIKARI_CharacterMotionState.h">
+      <Filter>Header Files\Gameplay\Motion</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Gameplay\Motion\HIKARI_CharacterMotionStateService.h">
+      <Filter>Header Files\Gameplay\Motion</Filter>
     </ClInclude>
     <ClInclude Include="HIKARI\Vfx\HIKARI_VfxTypes.h">
       <Filter>Header Files\Vfx\Common</Filter>
@@ -3004,13 +3067,37 @@
     <ClInclude Include="HIKARI\Scene\HIKARI_SystemTypeRegistry.h">
       <Filter>Header Files\Scene\Systems</Filter>
     </ClInclude>
-    <ClInclude Include="HIKARI\Scene\HIKARI_AnimationSystem.h">
+    <ClInclude Include="HIKARI\Animation\Assets\HIKARI_AnimationAssetTypes.h">
+      <Filter>Header Files\Animation\Assets</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Animation\Runtime\HIKARI_AnimationPose.h">
+      <Filter>Header Files\Animation\Runtime</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Animation\Runtime\HIKARI_AnimationClipSampler.h">
+      <Filter>Header Files\Animation\Runtime</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Animation\Runtime\HIKARI_AnimationPoseService.h">
+      <Filter>Header Files\Animation\Runtime</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Animation\Runtime\HIKARI_AnimationSystem.h">
+      <Filter>Header Files\Animation\Runtime</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Scene\HIKARI_CharacterMotionStateSystem.h">
       <Filter>Header Files\Scene\Systems</Filter>
     </ClInclude>
     <ClInclude Include="HIKARI\Scene\HIKARI_CameraFollowSystem.h">
       <Filter>Header Files\Scene\Systems</Filter>
     </ClInclude>
+    <ClInclude Include="HIKARI\Scene\HIKARI_CameraActivationVolumeSystem.h">
+      <Filter>Header Files\Scene\Systems</Filter>
+    </ClInclude>
     <ClInclude Include="HIKARI\Scene\HIKARI_CameraDirector.h">
+      <Filter>Header Files\Scene</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Scene\Camera\HIKARI_CameraRigService.h">
+      <Filter>Header Files\Scene</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Scene\Camera\HIKARI_CameraRigTypes.h">
       <Filter>Header Files\Scene</Filter>
     </ClInclude>
     <ClInclude Include="HIKARI\Scene\HIKARI_CinematicSequence.h">
@@ -3089,6 +3176,9 @@
       <Filter>Header Files\Scene\Features</Filter>
     </ClInclude>
     <ClInclude Include="HIKARI\Scene\Features\HIKARI_RenderingRuntimeFeature.h">
+      <Filter>Header Files\Scene\Features</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Scene\Features\HIKARI_AnimationRuntimeFeature.h">
       <Filter>Header Files\Scene\Features</Filter>
     </ClInclude>
     <ClInclude Include="HIKARI\Scene\Features\HIKARI_CameraRuntimeFeature.h">

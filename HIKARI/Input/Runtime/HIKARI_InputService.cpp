@@ -84,6 +84,16 @@ void InputService::SetHostWindow(void* nativeWindow) {
     if (backend_) backend_->SetHostWindow(nativeWindow);
 }
 
+void InputService::SetMouseCaptureMode(MouseCaptureMode mode) {
+    if (backend_) backend_->SetMouseCaptureMode(mode);
+}
+
+MouseCaptureMode InputService::GetMouseCaptureMode() const noexcept {
+    return backend_
+        ? backend_->GetMouseCaptureMode()
+        : MouseCaptureMode::Free;
+}
+
 void InputService::SetExternalMouseWheel(float delta) {
     if (backend_) backend_->SetExternalMouseWheel(delta);
 }

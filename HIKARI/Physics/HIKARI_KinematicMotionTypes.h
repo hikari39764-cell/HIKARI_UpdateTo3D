@@ -30,7 +30,10 @@ namespace HIKARI::PHYSICS {
         float jumpSpeed = 0.0f;
         float maximumFallSpeed = 55.0f;
         bool hasDesiredRotation = false;
+        // Physics owns the immediate contact test. The controller may grant
+        // a short contact-independent window such as coyote time.
         bool jumpRequested = false;
+        bool allowJumpWithoutGroundContact = false;
         KinematicControllerSettings controller{};
     };
 

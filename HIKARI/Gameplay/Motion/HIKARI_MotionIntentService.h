@@ -22,6 +22,11 @@ namespace HIKARI::GAMEPLAY {
             uint64_t frameIndex,
             MotionIntent& outIntent,
             MotionIntentSourceId* outSource = nullptr);
+        bool PeekIntent(
+            RuntimeObjectHandle object,
+            uint64_t frameIndex,
+            MotionIntent& outIntent,
+            MotionIntentSourceId* outSource = nullptr) const;
 
         void Remove(RuntimeObjectHandle object) noexcept;
         void Clear() noexcept;
@@ -34,6 +39,13 @@ namespace HIKARI::GAMEPLAY {
             MotionIntent intent{};
             bool jumpLatched = false;
         };
+
+        IntentSlot* FindSelectedSlot(
+            RuntimeObjectHandle object,
+            uint64_t frameIndex) noexcept;
+        const IntentSlot* FindSelectedSlot(
+            RuntimeObjectHandle object,
+            uint64_t frameIndex) const noexcept;
 
         std::unordered_map<uint64_t, std::vector<IntentSlot>> intents_{};
     };

@@ -13,6 +13,13 @@ enum class InputDeviceKind {
     Gamepad,
 };
 
+// The presentation layer chooses how the operating-system cursor is owned.
+// Gameplay systems consume relative mouse actions and do not manage the cursor.
+enum class MouseCaptureMode {
+    Free,
+    Relative,
+};
+
 enum class InputActionValueType {
     Button,
     Axis1D,

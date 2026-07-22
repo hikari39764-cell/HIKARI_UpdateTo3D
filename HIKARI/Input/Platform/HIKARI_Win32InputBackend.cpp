@@ -119,11 +119,25 @@ bool IsHostActive(HWND host) {
 
 } // namespace
 
+Win32InputBackend::~Win32InputBackend() {
+    ReleaseRelativeMouseCapture();
+}
+
 void Win32InputBackend::SetHostWindow(void* nativeWindow) {
     if (hostWindow_ != nativeWindow) {
+        ReleaseRelativeMouseCapture();
         hostWindow_ = nativeWindow;
         hasPreviousMouse_ = false;
+        relativeMousePrimed_ = false;
     }
+}
+
+void Win32InputBackend::SetMouseCaptureMode(MouseCaptureMode mode) {
+    if (mouseCaptureMode_ == mode) return;
+    ReleaseRelativeMouseCapture();
+    mouseCaptureMode_ = mode;
+    hasPreviousMouse_ = false;
+    relativeMousePrimed_ = false;
 }
 
 void Win32InputBackend::SetExternalMouseWheel(float delta) {
@@ -131,10 +145,25 @@ void Win32InputBackend::SetExternalMouseWheel(float delta) {
 }
 
 void Win32InputBackend::Reset() {
+    ReleaseRelativeMouseCapture();
+    mouseCaptureMode_ = MouseCaptureMode::Free;
     externalWheel_ = 0.0f;
     hasPreviousMouse_ = false;
     previousMouseX_ = 0;
     previousMouseY_ = 0;
+}
+
+void Win32InputBackend::ReleaseRelativeMouseCapture() noexcept {
+    if (relativeMouseActive_) {
+        (void)::ClipCursor(nullptr);
+        relativeMouseActive_ = false;
+    }
+    if (cursorHiddenByBackend_) {
+        (void)::ShowCursor(TRUE);
+        cursorHiddenByBackend_ = false;
+    }
+    relativeMousePrimed_ = false;
+    hasPreviousMouse_ = false;
 }
 
 void Win32InputBackend::Poll(InputDeviceState& out) {
@@ -154,23 +183,78 @@ void Win32InputBackend::Poll(InputDeviceState& out) {
 
         POINT cursor{};
         if (::GetCursorPos(&cursor) != FALSE) {
-            POINT client = cursor;
-            if (host != nullptr) {
-                (void)::ScreenToClient(host, &client);
+            if (mouseCaptureMode_ == MouseCaptureMode::Relative &&
+                host != nullptr) {
+                RECT clientRect{};
+                if (::GetClientRect(host, &clientRect) != FALSE &&
+                    clientRect.right > clientRect.left &&
+                    clientRect.bottom > clientRect.top) {
+                    POINT corners[2] = {
+                        { clientRect.left, clientRect.top },
+                        { clientRect.right, clientRect.bottom },
+                    };
+                    (void)::MapWindowPoints(
+                        host, nullptr, corners, 2);
+                    RECT clipRect{
+                        corners[0].x,
+                        corners[0].y,
+                        corners[1].x,
+                        corners[1].y,
+                    };
+                    POINT center{
+                        (clipRect.left + clipRect.right) / 2,
+                        (clipRect.top + clipRect.bottom) / 2,
+                    };
+
+                    if (!relativeMouseActive_) {
+                        (void)::ClipCursor(&clipRect);
+                        relativeMouseActive_ = true;
+                        if (!cursorHiddenByBackend_) {
+                            (void)::ShowCursor(FALSE);
+                            cursorHiddenByBackend_ = true;
+                        }
+                        relativeMousePrimed_ = false;
+                    } else {
+                        // Keep the confinement rectangle synchronized with a
+                        // resizable or moving game window.
+                        (void)::ClipCursor(&clipRect);
+                    }
+
+                    out.mouseX = static_cast<float>(
+                        (clientRect.left + clientRect.right) / 2);
+                    out.mouseY = static_cast<float>(
+                        (clientRect.top + clientRect.bottom) / 2);
+                    if (relativeMousePrimed_) {
+                        out.mouseDeltaX = static_cast<float>(cursor.x - center.x);
+                        out.mouseDeltaY = static_cast<float>(cursor.y - center.y);
+                    }
+                    (void)::SetCursorPos(center.x, center.y);
+                    relativeMousePrimed_ = true;
+                    previousMouseX_ = center.x;
+                    previousMouseY_ = center.y;
+                    hasPreviousMouse_ = true;
+                } else {
+                    ReleaseRelativeMouseCapture();
+                }
+            } else {
+                POINT client = cursor;
+                if (host != nullptr) {
+                    (void)::ScreenToClient(host, &client);
+                }
+                out.mouseX = static_cast<float>(client.x);
+                out.mouseY = static_cast<float>(client.y);
+                if (hasPreviousMouse_) {
+                    out.mouseDeltaX = static_cast<float>(cursor.x - previousMouseX_);
+                    out.mouseDeltaY = static_cast<float>(cursor.y - previousMouseY_);
+                }
+                previousMouseX_ = cursor.x;
+                previousMouseY_ = cursor.y;
+                hasPreviousMouse_ = true;
             }
-            out.mouseX = static_cast<float>(client.x);
-            out.mouseY = static_cast<float>(client.y);
-            if (hasPreviousMouse_) {
-                out.mouseDeltaX = static_cast<float>(cursor.x - previousMouseX_);
-                out.mouseDeltaY = static_cast<float>(cursor.y - previousMouseY_);
-            }
-            previousMouseX_ = cursor.x;
-            previousMouseY_ = cursor.y;
-            hasPreviousMouse_ = true;
         }
         out.mouseWheel = externalWheel_;
     } else {
-        hasPreviousMouse_ = false;
+        ReleaseRelativeMouseCapture();
     }
     externalWheel_ = 0.0f;
 

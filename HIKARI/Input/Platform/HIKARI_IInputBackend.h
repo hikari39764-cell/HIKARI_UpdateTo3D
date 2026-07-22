@@ -5,6 +5,7 @@
 #include <vector>
 
 #include "Input/Runtime/HIKARI_InputRebindOperation.h"
+#include "Input/Runtime/HIKARI_InputTypes.h"
 
 namespace HIKARI::INPUT {
 
@@ -13,6 +14,8 @@ public:
     virtual ~IInputBackend() = default;
 
     virtual void SetHostWindow(void* nativeWindow) = 0;
+    virtual void SetMouseCaptureMode(MouseCaptureMode mode) = 0;
+    virtual MouseCaptureMode GetMouseCaptureMode() const noexcept = 0;
     virtual void SetExternalMouseWheel(float delta) = 0;
     virtual void Reset() = 0;
     virtual void Poll(InputDeviceState& out) = 0;

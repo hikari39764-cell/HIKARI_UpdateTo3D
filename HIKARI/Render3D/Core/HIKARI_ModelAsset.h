@@ -9,6 +9,8 @@
 #include <string_view>
 #include <vector>
 
+#include "Animation/Assets/HIKARI_AnimationAssetTypes.h"
+
 #include "Assets/HIKARI_AssetTypes.h"
 #include "Render3D/Core/HIKARI_Material.h"
 #include "Render3D/HIKARI_Math3D.h"
@@ -318,54 +320,6 @@ namespace HIKARI {
         int skinIndex = -1;
     };
 
-    struct SkeletonJoint {
-        std::string name;
-        int nodeIndex = -1;
-        int parentJoint = -1;
-        MATH::Mat4 inverseBindMatrix;
-    };
-
-    struct SkeletonAsset {
-        std::string name;
-        int skeletonRootNode = -1;
-        std::vector<SkeletonJoint> joints;
-    };
-
-    enum class AnimationTargetPath {
-        Translation,
-        Rotation,
-        Scale,
-        Weights,
-    };
-
-    enum class AnimationInterpolation {
-        Step,
-        Linear,
-        CubicSpline,
-    };
-
-    template<class T>
-    struct AnimationKeyframe {
-        float timeSec = 0.0f;
-        T value{};
-        T inTangent{};
-        T outTangent{};
-    };
-
-    struct NodeAnimationChannel {
-        int targetNode = -1;
-        AnimationTargetPath path = AnimationTargetPath::Translation;
-        AnimationInterpolation interpolation = AnimationInterpolation::Linear;
-        std::vector<AnimationKeyframe<MATH::Vec3>> vec3Keys;
-        std::vector<AnimationKeyframe<MATH::Quat>> quatKeys;
-    };
-
-    struct AnimationClip {
-        std::string name;
-        float durationSec = 0.0f;
-        std::vector<NodeAnimationChannel> channels;
-    };
-
     class ModelAsset {
     public:
         enum class State {
@@ -389,7 +343,9 @@ namespace HIKARI {
         size_t GetAnimationCount() const;
         const SkeletonAsset* FindSkin(int skinIndex) const;
         const AnimationClip* FindAnimationClip(std::string_view name) const;
+        const AnimationClip* FindAnimationClip(AnimationClipId id) const;
         const AnimationClip* GetAnimationClip(size_t index) const;
+        AnimationClipId GetAnimationClipId(size_t index) const noexcept;
         float GetAnimationDuration(std::string_view name) const;
 
         // Legacy bridge API used by old call sites during migration.

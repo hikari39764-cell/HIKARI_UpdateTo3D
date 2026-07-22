@@ -34,6 +34,9 @@ public:
     bool PumpMessages();
     float ConsumeMouseWheelDelta();
     bool SetTitle(const wchar_t* title);
+    // Refreshes the cached client dimensions without dispatching the resize
+    // callback. Presentation handoffs use this before synchronizing a surface.
+    bool RefreshClientSize();
 
     HWND GetHWND() const { return hwnd_; }
     int Width() const { return width_; }

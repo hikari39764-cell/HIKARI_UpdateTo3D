@@ -12,6 +12,7 @@
 #include "Scene/Features/HIKARI_RuntimeFeatureIds.h"
 #include "Scene/HIKARI_CharacterInputSystem.h"
 #include "Scene/HIKARI_CharacterLocomotionSystem.h"
+#include "Scene/HIKARI_CharacterMotionStateSystem.h"
 #include "Scene/HIKARI_ComponentRegistry.h"
 #include "Scene/HIKARI_ComponentSystemPolicy.h"
 #include "Scene/HIKARI_SystemTypeRegistry.h"
@@ -82,9 +83,10 @@ namespace HIKARI {
 
             std::span<const std::string_view>
                 GetSystemIds() const noexcept override {
-                static constexpr std::array<std::string_view, 2> ids{
+                static constexpr std::array<std::string_view, 3> ids{
                     "CharacterInputSystem",
-                    "CharacterLocomotionSystem"
+                    "CharacterLocomotionSystem",
+                    "CharacterMotionStateSystem"
                 };
                 return ids;
             }
@@ -138,8 +140,11 @@ namespace HIKARI {
                         { "acceleration", 30.0f },
                         { "deceleration", 40.0f },
                         { "airAcceleration", 10.0f },
+                        { "airDeceleration", 12.0f },
                         { "turnSpeedDegrees", 720.0f },
                         { "jumpHeight", 1.2f },
+                        { "jumpBufferSeconds", 0.12f },
+                        { "groundGraceSeconds", 0.10f },
                         { "maximumFallSpeed", 55.0f },
                         { "maximumSlopeAngleDegrees", 50.0f },
                         { "stepHeight", 0.4f },
@@ -229,6 +234,17 @@ namespace HIKARI {
                     }) && success;
                 success = context.systemTypeRegistry.Register(
                     SystemTypeInfo{
+                        "CharacterMotionStateSystem",
+                        [](const nlohmann::json&)
+                            -> std::unique_ptr<ISystem> {
+                            return std::make_unique<
+                                CharacterMotionStateSystem>();
+                        },
+                        "Character Motion State",
+                        std::string(RuntimeFeatureIds::GameplayBasic)
+                    }) && success;
+                success = context.systemTypeRegistry.Register(
+                    SystemTypeInfo{
                         "CharacterLocomotionSystem",
                         [](const nlohmann::json&)
                             -> std::unique_ptr<ISystem> {
@@ -249,6 +265,12 @@ namespace HIKARI {
                         "CharacterLocomotionComponent",
                         "CharacterLocomotionSystem",
                         110
+                    }) && success;
+                success = context.componentSystemPolicy.Register(
+                    ComponentSystemRule{
+                        "CharacterLocomotionComponent",
+                        "CharacterMotionStateSystem",
+                        130
                     }) && success;
                 return success;
             }

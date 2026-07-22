@@ -70,6 +70,13 @@ namespace HIKARI::RENDER3D::UPSCALING {
         bool hostAllowed);
     bool IsStreamlineFrameGenerationInstalled();
     bool IsStreamlineFrameGenerationAvailable();
+    // Must run on the same thread that just presented the frame. Streamline
+    // returns the fence that protects the inputs consumed by that Present.
+    bool CaptureStreamlineFrameGenerationCompletionAfterPresent();
+    // Waits for Streamline to finish consuming the last presented inputs.
+    // Resource destruction must not proceed when this returns false.
+    bool WaitForStreamlineFrameGenerationInputs(
+        uint32_t timeoutMilliseconds = 5000u);
     bool DeactivateStreamlineFrameGeneration(bool releaseResources);
     const StreamlineFrameGenerationStats&
         GetStreamlineFrameGenerationStats();

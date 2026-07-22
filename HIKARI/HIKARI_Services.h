@@ -563,6 +563,10 @@ namespace HIKARI {
             gInputService.Contexts().SetActive(
                 "Gameplay", !IsEditorHost());
             gInputService.SetHostWindow(gWindow.GetHWND());
+            gInputService.SetMouseCaptureMode(
+                IsStandaloneGameHost()
+                    ? INPUT::MouseCaptureMode::Relative
+                    : INPUT::MouseCaptureMode::Free);
 
             HIKARI::CAMERA::SetScreenSize(cfg.windowWidth, cfg.windowHeight);
             HIKARI::CAMERA::SetScreenCenter({ 0.0f,0.0f });
@@ -768,6 +772,8 @@ namespace HIKARI {
                 return false;
             }
             gInputService.SetHostWindow(gameWindow->GetHWND());
+            gInputService.SetMouseCaptureMode(
+                INPUT::MouseCaptureMode::Relative);
             gLogicalScreenWidth = gameWindow->Width();
             gLogicalScreenHeight = gameWindow->Height();
             HIKARI::CAMERA::SetScreenSize(gLogicalScreenWidth, gLogicalScreenHeight);
@@ -789,8 +795,19 @@ namespace HIKARI {
                 return false;
             }
             gGamePresentationController.MarkStopping();
+            gInputService.SetMouseCaptureMode(
+                INPUT::MouseCaptureMode::Free);
+            if (!gCore.WaitForIdle()) {
+                gInputService.SetMouseCaptureMode(
+                    INPUT::MouseCaptureMode::Relative);
+                HIKARI_LOG_ERROR(
+                    "Could not drain the presenting queue before stopping DLSS-G.");
+                return false;
+            }
             if (!RENDER3D::UPSCALING::
                     DeactivateStreamlineFrameGeneration(true)) {
+                gInputService.SetMouseCaptureMode(
+                    INPUT::MouseCaptureMode::Relative);
                 HIKARI_LOG_ERROR("Could not deactivate DLSS-G before stopping Play.");
                 return false;
             }
@@ -833,6 +850,8 @@ namespace HIKARI {
             gPendingWindowWidth = 0;
             gPendingWindowHeight = 0;
             UpdateGpuContexts();
+            gInputService.SetMouseCaptureMode(
+                INPUT::MouseCaptureMode::Free);
             gInputService.SetHostWindow(gWindow.GetHWND());
             gLogicalScreenWidth = gWindow.Width();
             gLogicalScreenHeight = gWindow.Height();
@@ -1198,6 +1217,11 @@ namespace HIKARI {
                 HIKARI_LOG_ERROR("D3D12 EndFrame failed; stopping GPU frame loop.");
                 CPU_PROFILE::EndFrame();
                 return false;
+            }
+            if (!RENDER3D::UPSCALING::
+                    CaptureStreamlineFrameGenerationCompletionAfterPresent()) {
+                HIKARI_LOG_WARN(
+                    "[Streamline] Could not capture DLSS-G completion state after Present; resource release will remain guarded.");
             }
             UpdateGamePresentationPerformanceTitle();
             gGpuFrameReady = false;

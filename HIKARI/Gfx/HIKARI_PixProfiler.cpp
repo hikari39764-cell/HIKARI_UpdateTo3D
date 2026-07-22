@@ -254,6 +254,15 @@ namespace HIKARI::GFX::PIX {
             if (gPix.hwnd != nullptr) {
                 PIXSetTargetWindow(gPix.hwnd);
             }
+            const HRESULT hudResult = PIXSetHUDOptions(
+                PIX_HUD_SHOW_ON_NO_WINDOWS);
+            if (FAILED(hudResult)) {
+                std::ostringstream oss;
+                oss << "[PIX] failed to hide capturer HUD. hr=0x"
+                    << std::hex
+                    << static_cast<unsigned long>(hudResult);
+                HIKARI_LOG_WARN(oss.str());
+            }
 
             SetStatus("PIX GPU capturer loaded.");
             HIKARI_LOG_INFO("[PIX] GPU capturer loaded.");

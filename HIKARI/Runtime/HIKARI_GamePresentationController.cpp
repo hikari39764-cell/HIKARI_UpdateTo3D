@@ -1,6 +1,7 @@
 #include "Runtime/HIKARI_GamePresentationController.h"
 
 #include <algorithm>
+#include <string>
 #include <utility>
 
 #include "Core/HIKARI_Logger.h"
@@ -91,10 +92,34 @@ namespace HIKARI::RUNTIME {
         }
 
         gameWindow_.Shutdown();
-        state_ = State::Inactive;
-        ShowWindow(editorWindow.GetHWND(), SW_RESTORE);
+        // Showing the hidden editor at its current placement preserves the
+        // maximized or windowed state it had before Play.
+        ShowWindow(editorWindow.GetHWND(), SW_SHOW);
         SetForegroundWindow(editorWindow.GetHWND());
-        HIKARI_LOG_INFO("Editor presentation surface restored.");
+        if (!editorWindow.RefreshClientSize()) {
+            HIKARI_LOG_ERROR(
+                "Editor window client size could not be refreshed after Play.");
+            return false;
+        }
+
+        const GFX::Context editorContext = core.BuildContext();
+        const uint32_t editorWidth =
+            static_cast<uint32_t>(editorWindow.Width());
+        const uint32_t editorHeight =
+            static_cast<uint32_t>(editorWindow.Height());
+        if ((editorContext.backBufferWidth != editorWidth ||
+             editorContext.backBufferHeight != editorHeight) &&
+            !core.Resize(editorWindow.Width(), editorWindow.Height())) {
+            HIKARI_LOG_ERROR(
+                "Editor presentation surface could not be synchronized to the restored window size.");
+            return false;
+        }
+
+        state_ = State::Inactive;
+        HIKARI_LOG_INFO(
+            std::string("Editor presentation surface restored. size=") +
+            std::to_string(editorWindow.Width()) + "x" +
+            std::to_string(editorWindow.Height()) + ".");
         return true;
     }
 

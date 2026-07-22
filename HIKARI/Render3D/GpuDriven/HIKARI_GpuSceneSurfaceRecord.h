@@ -84,9 +84,9 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
         bool visible = true;
         bool isStatic = false;
         bool hasRuntimeAnimation = false;
-        std::string animationClipName{};
-        float animationTimeSec = 0.0f;
-        bool animationLoop = true;
+        std::shared_ptr<const ANIMATION::AnimationPoseSnapshot>
+            animationPose{};
+        uint64_t animationPoseRevision = 0u;
         bool hasSpecialRenderDebug = false;
         bool skinned = false;
         uint32_t jointPaletteSlot = RUNTIME::kInvalidRenderSurfaceIndex;

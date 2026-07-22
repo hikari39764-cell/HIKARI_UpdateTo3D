@@ -3,12 +3,10 @@
 #include <array>
 #include <memory>
 
-#include "Scene/Components/HIKARI_AnimatorComponent.h"
 #include "Scene/Components/HIKARI_ModelComponent.h"
 #include "Scene/Components/HIKARI_ProceduralMeshComponent.h"
 #include "Scene/Features/HIKARI_RuntimeFeature.h"
 #include "Scene/Features/HIKARI_RuntimeFeatureIds.h"
-#include "Scene/HIKARI_AnimationSystem.h"
 #include "Scene/HIKARI_ComponentRegistry.h"
 #include "Scene/HIKARI_ComponentSystemPolicy.h"
 #include "Scene/HIKARI_RenderSubmissionSystem.h"
@@ -39,24 +37,22 @@ namespace HIKARI {
             }
 
             std::string_view GetDescription() const noexcept override {
-                return "Model rendering and skeletal animation support.";
+                return "Model rendering and procedural geometry support.";
             }
 
             std::span<const std::string_view>
                 GetComponentTypeNames() const noexcept override {
-                static constexpr std::array<std::string_view, 3> names{
+                static constexpr std::array<std::string_view, 2> names{
                     "ModelComponent",
-                    "ProceduralMeshComponent",
-                    "AnimatorComponent"
+                    "ProceduralMeshComponent"
                 };
                 return names;
             }
 
             std::span<const std::string_view>
                 GetSystemIds() const noexcept override {
-                static constexpr std::array<std::string_view, 2> ids{
-                    "ModelRenderSystem",
-                    "AnimationSystem"
+                static constexpr std::array<std::string_view, 1> ids{
+                    "ModelRenderSystem"
                 };
                 return ids;
             }
@@ -68,8 +64,7 @@ namespace HIKARI {
                     return std::make_unique<ModelComponent>();
                 };
                 model.optionalComponents = {
-                    "ProceduralMeshComponent",
-                    "AnimatorComponent"
+                    "ProceduralMeshComponent"
                 };
                 model.presentation = RenderingPresentation(
                     "Model",
@@ -104,33 +99,10 @@ namespace HIKARI {
                     "Procedural Mesh",
                     "Generates editable plane, box, sphere, cylinder, or capsule geometry.");
 
-                ComponentTypeInfo animator{};
-                animator.typeName = "AnimatorComponent";
-                animator.factory = []() -> std::unique_ptr<IComponent> {
-                    return std::make_unique<AnimatorComponent>();
-                };
-                animator.requiredComponents = { "ModelComponent" };
-                animator.initializeDefaults = [](
-                    const SceneObjectData&,
-                    nlohmann::json& properties) {
-                    properties["clip"] = "";
-                    properties["timeSec"] = 0.0f;
-                    properties["speed"] = 1.0f;
-                    properties["loop"] = true;
-                    properties["autoPlay"] = true;
-                    properties["playing"] = true;
-                    properties["finished"] = false;
-                };
-                animator.presentation = RenderingPresentation(
-                    "Animator",
-                    "Plays skeletal animation clips on a model.");
-
                 bool success = context.componentRegistry.Register(
                     std::move(model));
                 success = context.componentRegistry.Register(
                     std::move(procedural)) && success;
-                success = context.componentRegistry.Register(
-                    std::move(animator)) && success;
                 success = context.systemTypeRegistry.Register(SystemTypeInfo{
                     "ModelRenderSystem",
                     [](const nlohmann::json&) -> std::unique_ptr<ISystem> {
@@ -139,20 +111,6 @@ namespace HIKARI {
                     "Model Rendering",
                     "Rendering"
                 }) && success;
-                success = context.systemTypeRegistry.Register(SystemTypeInfo{
-                    "AnimationSystem",
-                    [](const nlohmann::json&) -> std::unique_ptr<ISystem> {
-                        return std::make_unique<AnimationSystem>();
-                    },
-                    "Animation",
-                    "Rendering"
-                }) && success;
-                success = context.componentSystemPolicy.Register(
-                    ComponentSystemRule{
-                        "AnimatorComponent",
-                        "AnimationSystem",
-                        150
-                    }) && success;
                 return success;
             }
 

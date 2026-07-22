@@ -5,6 +5,7 @@
 #include <string>
 #include <utility>
 
+#include "Animation/Runtime/HIKARI_AnimationClipSampler.h"
 #include "Editor/Inspectors/HIKARI_IInspectorBuilder.h"
 #include "Render3D/Core/HIKARI_ModelAsset.h"
 #include "Scene/Components/HIKARI_ModelComponent.h"
@@ -31,16 +32,23 @@ namespace HIKARI {
         }
 
 #if defined(HIKARI_ENABLE_IMGUI)
-        const AnimationClip* FindClip(const ModelAsset* asset, const std::string& clipName) {
-            return asset != nullptr ? asset->FindAnimationClip(clipName) : nullptr;
+        const AnimationClip* FindClip(
+            const ModelAsset* asset,
+            const ANIMATION::AnimationClipReference& reference) {
+            return asset != nullptr
+                ? ANIMATION::ResolveAnimationClip(*asset, reference)
+                : nullptr;
         }
 #endif
     }
 
     void AnimatorComponent::Serialize(nlohmann::json& out) const {
-        out["clip"] = clip_;
+        out["clip"] = clip_.fallbackName;
+        out["clipModelAssetId"] = clip_.modelAssetId.value;
+        out["clipId"] = clip_.clipId.value;
         out["timeSec"] = timeSec_;
         out["speed"] = speed_;
+        out["defaultBlendDurationSec"] = defaultBlendDurationSec_;
         out["loop"] = loop_;
         out["autoPlay"] = autoPlay_;
         out["playing"] = playing_;
@@ -48,24 +56,46 @@ namespace HIKARI {
     }
 
     void AnimatorComponent::Deserialize(const nlohmann::json& in) {
-        clip_ = in.value("clip", clip_);
+        clip_.fallbackName = in.value(
+            "clip", clip_.fallbackName);
+        clip_.modelAssetId.value = in.value(
+            "clipModelAssetId", clip_.modelAssetId.value);
+        clip_.clipId.value = in.value(
+            "clipId", clip_.clipId.value);
         timeSec_ = ClampTime(in.value("timeSec", timeSec_));
         speed_ = in.value("speed", speed_);
+        defaultBlendDurationSec_ = (std::max)(
+            0.0f,
+            in.value(
+                "defaultBlendDurationSec",
+                defaultBlendDurationSec_));
         loop_ = in.value("loop", loop_);
         autoPlay_ = in.value("autoPlay", autoPlay_);
         playing_ = in.value("playing", autoPlay_);
         finished_ = in.value("finished", finished_);
+        ClearTransition();
     }
 
     void AnimatorComponent::BuildInspector(IInspectorBuilder& builder) {
-        builder.String("Clip", clip_);
+        if (builder.String("Clip", clip_.fallbackName)) {
+            // A hand-edited name is no longer guaranteed to describe the
+            // previously resolved asset/clip pair. The AnimationSystem will
+            // resolve and bind the new name on its next update.
+            clip_.modelAssetId = {};
+            clip_.clipId = {};
+            ClearTransition();
+        }
         builder.Float("Time Sec", timeSec_);
         builder.Float("Speed", speed_);
+        builder.Float("Default Blend Sec", defaultBlendDurationSec_);
         builder.Bool("Loop", loop_);
         builder.Bool("Auto Play", autoPlay_);
         builder.Bool("Playing", playing_);
         builder.Bool("Finished", finished_);
         timeSec_ = ClampTime(timeSec_);
+        defaultBlendDurationSec_ = (std::max)(
+            0.0f,
+            defaultBlendDurationSec_);
     }
 
     void AnimatorComponent::RenderImGui() {
@@ -75,7 +105,8 @@ namespace HIKARI {
         int currentIndex = -1;
         if (modelAsset != nullptr) {
             for (size_t i = 0; i < modelAsset->animations.size(); ++i) {
-                if (modelAsset->animations[i].name == clip_) {
+                if (modelAsset->GetAnimationClipId(i) == clip_.clipId ||
+                    modelAsset->animations[i].name == clip_.fallbackName) {
                     currentIndex = static_cast<int>(i);
                     currentClip = &modelAsset->animations[i];
                     break;
@@ -83,7 +114,9 @@ namespace HIKARI {
             }
         }
 
-        const char* preview = clip_.empty() ? "<none>" : clip_.c_str();
+        const char* preview = clip_.fallbackName.empty()
+            ? "<none>"
+            : clip_.fallbackName.c_str();
         if (modelAsset != nullptr && !modelAsset->animations.empty()) {
             if (ImGui::BeginCombo("Clip From Model", preview)) {
                 for (size_t i = 0; i < modelAsset->animations.size(); ++i) {
@@ -91,7 +124,13 @@ namespace HIKARI {
                     const bool selected = static_cast<int>(i) == currentIndex;
                     std::string label = clip.name + " (" + std::to_string(clip.durationSec) + "s)";
                     if (ImGui::Selectable(label.c_str(), selected)) {
-                        Play(clip.name, loop_, true);
+                        CrossFade(
+                            ANIMATION::MakeAnimationClipReference(
+                                *modelAsset,
+                                i),
+                            defaultBlendDurationSec_,
+                            loop_,
+                            true);
                     }
                     if (selected) {
                         ImGui::SetItemDefaultFocus();
@@ -110,8 +149,15 @@ namespace HIKARI {
             ImGui::Text("Progress: %.2f / %.2f", timeSec_, duration);
             ImGui::Text("Normalized Time: %.3f", normalized);
             ImGui::ProgressBar(normalized);
-        } else if (!clip_.empty()) {
+        } else if (!clip_.fallbackName.empty()) {
             ImGui::TextColored(ImVec4(1.0f, 0.5f, 0.5f, 1.0f), "Clip not found in current model");
+        }
+
+        if (IsTransitioning()) {
+            ImGui::Text(
+                "Blend: %.0f%%",
+                GetTransitionWeight() * 100.0f);
+            ImGui::ProgressBar(GetTransitionWeight());
         }
 
         if (ImGui::Button("Play")) {
@@ -135,23 +181,81 @@ namespace HIKARI {
         }
         ImGui::SameLine();
         if (ImGui::Button("Play Once")) {
-            PlayOnce(clip_, true);
+            PlayOnce(clip_.fallbackName, true);
         }
 #endif
     }
 
     void AnimatorComponent::Play(std::string clip, bool loop, bool restart) {
+        ANIMATION::AnimationClipReference reference{};
+        reference.fallbackName = std::move(clip);
+        Play(std::move(reference), loop, restart);
+    }
+
+    void AnimatorComponent::Play(
+        ANIMATION::AnimationClipReference clip,
+        bool loop,
+        bool restart) {
         clip_ = std::move(clip);
         loop_ = loop;
         playing_ = true;
         finished_ = false;
+        ClearTransition();
         if (restart) {
             timeSec_ = 0.0f;
         }
     }
 
+    void AnimatorComponent::CrossFade(
+        std::string clip,
+        float durationSeconds,
+        bool loop,
+        bool restart) {
+        ANIMATION::AnimationClipReference reference{};
+        reference.fallbackName = std::move(clip);
+        CrossFade(
+            std::move(reference),
+            durationSeconds,
+            loop,
+            restart);
+    }
+
+    void AnimatorComponent::CrossFade(
+        ANIMATION::AnimationClipReference clip,
+        float durationSeconds,
+        bool loop,
+        bool restart) {
+        const float safeDuration = std::isfinite(durationSeconds)
+            ? (std::max)(0.0f, durationSeconds)
+            : 0.0f;
+        if (safeDuration <= 0.0f || clip_.IsEmpty()) {
+            Play(std::move(clip), loop, restart);
+            return;
+        }
+        if (clip == clip_ && !restart) {
+            loop_ = loop;
+            playing_ = true;
+            return;
+        }
+
+        transitionSourceClip_ = clip_;
+        transitionSourceTimeSec_ = timeSec_;
+        transitionSourceLoop_ = loop_;
+        transitionDurationSec_ = safeDuration;
+        transitionElapsedSec_ = 0.0f;
+
+        clip_ = std::move(clip);
+        loop_ = loop;
+        playing_ = true;
+        finished_ = false;
+        if (restart) timeSec_ = 0.0f;
+    }
+
     void AnimatorComponent::PlayCurrent(bool restart) {
-        Play(clip_, loop_, restart);
+        playing_ = !clip_.IsEmpty();
+        finished_ = false;
+        ClearTransition();
+        if (restart) timeSec_ = 0.0f;
     }
 
     void AnimatorComponent::PlayOnce(std::string clip, bool restart) {
@@ -163,7 +267,7 @@ namespace HIKARI {
     }
 
     void AnimatorComponent::Resume() {
-        if (!clip_.empty()) {
+        if (!clip_.IsEmpty()) {
             playing_ = true;
             finished_ = false;
         }
@@ -173,6 +277,7 @@ namespace HIKARI {
         playing_ = false;
         finished_ = true;
         timeSec_ = 0.0f;
+        ClearTransition();
     }
 
     void AnimatorComponent::ResetTime() {
@@ -181,11 +286,18 @@ namespace HIKARI {
     }
 
     void AnimatorComponent::Advance(float deltaTimeSec, float clipDurationSec) {
-        if (!playing_ || clip_.empty()) {
+        if (!playing_ || clip_.IsEmpty()) {
             return;
         }
 
         timeSec_ += deltaTimeSec * speed_;
+        if (IsTransitioning()) {
+            transitionSourceTimeSec_ += deltaTimeSec * speed_;
+            transitionElapsedSec_ += (std::max)(0.0f, deltaTimeSec);
+            if (transitionElapsedSec_ >= transitionDurationSec_) {
+                ClearTransition();
+            }
+        }
         if (clipDurationSec <= 0.0f) {
             timeSec_ = ClampTime(timeSec_);
             return;
@@ -212,12 +324,45 @@ namespace HIKARI {
     }
 
     void AnimatorComponent::SetClip(std::string clip) {
+        ANIMATION::AnimationClipReference reference{};
+        reference.fallbackName = std::move(clip);
+        SetClip(std::move(reference));
+    }
+
+    void AnimatorComponent::SetClip(
+        ANIMATION::AnimationClipReference clip) {
         clip_ = std::move(clip);
         finished_ = false;
+        ClearTransition();
     }
 
     const std::string& AnimatorComponent::GetClip() const {
+        return clip_.fallbackName;
+    }
+
+    const ANIMATION::AnimationClipReference&
+        AnimatorComponent::GetClipReference() const {
         return clip_;
+    }
+
+    void AnimatorComponent::BindClipToModel(const ModelAsset& model) {
+        const auto bind = [&model](
+            ANIMATION::AnimationClipReference& reference) {
+            if (reference.fallbackName.empty()) return;
+            for (size_t index = 0u;
+                    index < model.animations.size();
+                    ++index) {
+                if (model.animations[index].name ==
+                        reference.fallbackName) {
+                    reference = ANIMATION::MakeAnimationClipReference(
+                        model,
+                        index);
+                    return;
+                }
+            }
+        };
+        bind(clip_);
+        bind(transitionSourceClip_);
     }
 
     void AnimatorComponent::SetTime(float timeSec) {
@@ -276,6 +421,52 @@ namespace HIKARI {
             return false;
         }
         return speed_ >= 0.0f ? timeSec_ >= clipDurationSec : timeSec_ <= 0.0f;
+    }
+
+    void AnimatorComponent::SetDefaultBlendDuration(
+        float durationSeconds) {
+        defaultBlendDurationSec_ = std::isfinite(durationSeconds)
+            ? (std::max)(0.0f, durationSeconds)
+            : 0.0f;
+    }
+
+    float AnimatorComponent::GetDefaultBlendDuration() const noexcept {
+        return defaultBlendDurationSec_;
+    }
+
+    bool AnimatorComponent::IsTransitioning() const noexcept {
+        return transitionDurationSec_ > 0.0f &&
+            !transitionSourceClip_.IsEmpty();
+    }
+
+    float AnimatorComponent::GetTransitionWeight() const noexcept {
+        return IsTransitioning()
+            ? std::clamp(
+                transitionElapsedSec_ / transitionDurationSec_,
+                0.0f,
+                1.0f)
+            : 1.0f;
+    }
+
+    const ANIMATION::AnimationClipReference&
+        AnimatorComponent::GetTransitionSourceClip() const noexcept {
+        return transitionSourceClip_;
+    }
+
+    float AnimatorComponent::GetTransitionSourceTime() const noexcept {
+        return transitionSourceTimeSec_;
+    }
+
+    bool AnimatorComponent::GetTransitionSourceLoop() const noexcept {
+        return transitionSourceLoop_;
+    }
+
+    void AnimatorComponent::ClearTransition() noexcept {
+        transitionSourceClip_ = {};
+        transitionSourceTimeSec_ = 0.0f;
+        transitionDurationSec_ = 0.0f;
+        transitionElapsedSec_ = 0.0f;
+        transitionSourceLoop_ = true;
     }
 
 } // namespace HIKARI

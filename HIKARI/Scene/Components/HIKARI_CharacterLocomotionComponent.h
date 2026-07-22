@@ -37,8 +37,17 @@ namespace HIKARI {
         float GetAirAcceleration() const noexcept {
             return airAcceleration_;
         }
+        float GetAirDeceleration() const noexcept {
+            return airDeceleration_;
+        }
         float GetTurnSpeedRadians() const noexcept;
         float GetJumpHeight() const noexcept { return jumpHeight_; }
+        float GetJumpBufferSeconds() const noexcept {
+            return jumpBufferSeconds_;
+        }
+        float GetGroundGraceSeconds() const noexcept {
+            return groundGraceSeconds_;
+        }
         float GetMaximumFallSpeed() const noexcept {
             return maximumFallSpeed_;
         }
@@ -80,8 +89,11 @@ namespace HIKARI {
         float acceleration_ = 30.0f;
         float deceleration_ = 40.0f;
         float airAcceleration_ = 10.0f;
+        float airDeceleration_ = 12.0f;
         float turnSpeedDegrees_ = 720.0f;
         float jumpHeight_ = 1.2f;
+        float jumpBufferSeconds_ = 0.12f;
+        float groundGraceSeconds_ = 0.10f;
         float maximumFallSpeed_ = 55.0f;
         float maximumSlopeAngleDegrees_ = 50.0f;
         float stepHeight_ = 0.4f;

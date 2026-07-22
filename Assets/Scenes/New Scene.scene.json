@@ -1,6 +1,6 @@
 {
   "camera": {
-    "defaultCameraObjectId": 2
+    "defaultCameraObjectId": null
   },
   "cinematics": {
     "defaultSequenceId": 1,
@@ -526,98 +526,7 @@
       }
     },
     {
-      "components": [
-        {
-          "properties": {
-            "enabled": false,
-            "farClip": 82.60199737548828,
-            "nearClip": 0.6010000109672546,
-            "verticalFovDegrees": 73.19999694824219
-          },
-          "type": "CameraComponent"
-        }
-      ],
-      "editorVisible": true,
-      "enabled": true,
-      "id": 2,
-      "name": "GameObject_2",
-      "parent": null,
-      "sourcePrefabId": "",
-      "transform": {
-        "position": [
-          -12.168262481689453,
-          5.751866340637207,
-          -9.894811630249023
-        ],
-        "rotationEulerDeg": [
-          -346.5144958496094,
-          210.034912109375,
-          -361.5832824707031
-        ],
-        "scale": [
-          1.0,
-          1.0,
-          1.0
-        ]
-      }
-    },
-    {
-      "components": [
-        {
-          "properties": {
-            "enabled": false,
-            "farClip": 100.0,
-            "nearClip": 0.10000000149011612,
-            "verticalFovDegrees": 60.0
-          },
-          "type": "CameraComponent"
-        }
-      ],
-      "editorVisible": true,
-      "enabled": true,
-      "id": 3,
-      "name": "GameObject_3",
-      "parent": null,
-      "sourcePrefabId": "",
-      "transform": {
-        "position": [
-          -6.711541652679443,
-          6.71356725692749,
-          -6.637121200561523
-        ],
-        "rotationEulerDeg": [
-          0.0,
-          0.0,
-          0.0
-        ],
-        "scale": [
-          1.0,
-          1.0,
-          1.0
-        ]
-      }
-    },
-    {
-      "components": [
-        {
-          "properties": {
-            "bindings": [],
-            "channel": "Cinematics",
-            "channelPolicy": "ReplaceIfHigherOrEqual",
-            "enabled": false,
-            "loop": false,
-            "ownerSlotName": "Owner",
-            "playOnStart": true,
-            "playbackRate": 1.0,
-            "priority": 0,
-            "restartIfPlaying": true,
-            "sequenceAssetGuid": "60dbdb6d4111deef4a41cbd789343696",
-            "startTimeSeconds": 0.0,
-            "stopOnDisable": true
-          },
-          "type": "SequencePlayerComponent"
-        }
-      ],
+      "components": [],
       "editorVisible": true,
       "enabled": true,
       "id": 4,
@@ -671,7 +580,7 @@
               0.8999999761581421,
               0.0
             ],
-            "collisionAssetId": "",
+            "collisionAssetId": "b5495438c8743f173e2cf1a7536224af",
             "enabled": true,
             "filter": {
               "layer": 8,
@@ -737,18 +646,21 @@
           "properties": {
             "acceleration": 30.0,
             "airAcceleration": 10.0,
+            "airDeceleration": 12.0,
             "characterPadding": 0.019999999552965164,
             "deceleration": 40.0,
             "enabled": true,
             "enhancedInternalEdgeRemoval": true,
+            "groundGraceSeconds": 0.10000000149011612,
             "inputDeadZone": 0.07999999821186066,
+            "jumpBufferSeconds": 0.11999999731779099,
             "jumpHeight": 1.2000000476837158,
             "maximumCollisionHits": 256,
             "maximumFallSpeed": 55.0,
             "maximumSlopeAngleDegrees": 50.0,
             "maximumSpeed": 5.0,
             "motionPriority": 100,
-            "movementSpace": "World",
+            "movementSpace": "Camera",
             "penetrationRecoverySpeed": 1.0,
             "predictiveContactDistance": 0.10000000149011612,
             "rotateToMove": true,
@@ -780,9 +692,9 @@
       "sourcePrefabId": "",
       "transform": {
         "position": [
-          -11.696145057678223,
-          7.7197394371032715,
-          -1.5458850860595703
+          -11.1691312789917,
+          4.5257887840271,
+          -1.1672077178955078
         ],
         "rotationEulerDeg": [
           0.0,
@@ -799,93 +711,54 @@
     {
       "components": [
         {
-          "properties": {},
-          "type": "ModelComponent"
-        },
-        {
           "properties": {
-            "depth": 1.0,
-            "doubleSided": false,
-            "generateTangents": true,
-            "height": 1.0,
-            "kind": "Box",
-            "segmentsX": 10,
-            "segmentsY": 10,
-            "segmentsZ": 1,
-            "sphereSlices": 32,
-            "sphereStacks": 16,
-            "width": 1.0
-          },
-          "type": "ProceduralMeshComponent"
-        },
-        {
-          "properties": {
-            "center": [
-              0.0,
-              0.0,
-              0.0
-            ],
-            "collisionAssetId": "",
             "enabled": true,
-            "filter": {
-              "layer": 1,
-              "mask": 4294967295
-            },
-            "fitMode": "Manual",
-            "height": 1.0,
-            "material": {
-              "density": 1.0,
-              "friction": 0.5,
-              "restitution": 0.0
-            },
-            "radius": 0.5,
-            "rotation": [
-              0.0,
-              0.0,
-              0.0
-            ],
-            "shape": "Box",
-            "size": [
-              1.0,
-              1.0,
-              1.0
-            ],
-            "trigger": false
+            "farClip": 100.0,
+            "nearClip": 0.10000000149011612,
+            "verticalFovDegrees": 60.0
           },
-          "type": "ColliderComponent"
+          "type": "CameraComponent"
         },
         {
           "properties": {
-            "allowSleeping": true,
-            "angularDamping": 0.05000000074505806,
-            "continuousCollision": false,
+            "autoRecenterDelaySeconds": 1.649999976158142,
+            "autoRecenterEnabled": true,
+            "autoRecenterSpeedDegreesPerSecond": 124.5,
+            "collisionEnabled": true,
+            "collisionLayerMask": 4294967295,
+            "collisionPadding": 0.07999999821186066,
+            "collisionRadius": 0.25,
+            "distanceSmooth": 18.0,
             "enabled": true,
-            "gravityScale": 1.0,
-            "initialAngularVelocity": [
+            "followSmooth": 12.0,
+            "initialDistance": 5.800000190734863,
+            "initialPitchDegrees": 28.0,
+            "initialYawDegrees": 0.0,
+            "invertVerticalLook": false,
+            "lookAction": "Gameplay.Look",
+            "lookSmooth": 14.0,
+            "maximumDistance": 20.0,
+            "maximumPitchDegrees": 75.0,
+            "minimumDistance": 1.0,
+            "minimumPitchDegrees": -65.0,
+            "mouseSensitivityDegreesPerPixel": 0.11999999731779099,
+            "mouseWheelZoomUnitsPerStep": 1.0,
+            "orbitInputEnabled": true,
+            "pitchSpeedDegreesPerSecond": 140.0,
+            "pivotOffset": [
               0.0,
-              0.0,
+              1.2000000476837158,
               0.0
             ],
-            "initialLinearVelocity": [
-              0.0,
-              0.0,
-              0.0
-            ],
-            "linearDamping": 0.05000000074505806,
-            "lockRotation": [
-              0.0,
-              0.0,
-              0.0
-            ],
-            "lockTranslation": [
-              0.0,
-              0.0,
-              0.0
-            ],
-            "mass": 1.0,
-            "motionType": "Dynamic"
+            "priority": 0,
+            "recenterAction": "Gameplay.CameraRecenter",
+            "targetObjectId": 5,
+            "useOwnerAsFallbackTarget": true,
+            "yawSpeedDegreesPerSecond": 180.0,
+            "zoomAction": "Gameplay.CameraZoom",
+            "zoomSpeedUnitsPerSecond": 30.0
           },
-          "type": "PhysicsBodyComponent"
+          "type": "CameraFollowComponent"
         }
       ],
       "editorVisible": true,
@@ -896,9 +769,9 @@
       "sourcePrefabId": "",
       "transform": {
         "position": [
-          -7.617530822753906,
-          6.449795246124268,
-          -11.793941497802734
+          -9.300864219665527,
+          5.176947116851807,
+          -7.22235107421875
         ],
         "rotationEulerDeg": [
           0.0,

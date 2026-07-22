@@ -39,6 +39,7 @@ namespace HIKARI::EDITOR {
             float nearClip = 0.1f;
             float farClip = 100.0f;
             bool enabled = true;
+            bool isActive = false;
             bool isDefault = false;
             bool isSelected = false;
             bool isPreviewed = false;
@@ -89,6 +90,8 @@ namespace HIKARI::EDITOR {
             const SceneObjectId previewId = scene.IsEditorCameraPreviewActive()
                 ? scene.GetEditorCameraPreviewObjectId()
                 : SceneObjectId{};
+            const CameraDirectorStatus directorStatus =
+                scene.GetCameraDirector().GetStatus();
 
             for (const auto& object : scene.GetWorld().GetObjects()) {
                 if (!object) {
@@ -122,6 +125,9 @@ namespace HIKARI::EDITOR {
                 entry.nearClip = camera->GetNearClip();
                 entry.farClip = camera->GetFarClip();
                 entry.enabled = camera->IsEnabled();
+                entry.isActive =
+                    directorStatus.activeSourceCameraObjectId ==
+                    entry.objectId;
                 entry.isDefault = document.camera.defaultCameraObjectId == entry.objectId;
                 entry.isSelected = selectedId == entry.objectId;
                 entry.isPreviewed = previewId == entry.objectId;
@@ -631,6 +637,17 @@ namespace HIKARI::EDITOR {
         std::vector<OverviewCameraEntry> cameras = GatherCameras(scene, context);
 
         ImGui::TextDisabled("%zu scene cameras", cameras.size());
+        const CameraDirectorStatus directorStatus =
+            scene.GetCameraDirector().GetStatus();
+        if (directorStatus.overrideCount > 0u ||
+            directorStatus.blending) {
+            ImGui::SameLine();
+            ImGui::TextDisabled(
+                "| %zu override%s%s",
+                directorStatus.overrideCount,
+                directorStatus.overrideCount == 1u ? "" : "s",
+                directorStatus.blending ? " | blending" : "");
+        }
         if (scene.IsEditorCameraPreviewActive()) {
             ImGui::SameLine();
             if (ImGui::Button("Exit Camera View")) {
@@ -692,6 +709,10 @@ namespace HIKARI::EDITOR {
                 ImGui::TextColored(
                     ImVec4(0.78f, 0.56f, 1.0f, 1.0f),
                     "Preview");
+            } else if (camera.isActive) {
+                ImGui::TextColored(
+                    ImVec4(0.28f, 0.82f, 0.92f, 1.0f),
+                    "Active");
             } else if (camera.isDefault) {
                 ImGui::TextColored(
                     ImVec4(0.35f, 0.87f, 0.58f, 1.0f),

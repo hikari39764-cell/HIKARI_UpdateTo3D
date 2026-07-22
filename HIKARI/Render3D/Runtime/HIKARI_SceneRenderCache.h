@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstdint>
+#include <memory>
 #include <string>
 #include <unordered_map>
 #include <vector>
@@ -8,6 +9,7 @@
 #include <DirectXMath.h>
 #include <Vfx/Common/HIKARI_FxTypes.h>
 
+#include "Animation/Runtime/HIKARI_AnimationPose.h"
 #include "Render3D/Core/HIKARI_ModelAsset.h"
 #include "Render3D/Runtime/HIKARI_RenderModelAsset.h"
 
@@ -45,9 +47,9 @@ namespace HIKARI::RENDER3D::RUNTIME {
         bool castShadow = true;
         bool receiveShadow = true;
         bool hasRuntimeAnimation = false;
-        std::string animationClipName{};
-        float animationTimeSec = 0.0f;
-        bool animationLoop = true;
+        std::shared_ptr<const ANIMATION::AnimationPoseSnapshot>
+            animationPose{};
+        uint64_t animationPoseRevision = 0u;
         bool hasSpecialRenderDebug = false;
         bool allowStaticCachedForward = true;
         std::string clusteredGeometryPath{};
@@ -103,9 +105,9 @@ namespace HIKARI::RENDER3D::RUNTIME {
         bool castShadow = true;
         bool receiveShadow = true;
         bool hasRuntimeAnimation = false;
-        std::string animationClipName{};
-        float animationTimeSec = 0.0f;
-        bool animationLoop = true;
+        std::shared_ptr<const ANIMATION::AnimationPoseSnapshot>
+            animationPose{};
+        uint64_t animationPoseRevision = 0u;
         bool hasSpecialRenderDebug = false;
         bool allowStaticCachedForward = true;
         bool skinned = false;

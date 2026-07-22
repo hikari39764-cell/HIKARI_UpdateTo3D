@@ -786,9 +786,9 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
         record.visible = surfaceInstance.visible;
         record.isStatic = surfaceInstance.isStatic;
         record.hasRuntimeAnimation = surfaceInstance.hasRuntimeAnimation;
-        record.animationClipName = surfaceInstance.animationClipName;
-        record.animationTimeSec = surfaceInstance.animationTimeSec;
-        record.animationLoop = surfaceInstance.animationLoop;
+        record.animationPose = surfaceInstance.animationPose;
+        record.animationPoseRevision =
+            surfaceInstance.animationPoseRevision;
         record.hasSpecialRenderDebug = surfaceInstance.hasSpecialRenderDebug;
         record.skinned = surfaceInstance.skinned;
         record.castShadow = surfaceInstance.castShadow;

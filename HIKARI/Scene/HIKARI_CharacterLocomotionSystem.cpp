@@ -102,20 +102,28 @@ namespace HIKARI {
                 return direction;
             }
 
-            MATH::Mat4 basis = space == CharacterMovementSpace::Camera
-                ? camera->GetView()
-                : MATH::Mat4::Rotate(objectRotation);
             MATH::Vec3 right{};
             MATH::Vec3 forward{};
             if (space == CharacterMovementSpace::Camera &&
                 camera != nullptr) {
-                right = FlattenAndNormalize({
-                    basis.m[0][0], basis.m[1][0], basis.m[2][0]
-                });
-                forward = FlattenAndNormalize({
-                    -basis.m[0][2], -basis.m[1][2], -basis.m[2][2]
-                });
+                // Author camera-relative movement from the viewed direction
+                // directly. This avoids leaking view-matrix conventions into
+                // gameplay and guarantees W follows the screen forward axis.
+                forward = FlattenAndNormalize(
+                    camera->GetTarget() - camera->GetPosition());
+                if (MATH::Length(forward) > 1.0e-5f) {
+                    right = FlattenAndNormalize(MATH::Cross(
+                        { 0.0f, 1.0f, 0.0f },
+                        forward));
+                }
+                if (MATH::Length(right) <= 1.0e-5f ||
+                    MATH::Length(forward) <= 1.0e-5f) {
+                    right = { 1.0f, 0.0f, 0.0f };
+                    forward = { 0.0f, 0.0f, 1.0f };
+                }
             } else {
+                const MATH::Mat4 basis = MATH::Mat4::Rotate(
+                    objectRotation);
                 right = FlattenAndNormalize({
                     basis.m[0][0], basis.m[0][1], basis.m[0][2]
                 });
@@ -147,6 +155,7 @@ namespace HIKARI {
         kinematicMotionService_ = nullptr;
         physicsService_ = nullptr;
         cameraService_ = nullptr;
+        runtimeStates_.clear();
     }
 
     void CharacterLocomotionSystem::FixedUpdate(
@@ -171,6 +180,8 @@ namespace HIKARI {
                 GameObject& object,
                 CharacterLocomotionComponent& locomotion,
                 PhysicsBodyComponent& physicsBody) {
+                const uint64_t runtimeKey =
+                    object.GetRuntimeHandle().ToValue();
                 GAMEPLAY::MotionIntent intent{};
                 if (locomotion.IsEnabled()) {
                     (void)motionIntentService_->ResolveIntent(
@@ -178,6 +189,7 @@ namespace HIKARI {
                         frame.frameIndex,
                         intent);
                 } else {
+                    runtimeStates_.erase(runtimeKey);
                     return;
                 }
 
@@ -189,6 +201,38 @@ namespace HIKARI {
                     : object.GetTransform().rotation;
                 const bool grounded = state != nullptr &&
                     state->IsGrounded();
+                RuntimeState& runtime = runtimeStates_[runtimeKey];
+                runtime.lastTouchedFixedTick = frame.fixedTickIndex;
+                const bool jumpPressed = intent.jumpPressed ||
+                    (intent.jumpHeld &&
+                        !runtime.jumpHeldLastFixedTick);
+                runtime.jumpHeldLastFixedTick = intent.jumpHeld;
+                if (grounded) {
+                    runtime.groundGraceRemaining =
+                        locomotion.GetGroundGraceSeconds();
+                } else {
+                    runtime.groundGraceRemaining = (std::max)(
+                        0.0f,
+                        runtime.groundGraceRemaining - frame.fixedDt);
+                }
+                if (jumpPressed) {
+                    runtime.jumpBufferRemaining =
+                        locomotion.GetJumpBufferSeconds();
+                } else {
+                    runtime.jumpBufferRemaining = (std::max)(
+                        0.0f,
+                        runtime.jumpBufferRemaining - frame.fixedDt);
+                }
+                const bool hasJumpRequest = jumpPressed ||
+                    runtime.jumpBufferRemaining > 0.0f;
+                const bool hasGroundPermission = grounded ||
+                    runtime.groundGraceRemaining > 0.0f;
+                const bool allowJumpWithoutGroundContact =
+                    hasJumpRequest && hasGroundPermission;
+                if (allowJumpWithoutGroundContact) {
+                    runtime.jumpBufferRemaining = 0.0f;
+                    runtime.groundGraceRemaining = 0.0f;
+                }
                 const MATH::Vec3 currentHorizontal = state != nullptr
                     ? Flatten(
                         state->velocity -
@@ -208,15 +252,15 @@ namespace HIKARI {
                         ? locomotion.GetSprintMultiplier()
                         : 1.0f);
                 const MATH::Vec3 targetVelocity = direction * speed;
-                float acceleration = direction.x != 0.0f ||
-                        direction.z != 0.0f
+                const bool hasMovementInput =
+                    direction.x != 0.0f || direction.z != 0.0f;
+                const float acceleration = hasMovementInput
                     ? (grounded
                         ? locomotion.GetAcceleration()
                         : locomotion.GetAirAcceleration())
-                    : locomotion.GetDeceleration();
-                if (!grounded && MATH::Length(direction) <= 1.0e-5f) {
-                    acceleration = 0.0f;
-                }
+                    : (grounded
+                        ? locomotion.GetDeceleration()
+                        : locomotion.GetAirDeceleration());
 
                 PHYSICS::KinematicMotionRequest request{};
                 request.horizontalVelocity = MoveTowards(
@@ -232,7 +276,9 @@ namespace HIKARI {
                 request.jumpSpeed = std::sqrt(
                     2.0f * gravityMagnitude *
                     locomotion.GetJumpHeight());
-                request.jumpRequested = intent.jumpPressed;
+                request.jumpRequested = hasJumpRequest;
+                request.allowJumpWithoutGroundContact =
+                    allowJumpWithoutGroundContact;
                 if (locomotion.GetRotateToMove() &&
                     MATH::Length(direction) > 1.0e-5f) {
                     request.desiredRotation = RotateTowards(
@@ -267,6 +313,16 @@ namespace HIKARI {
                     request,
                     frame.fixedTickIndex);
             });
+
+        for (auto runtime = runtimeStates_.begin();
+            runtime != runtimeStates_.end();) {
+            if (runtime->second.lastTouchedFixedTick !=
+                    frame.fixedTickIndex) {
+                runtime = runtimeStates_.erase(runtime);
+            } else {
+                ++runtime;
+            }
+        }
     }
 
 } // namespace HIKARI

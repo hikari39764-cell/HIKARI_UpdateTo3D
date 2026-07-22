@@ -25,6 +25,8 @@ public:
     void Shutdown();
     void SetBackend(std::unique_ptr<IInputBackend> backend);
     void SetHostWindow(void* nativeWindow);
+    void SetMouseCaptureMode(MouseCaptureMode mode);
+    MouseCaptureMode GetMouseCaptureMode() const noexcept;
     void SetExternalMouseWheel(float delta);
     void Update(float unscaledDeltaSeconds);
 

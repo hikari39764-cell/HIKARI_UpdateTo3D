@@ -71,11 +71,42 @@ namespace HIKARI {
         return nullptr;
     }
 
+    const AnimationClip* ModelAsset::FindAnimationClip(
+        AnimationClipId id) const {
+        if (!id.IsValid()) {
+            return nullptr;
+        }
+        for (size_t index = 0u; index < animations.size(); ++index) {
+            if (GetAnimationClipId(index) == id) {
+                return &animations[index];
+            }
+        }
+        return nullptr;
+    }
+
     const AnimationClip* ModelAsset::GetAnimationClip(size_t index) const {
         if (index >= animations.size()) {
             return nullptr;
         }
         return &animations[index];
+    }
+
+    AnimationClipId ModelAsset::GetAnimationClipId(
+        size_t index) const noexcept {
+        if (index >= animations.size()) return {};
+
+        // Use the occurrence among clips with the same name instead of the
+        // absolute array index. Reimporting an unrelated clip before this one
+        // must not invalidate serialized Animator references.
+        size_t duplicateOrdinal = 0u;
+        for (size_t candidate = 0u; candidate < index; ++candidate) {
+            if (animations[candidate].name == animations[index].name) {
+                ++duplicateOrdinal;
+            }
+        }
+        return MakeAnimationClipId(
+            animations[index].name,
+            duplicateOrdinal);
     }
 
     float ModelAsset::GetAnimationDuration(std::string_view name) const {

@@ -251,7 +251,38 @@ namespace {
             << " wall=" << state.hitWall
             << " ceiling=" << state.hitCeiling
             << '\n';
-        return stoppedOnFloor;
+        if (!stoppedOnFloor) {
+            return false;
+        }
+
+        const float groundedY = state.pose.position.y;
+        MATH::Vec3 jumpVelocity = state.groundVelocity;
+        jumpVelocity.y += 5.0f;
+        if (!backend->SetCharacterVelocity(
+                characterResult.handle,
+                jumpVelocity) ||
+            !backend->StepCharacter(
+                characterResult.handle,
+                kFixedDeltaSeconds,
+                step) ||
+            !backend->TryGetCharacterState(
+                characterResult.handle,
+                state) ||
+            !backend->SetKinematicTarget(
+                characterBodyResult.handle,
+                state.pose) ||
+            !backend->Step(kFixedDeltaSeconds).Succeeded()) {
+            std::cerr << name << ": jump step failed\n";
+            return false;
+        }
+        const bool jumped = state.pose.position.y > groundedY + 0.01f &&
+            state.linearVelocity.y > 1.0f;
+        std::cout << name
+            << " jump: y=" << state.pose.position.y
+            << " vy=" << state.linearVelocity.y
+            << " grounded=" << state.IsGrounded()
+            << '\n';
+        return jumped;
     }
 
     bool RunImportedSceneCase(const char* artifactPath) {
