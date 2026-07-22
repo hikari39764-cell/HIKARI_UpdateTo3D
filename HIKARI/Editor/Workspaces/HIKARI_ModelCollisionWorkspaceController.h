@@ -33,6 +33,13 @@ namespace HIKARI::EDITOR {
         SourceNodes,
     };
 
+    enum class ModelCollisionPreviewVisibility : uint8_t {
+        All,
+        SelectedWithContext,
+        SelectedOnly,
+        Hidden,
+    };
+
     struct ModelCollisionWorkspaceResult {
         bool exitToSceneRequested = false;
         std::string statusMessage{};
@@ -82,6 +89,10 @@ namespace HIKARI::EDITOR {
         bool IsShapeLocked(uint64_t shapeId) const noexcept;
         bool AreAllSelectedShapesHidden() const noexcept;
         bool AreAllSelectedShapesLocked() const noexcept;
+        bool ShouldDrawShape(uint64_t shapeId) const noexcept;
+        float ShapeOverlayOpacity(uint64_t shapeId) const noexcept;
+        void ShowAllShapes() noexcept;
+        void HideUnselectedShapes() noexcept;
 
         ASSETS::COLLISION::ModelCollisionShape* SelectedShape() noexcept;
         const ASSETS::COLLISION::ModelCollisionShape*
@@ -138,7 +149,8 @@ namespace HIKARI::EDITOR {
         std::unordered_set<uint64_t> lockedShapeIds_{};
         bool cameraCutPending_ = true;
         bool showModel_ = true;
-        bool showCollision_ = true;
+        ModelCollisionPreviewVisibility collisionVisibility_ =
+            ModelCollisionPreviewVisibility::SelectedOnly;
         bool showGeneratedOnly_ = false;
         bool gizmoEditActive_ = false;
         bool gizmoEditChanged_ = false;

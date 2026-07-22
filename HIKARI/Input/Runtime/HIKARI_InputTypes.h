@@ -20,6 +20,19 @@ enum class MouseCaptureMode {
     Relative,
 };
 
+// Optional screen-space confinement for relative mouse ownership. Presentation
+// code owns this rectangle; gameplay remains unaware of editor/window layout.
+struct MouseCaptureRegion {
+    int32_t left = 0;
+    int32_t top = 0;
+    int32_t right = 0;
+    int32_t bottom = 0;
+
+    bool IsValid() const noexcept {
+        return right > left && bottom > top;
+    }
+};
+
 enum class InputActionValueType {
     Button,
     Axis1D,

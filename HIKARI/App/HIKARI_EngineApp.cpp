@@ -80,17 +80,9 @@ namespace HIKARI {
 #endif
     }
 
-    bool EngineApp::IsInProcessPlayRunning() const {
+    bool EngineApp::IsWindowedPlayRunning() const {
 #if defined(HIKARI_WITH_EDITOR)
-        return editorPlaySession_.IsInProcessRunning();
-#else
-        return false;
-#endif
-    }
-
-    bool EngineApp::IsStandalonePlayRunning() const {
-#if defined(HIKARI_WITH_EDITOR)
-        return editorPlaySession_.IsStandaloneRunning();
+        return editorPlaySession_.IsWindowedRunning();
 #else
         return false;
 #endif
@@ -101,14 +93,6 @@ namespace HIKARI {
         return editorPlaySession_.IsTransitioning();
 #else
         return false;
-#endif
-    }
-
-    void EngineApp::WaitForStandalonePlay(uint32_t timeoutMilliseconds) const {
-#if defined(HIKARI_WITH_EDITOR)
-        (void)editorPlaySession_.WaitForStandaloneExit(timeoutMilliseconds);
-#else
-        (void)timeoutMilliseconds;
 #endif
     }
 

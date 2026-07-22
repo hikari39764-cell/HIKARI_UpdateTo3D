@@ -15,6 +15,8 @@ public:
 
     virtual void SetHostWindow(void* nativeWindow) = 0;
     virtual void SetMouseCaptureMode(MouseCaptureMode mode) = 0;
+    virtual void SetMouseCaptureRegion(const MouseCaptureRegion& region) = 0;
+    virtual void ClearMouseCaptureRegion() = 0;
     virtual MouseCaptureMode GetMouseCaptureMode() const noexcept = 0;
     virtual void SetExternalMouseWheel(float delta) = 0;
     virtual void Reset() = 0;

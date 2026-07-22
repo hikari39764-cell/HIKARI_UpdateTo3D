@@ -223,7 +223,8 @@ namespace HIKARI::EDITOR {
         const ASSETS::COLLISION::ModelCollisionShape& shape,
         bool selected,
         bool hovered,
-        bool locked) {
+        bool locked,
+        float opacity) {
 
 #if defined(HIKARI_WITH_EDITOR)
         if (drawList == nullptr || viewportWidth <= 0.0f || viewportHeight <= 0.0f) {
@@ -231,7 +232,7 @@ namespace HIKARI::EDITOR {
         }
         const ImVec2 origin{ viewportX, viewportY };
         const ImVec2 size{ viewportWidth, viewportHeight };
-        const ImU32 color = !shape.enabled
+        ImU32 color = !shape.enabled
             ? IM_COL32(110, 120, 132, 150)
             : selected
                 ? IM_COL32(255, 194, 72, 255)
@@ -242,7 +243,15 @@ namespace HIKARI::EDITOR {
                         : shape.generated
                             ? IM_COL32(88, 207, 239, 220)
                             : IM_COL32(89, 235, 151, 230);
-        const float thickness = selected ? 2.5f : hovered ? 2.0f : 1.5f;
+        opacity = (std::clamp)(opacity, 0.05f, 1.0f);
+        const uint32_t alpha = static_cast<uint32_t>(
+            static_cast<float>((color >> 24u) & 0xffu) * opacity);
+        color = (color & 0x00ffffffu) | (alpha << 24u);
+        const float thickness = selected
+            ? 2.5f
+            : hovered
+                ? 2.0f
+                : 1.0f + 0.5f * opacity;
         const MATH::Quat rotation = MATH::Quat::FromEulerXYZ(
             shape.rotationEulerDegrees.x * kDegreesToRadians,
             shape.rotationEulerDegrees.y * kDegreesToRadians,

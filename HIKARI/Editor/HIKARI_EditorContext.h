@@ -44,11 +44,14 @@ namespace HIKARI {
     struct ViewportWindowState {
         bool showGameView = true;
         bool showViewportHud = true;
-        bool gameOnlyMode = false;
     };
 
     struct AuthoringWindowState {
         bool showSceneWorkspace = true;
+        bool showInspector = true;
+        bool showProjectFeatures = false;
+        bool showSceneSystems = false;
+        bool openInputEditorRequested = false;
     };
 
     struct ResourceWindowState {
@@ -58,9 +61,9 @@ namespace HIKARI {
     };
 
     struct RuntimeDebugWindowState {
-        bool showDebugWorkspace = true;
-        bool showDebugView = true;
-        bool showPerformanceAudit = true;
+        bool showDebugWorkspace = false;
+        bool showDebugView = false;
+        bool showPerformanceAudit = false;
         bool showValidationLab = false;
     };
 

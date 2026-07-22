@@ -20,25 +20,6 @@
 
 namespace HIKARI {
 
-    void StatsPanel::Draw(const char* sceneName, const World& world, const ModelManager& modelManager, const EditorSelection& selection, const Camera3D& camera) const {
-#if defined(HIKARI_WITH_EDITOR)
-        if (!ImGui::Begin("Data Monitor")) {
-            ImGui::End();
-            return;
-        }
-
-        DrawContents(sceneName, world, modelManager, selection, camera);
-
-        ImGui::End();
-#else
-        (void)sceneName;
-        (void)world;
-        (void)modelManager;
-        (void)selection;
-        (void)camera;
-#endif
-    }
-
     void StatsPanel::DrawContents(const char* sceneName, const World& world, const ModelManager& modelManager, const EditorSelection& selection, const Camera3D& camera) const {
 #if defined(HIKARI_WITH_EDITOR)
         if (ImGui::TreeNodeEx("Scene", ImGuiTreeNodeFlags_DefaultOpen)) {

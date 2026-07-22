@@ -258,7 +258,8 @@ namespace HIKARI::EDITOR {
                 model,
                 nullptr,
                 snapPtr);
-            result.interacting = ImGuizmo::IsOver() || ImGuizmo::IsUsing();
+            result.manipulating = ImGuizmo::IsUsing();
+            result.interacting = ImGuizmo::IsOver() || result.manipulating;
 
             if (result.changed) {
                 const DecomposedGizmoMatrix edited = DecomposeEditedMatrix(model);

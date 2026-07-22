@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <array>
 #include <cstring>
+#include <optional>
 #include <string>
 #include <unordered_map>
 
@@ -11,6 +12,7 @@
 #include "Editor/DragDrop/HIKARI_EditorAssetDragDrop.h"
 #include "Editor/HIKARI_EditorContext.h"
 #include "Editor/Widgets/HIKARI_AssetPickerPopup.h"
+#include "Editor/Widgets/HIKARI_InspectorPropertyLayout.h"
 
 #if defined(HIKARI_WITH_EDITOR)
 #include "imgui.h"
@@ -98,75 +100,81 @@ namespace HIKARI::EDITOR {
         const std::string popupId = "AssetPickerPopup##" + labelText;
         const std::string preview = BuildPreviewText(current, inOutGuid);
 
+        std::optional<InspectorPropertyRow> propertyRow{};
+        if (options.drawLabel) {
+            propertyRow.emplace(labelText);
+            if (!propertyRow->IsVisible()) {
+                return false;
+            }
+        }
         ImGui::PushID(labelText.c_str());
-        ImGui::AlignTextToFramePadding();
-        ImGui::TextUnformatted(labelText.c_str());
-        ImGui::SameLine();
-        const float buttonWidth = (std::max)(160.0f, ImGui::GetContentRegionAvail().x - 176.0f);
+        const float menuButtonWidth = ImGui::GetFrameHeight();
+        const float buttonWidth = (std::max)(
+            40.0f,
+            ImGui::GetContentRegionAvail().x -
+                menuButtonWidth - ImGui::GetStyle().ItemSpacing.x);
         if (ImGui::Button(preview.c_str(), ImVec2(buttonWidth, 0.0f))) {
             ImGui::OpenPopup(popupId.c_str());
         }
         changed = AcceptAssetGuidPayload(assetDatabase, options.requiredType, inOutGuid) || changed;
+        if (ImGui::IsItemHovered() && !inOutGuid.empty()) {
+            if (current) {
+                ImGui::SetTooltip(
+                    "%s\n%s\nGUID: %s",
+                    current->sourcePath.generic_string().c_str(),
+                    ToString(GetImportState(*current)),
+                    current->guid.value.c_str());
+            } else {
+                ImGui::SetTooltip("Missing GUID: %s", inOutGuid.c_str());
+            }
+        }
 
         ImGui::SameLine();
-        if (ImGui::SmallButton("Select")) {
+        if (ImGui::Button("...", ImVec2(menuButtonWidth, 0.0f))) {
+            ImGui::OpenPopup("AssetFieldActions");
+        }
+        bool openPickerFromActions = false;
+        if (ImGui::BeginPopup("AssetFieldActions")) {
+            if (ImGui::MenuItem("Choose Asset...")) {
+                openPickerFromActions = true;
+            }
+            if (options.allowClear) {
+                const bool canClear = !inOutGuid.empty();
+                if (ImGui::MenuItem("Clear", nullptr, false, canClear)) {
+                    inOutGuid.clear();
+                    changed = true;
+                }
+            }
+            if (options.allowLocate) {
+                const bool canLocate = current != nullptr && selection != nullptr;
+                if (ImGui::MenuItem("Locate in Resources", nullptr, false, canLocate)) {
+                    selection->selectedAssetGuid = current->guid.value;
+                    selection->selectedAssetPath = current->sourcePath.generic_string();
+                    selection->selectedAsset = nullptr;
+                }
+            }
+            if (options.allowCopyGuid) {
+                const bool canCopy = !inOutGuid.empty();
+                if (ImGui::MenuItem("Copy GUID", nullptr, false, canCopy)) {
+                    ImGui::SetClipboardText(inOutGuid.c_str());
+                }
+            }
+            ImGui::EndPopup();
+        }
+        if (openPickerFromActions) {
             ImGui::OpenPopup(popupId.c_str());
-        }
-
-        if (options.allowClear) {
-            ImGui::SameLine();
-            if (ImGui::SmallButton("Clear")) {
-                inOutGuid.clear();
-                changed = true;
-            }
-        }
-
-        if (options.allowLocate) {
-            ImGui::SameLine();
-            const bool canLocate = current != nullptr && selection != nullptr;
-            if (!canLocate) {
-                ImGui::BeginDisabled();
-            }
-            if (ImGui::SmallButton("Locate") && canLocate) {
-                selection->selectedAssetGuid = current->guid.value;
-                selection->selectedAssetPath = current->sourcePath.generic_string();
-                selection->selectedAsset = nullptr;
-            }
-            if (!canLocate) {
-                ImGui::EndDisabled();
-            }
-        }
-
-        if (options.allowCopyGuid) {
-            ImGui::SameLine();
-            const bool canCopy = !inOutGuid.empty();
-            if (!canCopy) {
-                ImGui::BeginDisabled();
-            }
-            if (ImGui::SmallButton("Copy") && canCopy) {
-                ImGui::SetClipboardText(inOutGuid.c_str());
-            }
-            if (!canCopy) {
-                ImGui::EndDisabled();
-            }
         }
 
         const ImGuiID fieldId = ImGui::GetID("AssetFieldState");
         AssetPickerPopupState& popupState = gPickerStates[fieldId];
         changed = DrawAssetPickerPopup(popupId.c_str(), *assetDatabase, options.requiredType, inOutGuid, popupState) || changed;
 
-        if (!inOutGuid.empty()) {
-            if (current) {
-                const AssetImportState state = GetImportState(*current);
-                ImGui::TextDisabled("%s | %s | %s",
-                    current->sourcePath.generic_string().c_str(),
-                    ToString(state),
-                    ShortGuid(current->guid.value).c_str());
-            } else {
-                ImGui::TextColored(ImVec4(1.0f, 0.45f, 0.35f, 1.0f), "Missing %s: %s", ToAssetTypeText(options.requiredType), inOutGuid.c_str());
-            }
-        } else {
-            ImGui::TextDisabled("No %s selected", ToAssetTypeText(options.requiredType));
+        if (!inOutGuid.empty() && current == nullptr) {
+            ImGui::TextColored(
+                ImVec4(1.0f, 0.45f, 0.35f, 1.0f),
+                "Missing %s: %s",
+                ToAssetTypeText(options.requiredType),
+                ShortGuid(inOutGuid).c_str());
         }
 
         ImGui::PopID();

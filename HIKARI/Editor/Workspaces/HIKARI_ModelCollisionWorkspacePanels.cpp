@@ -66,61 +66,82 @@ namespace HIKARI::EDITOR {
                 "| %d selected",
                 static_cast<int>(selectedShapeIds_.size()));
         }
+        if (!hiddenShapeIds_.empty()) {
+            ImGui::SameLine();
+            ImGui::TextDisabled(
+                "| %d hidden",
+                static_cast<int>(hiddenShapeIds_.size()));
+        }
         ImGui::SameLine();
         ImGui::Checkbox("Generated only", &showGeneratedOnly_);
-        if (ImGui::Button("+ Box")) {
-            AddShape(ASSETS::COLLISION::CollisionGeometryShapeType::Box);
+        if (ImGui::Button("+ Shape")) {
+            ImGui::OpenPopup("AddCollisionShape");
         }
-        ImGui::SameLine();
-        if (ImGui::Button("+ Sphere")) {
-            AddShape(ASSETS::COLLISION::CollisionGeometryShapeType::Sphere);
-        }
-        ImGui::SameLine();
-        if (ImGui::Button("+ Capsule")) {
-            AddShape(ASSETS::COLLISION::CollisionGeometryShapeType::Capsule);
-        }
-        if (ImGui::Button("Select Visible")) {
-            selectedShapeIds_.clear();
-            selectedShapeId_ = 0u;
-            for (const ASSETS::COLLISION::ModelCollisionShape& shape :
-                setup_.shapes) {
-                if ((showGeneratedOnly_ && !shape.generated) ||
-                    IsShapeHidden(shape.id)) {
-                    continue;
-                }
-                selectedShapeIds_.insert(shape.id);
-                if (selectedShapeId_ == 0u) {
-                    selectedShapeId_ = shape.id;
-                }
+        if (ImGui::BeginPopup("AddCollisionShape")) {
+            if (ImGui::MenuItem("Box")) {
+                AddShape(ASSETS::COLLISION::CollisionGeometryShapeType::Box);
             }
-            selectionMode_ = ModelCollisionSelectionMode::CollisionShapes;
+            if (ImGui::MenuItem("Sphere")) {
+                AddShape(ASSETS::COLLISION::CollisionGeometryShapeType::Sphere);
+            }
+            if (ImGui::MenuItem("Capsule")) {
+                AddShape(ASSETS::COLLISION::CollisionGeometryShapeType::Capsule);
+            }
+            ImGui::EndPopup();
         }
         ImGui::SameLine();
-        if (ImGui::Button("Clear Selection")) {
-            selectedShapeIds_.clear();
-            selectedShapeId_ = 0u;
-        }
-        ImGui::Separator();
         const bool hasSelection = !selectedShapeIds_.empty();
-        ImGui::BeginDisabled(!hasSelection);
-        if (ImGui::Button("Duplicate")) {
-            DuplicateSelectedShapes();
+        if (ImGui::Button("Selection...")) {
+            ImGui::OpenPopup("CollisionSelectionActions");
         }
-        ImGui::SameLine();
-        const bool allHidden = AreAllSelectedShapesHidden();
-        if (ImGui::Button(allHidden ? "Show" : "Hide")) {
-            SetSelectedShapesHidden(!allHidden);
+        if (ImGui::BeginPopup("CollisionSelectionActions")) {
+            if (ImGui::MenuItem("Select Visible")) {
+                selectedShapeIds_.clear();
+                selectedShapeId_ = 0u;
+                for (const ASSETS::COLLISION::ModelCollisionShape& shape :
+                        setup_.shapes) {
+                    if ((showGeneratedOnly_ && !shape.generated) ||
+                        !ShouldDrawShape(shape.id)) {
+                        continue;
+                    }
+                    selectedShapeIds_.insert(shape.id);
+                    if (selectedShapeId_ == 0u) {
+                        selectedShapeId_ = shape.id;
+                    }
+                }
+                selectionMode_ =
+                    ModelCollisionSelectionMode::CollisionShapes;
+            }
+            if (ImGui::MenuItem("Clear Selection", nullptr, false, hasSelection)) {
+                selectedShapeIds_.clear();
+                selectedShapeId_ = 0u;
+            }
+            ImGui::Separator();
+            if (ImGui::MenuItem("Duplicate", "Ctrl+D", false, hasSelection)) {
+                DuplicateSelectedShapes();
+            }
+            if (ImGui::MenuItem("Hide Selected", "H", false, hasSelection)) {
+                SetSelectedShapesHidden(true);
+            }
+            if (ImGui::MenuItem("Hide Unselected", nullptr, false, hasSelection)) {
+                HideUnselectedShapes();
+            }
+            if (ImGui::MenuItem("Show All", "Shift+H")) {
+                ShowAllShapes();
+            }
+            if (ImGui::MenuItem(
+                    AreAllSelectedShapesLocked() ? "Unlock" : "Lock",
+                    "L",
+                    false,
+                    hasSelection)) {
+                SetSelectedShapesLocked(!AreAllSelectedShapesLocked());
+            }
+            ImGui::Separator();
+            if (ImGui::MenuItem("Delete", "Delete", false, hasSelection)) {
+                DeleteSelectedShapes();
+            }
+            ImGui::EndPopup();
         }
-        ImGui::SameLine();
-        const bool allLocked = AreAllSelectedShapesLocked();
-        if (ImGui::Button(allLocked ? "Unlock" : "Lock")) {
-            SetSelectedShapesLocked(!allLocked);
-        }
-        ImGui::SameLine();
-        if (ImGui::Button("Delete")) {
-            DeleteSelectedShapes();
-        }
-        ImGui::EndDisabled();
         ImGui::Separator();
 
         if (ImGui::BeginChild("##CollisionShapeList")) {
@@ -132,6 +153,18 @@ namespace HIKARI::EDITOR {
                 ImGui::PushID(static_cast<int>(shape.id));
                 const bool hidden = IsShapeHidden(shape.id);
                 const bool locked = IsShapeLocked(shape.id);
+                if (ImGui::SmallButton(hidden ? "-" : "o")) {
+                    if (hidden) {
+                        hiddenShapeIds_.erase(shape.id);
+                    } else {
+                        hiddenShapeIds_.insert(shape.id);
+                    }
+                }
+                if (ImGui::IsItemHovered()) {
+                    ImGui::SetTooltip(
+                        hidden ? "Show collision shape" : "Hide collision shape");
+                }
+                ImGui::SameLine();
                 bool enabled = shape.enabled;
                 if (ImGui::Checkbox("##Enabled", &enabled)) {
                     shape.enabled = enabled;
@@ -163,10 +196,36 @@ namespace HIKARI::EDITOR {
                         FocusSelection();
                     }
                 }
+                if (ImGui::IsItemClicked(ImGuiMouseButton_Right) &&
+                    !IsShapeSelected(shape.id)) {
+                    SelectShape(shape.id, false);
+                }
+                bool shapeListChanged = false;
+                if (ImGui::BeginPopupContextItem("ShapeContext")) {
+                    if (ImGui::MenuItem("Duplicate", "Ctrl+D")) {
+                        DuplicateSelectedShapes();
+                        shapeListChanged = true;
+                    }
+                    if (ImGui::MenuItem(hidden ? "Show" : "Hide", "H")) {
+                        SetSelectedShapesHidden(!hidden);
+                    }
+                    if (ImGui::MenuItem(locked ? "Unlock" : "Lock", "L")) {
+                        SetSelectedShapesLocked(!locked);
+                    }
+                    ImGui::Separator();
+                    if (ImGui::MenuItem("Delete", "Delete")) {
+                        DeleteSelectedShapes();
+                        shapeListChanged = true;
+                    }
+                    ImGui::EndPopup();
+                }
                 if (hidden) {
                     ImGui::PopStyleColor();
                 }
                 ImGui::PopID();
+                if (shapeListChanged) {
+                    break;
+                }
             }
         }
         ImGui::EndChild();
@@ -287,26 +346,29 @@ namespace HIKARI::EDITOR {
         } else {
             ImGui::TextDisabled("Manual collision shape");
         }
-        if (ImGui::Button("Duplicate")) {
-            DuplicateSelectedShapes();
+        if (ImGui::Button("Shape Actions...")) {
+            ImGui::OpenPopup("ShapeDetailsActions");
         }
-        ImGui::SameLine();
-        if (ImGui::Button(shape->enabled ? "Disable" : "Enable")) {
-            SetSelectedShapesEnabled(!shape->enabled);
-        }
-        ImGui::SameLine();
-        const bool allHidden = AreAllSelectedShapesHidden();
-        if (ImGui::Button(allHidden ? "Show" : "Hide")) {
-            SetSelectedShapesHidden(!allHidden);
-        }
-        ImGui::SameLine();
-        const bool allLocked = AreAllSelectedShapesLocked();
-        if (ImGui::Button(allLocked ? "Unlock" : "Lock")) {
-            SetSelectedShapesLocked(!allLocked);
-        }
-        ImGui::SameLine();
-        if (ImGui::Button("Delete")) {
-            DeleteSelectedShapes();
+        if (ImGui::BeginPopup("ShapeDetailsActions")) {
+            if (ImGui::MenuItem("Duplicate", "Ctrl+D")) {
+                DuplicateSelectedShapes();
+            }
+            if (ImGui::MenuItem(shape->enabled ? "Disable" : "Enable")) {
+                SetSelectedShapesEnabled(!shape->enabled);
+            }
+            const bool allHidden = AreAllSelectedShapesHidden();
+            if (ImGui::MenuItem(allHidden ? "Show" : "Hide", "H")) {
+                SetSelectedShapesHidden(!allHidden);
+            }
+            const bool allLocked = AreAllSelectedShapesLocked();
+            if (ImGui::MenuItem(allLocked ? "Unlock" : "Lock", "L")) {
+                SetSelectedShapesLocked(!allLocked);
+            }
+            ImGui::Separator();
+            if (ImGui::MenuItem("Delete", "Delete")) {
+                DeleteSelectedShapes();
+            }
+            ImGui::EndPopup();
         }
 
         if (detailsEditPending_ && !ImGui::IsAnyItemActive()) {

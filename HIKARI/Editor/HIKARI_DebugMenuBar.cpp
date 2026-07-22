@@ -507,12 +507,24 @@ namespace HIKARI {
             if (ImGui::BeginMenu("Viewport")) {
                 ImGui::MenuItem("Game View", nullptr, &windows.viewport.showGameView);
                 ImGui::MenuItem("Viewport HUD", nullptr, &windows.viewport.showViewportHud);
-                ImGui::MenuItem("Game Only", nullptr, &windows.viewport.gameOnlyMode);
                 ImGui::EndMenu();
             }
 
             if (ImGui::BeginMenu("Scene Authoring")) {
-                ImGui::MenuItem("Scene Workspace", nullptr, &windows.authoring.showSceneWorkspace);
+                ImGui::MenuItem("Scene Hierarchy", nullptr, &windows.authoring.showSceneWorkspace);
+                ImGui::MenuItem("Inspector", nullptr, &windows.authoring.showInspector);
+                ImGui::Separator();
+                ImGui::MenuItem(
+                    "Project Features",
+                    nullptr,
+                    &windows.authoring.showProjectFeatures);
+                ImGui::MenuItem(
+                    "Scene Systems",
+                    nullptr,
+                    &windows.authoring.showSceneSystems);
+                if (ImGui::MenuItem("Input Actions...")) {
+                    windows.authoring.openInputEditorRequested = true;
+                }
                 ImGui::EndMenu();
             }
 
@@ -525,7 +537,7 @@ namespace HIKARI {
             }
 
             if (ImGui::BeginMenu("Runtime & Debug")) {
-                ImGui::MenuItem("Data Monitor", nullptr, &windows.runtime.showDebugWorkspace);
+                ImGui::MenuItem("Diagnostics", nullptr, &windows.runtime.showDebugWorkspace);
                 ImGui::MenuItem("Debug View", nullptr, &windows.runtime.showDebugView);
                 ImGui::MenuItem("Performance Audit", nullptr, &windows.runtime.showPerformanceAudit);
                 ImGui::MenuItem("Renderer Health", nullptr, &windows.runtime.showValidationLab);

@@ -132,15 +132,26 @@ namespace HIKARI {
                     : componentDisplayName;
 
             ImGui::PushID(static_cast<int>(componentIndex));
-            if (!ImGui::TreeNode(componentTreeLabel.c_str())) {
-                ImGui::PopID();
-                continue;
+            const bool allowDuplicate =
+                typeInfo != nullptr && typeInfo->allowMultiple;
+            const bool componentOpen = ImGui::TreeNodeEx(
+                componentTreeLabel.c_str(),
+                ImGuiTreeNodeFlags_SpanAvailWidth);
+            bool duplicateRequested = false;
+            bool removeRequested = false;
+            if (ImGui::BeginPopupContextItem("ComponentContext")) {
+                if (allowDuplicate) {
+                    duplicateRequested = ImGui::MenuItem("Duplicate");
+                }
+                if (allowDuplicate) {
+                    ImGui::Separator();
+                }
+                removeRequested = ImGui::MenuItem("Remove Component");
+                ImGui::EndPopup();
             }
 
             bool componentStructureChanged = false;
-            const bool allowDuplicate =
-                typeInfo != nullptr && typeInfo->allowMultiple;
-            if (allowDuplicate && ImGui::Button("Duplicate")) {
+            if (duplicateRequested) {
                 const bool dirtyBefore =
                     context.sceneDirty ||
                     scene.HasUnsavedSceneChanges();
@@ -171,11 +182,8 @@ namespace HIKARI {
                         };
                 }
             }
-            if (allowDuplicate) {
-                ImGui::SameLine();
-            }
             if (!componentStructureChanged &&
-                ImGui::Button("Remove")) {
+                removeRequested) {
                 const bool dirtyBefore =
                     context.sceneDirty ||
                     scene.HasUnsavedSceneChanges();
@@ -224,9 +232,16 @@ namespace HIKARI {
             if (componentStructureChanged) {
                 deferredRuntimeComponentApply_.reset();
                 pendingComponentHistory_.reset();
-                ImGui::TreePop();
+                if (componentOpen) {
+                    ImGui::TreePop();
+                }
                 ImGui::PopID();
                 break;
+            }
+
+            if (!componentOpen) {
+                ImGui::PopID();
+                continue;
             }
 
             const SceneComponentData beforeComponent = component;

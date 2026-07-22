@@ -178,9 +178,6 @@ namespace HIKARI {
         bool BeginRuntimePlay();
         bool EndRuntimePlay();
         bool IsRuntimePlayActive() const { return runtimePlayActive_; }
-        bool ParkRuntimeForStandalone();
-        bool RestoreRuntimeAfterStandalone();
-        bool IsRuntimeParkedForStandalone() const { return runtimeParkedForStandalone_; }
         bool RequestOpenSceneAsset(const AssetGuid& sceneGuid);
         bool OpenSceneAssetNow(const AssetGuid& sceneGuid);
         bool OpenStartupSceneAsset();
@@ -280,7 +277,6 @@ namespace HIKARI {
         bool gameplayInputContextWasActive_ = false;
         bool editorSceneDocumentSnapshotValid_ = false;
         bool editorSceneDocumentDirtySnapshot_ = false;
-        bool runtimeParkedForStandalone_ = false;
         bool runtimeInitialized_ = false;
         World world_{};
         FixedStepClock fixedStepClock_{};

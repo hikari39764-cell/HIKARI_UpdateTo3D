@@ -88,6 +88,14 @@ void InputService::SetMouseCaptureMode(MouseCaptureMode mode) {
     if (backend_) backend_->SetMouseCaptureMode(mode);
 }
 
+void InputService::SetMouseCaptureRegion(const MouseCaptureRegion& region) {
+    if (backend_) backend_->SetMouseCaptureRegion(region);
+}
+
+void InputService::ClearMouseCaptureRegion() {
+    if (backend_) backend_->ClearMouseCaptureRegion();
+}
+
 MouseCaptureMode InputService::GetMouseCaptureMode() const noexcept {
     return backend_
         ? backend_->GetMouseCaptureMode()

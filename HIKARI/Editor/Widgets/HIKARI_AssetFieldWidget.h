@@ -18,6 +18,7 @@ namespace HIKARI {
             bool allowClear = true;
             bool allowLocate = true;
             bool allowCopyGuid = true;
+            bool drawLabel = true;
         };
 
         bool DrawAssetField(

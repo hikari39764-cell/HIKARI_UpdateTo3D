@@ -4,35 +4,29 @@
 
 #include "Core/HIKARI_TimeService.h"
 #include "HIKARI_Services.h"
+#include "Input/Runtime/HIKARI_InputService.h"
 #include "Scene/Scenes/HIKARI_DocumentSceneBase.h"
 
 namespace HIKARI::EDITOR {
 
-    EditorPlaySession::~EditorPlaySession() {
-        standaloneSession_.Stop();
-    }
-	// エディタ内でのプレイを開始するリクエストを処理します。プレイセッションの状態を更新し、必要に応じてプレイモードをInProcessに設定します。
-    void EditorPlaySession::RequestInProcessStart() {
+    void EditorPlaySession::RequestEmbeddedStart() {
         if (IsRunning() || state_ == EditorPlayState::Starting) {
             return;
         }
-        pendingAction_ = PendingAction::StartInProcess;
+        pendingAction_ = PendingAction::StartEmbedded;
+        statusMessage_ = "Embedded Play requested.";
+    }
+
+    void EditorPlaySession::RequestWindowedStart() {
+        if (IsRunning() || state_ == EditorPlayState::Starting) {
+            return;
+        }
+        pendingAction_ = PendingAction::StartWindowed;
         statusMessage_ = "Play in New Window requested.";
     }
-	// スタンドアロンモードでのプレイを開始するリクエストを処理します。プロジェクトのルートパスと起動シーンのGUIDを受け取り、プレイセッションの状態を更新します。
-    void EditorPlaySession::RequestStandaloneStart(
-        const std::filesystem::path& projectRoot,
-        const std::string& startupSceneGuid) {
-        if (IsRunning() || state_ == EditorPlayState::Starting) {
-            return;
-        }
-        pendingProjectRoot_ = projectRoot;
-        pendingSceneGuid_ = startupSceneGuid;
-        pendingAction_ = PendingAction::StartStandalone;
-        statusMessage_ = "Standalone Game requested.";
-    }
-	// プレイセッションの停止をリクエストします。停止理由を指定し、プレイセッションの状態を更新します。すでに停止中または停止要求中の場合は何も行いません。
+
     void EditorPlaySession::RequestStop(PlayStopReason reason) {
+        (void)reason;
         if (mode_ == EditorPlayMode::None &&
             state_ != EditorPlayState::Starting) {
             return;
@@ -42,15 +36,66 @@ namespace HIKARI::EDITOR {
             state_ == EditorPlayState::RestoringEditor) {
             return;
         }
-        stopReason_ = reason;
         state_ = EditorPlayState::StopRequested;
         statusMessage_ = "Stopping Play...";
     }
-	//  プレイセッションの状態を更新します。シーンを引数として受け取り、現在のプレイモードに応じて適切な処理を行います
-    void EditorPlaySession::Update(DocumentSceneBase& scene) {
-        UpdateStandaloneState(scene);
 
-        if (IsInProcessRunning() &&
+    void EditorPlaySession::TogglePause() {
+        if (!IsEmbeddedRunning()) {
+            return;
+        }
+        if (state_ == EditorPlayState::Paused) {
+            TIME::SetPaused(false);
+            TIME::ResetFrameClock();
+            state_ = EditorPlayState::Running;
+            statusMessage_ = "Embedded Play resumed. Click the Game View to control.";
+            return;
+        }
+        ReleaseEmbeddedInput();
+        TIME::SetPaused(true);
+        state_ = EditorPlayState::Paused;
+        statusMessage_ = "Embedded Play paused.";
+    }
+
+    void EditorPlaySession::CaptureEmbeddedInput(
+        const INPUT::MouseCaptureRegion& region) {
+        if (!IsEmbeddedRunning() || IsPaused() || !region.IsValid()) {
+            return;
+        }
+        INPUT::InputService& input = SERVICES::GetInputService();
+        input.SetMouseCaptureRegion(region);
+        input.SetMouseCaptureMode(INPUT::MouseCaptureMode::Relative);
+        SetGameplayInputEnabled(true);
+        embeddedInputCaptured_ = true;
+        statusMessage_ = "Embedded Play is receiving input. Press Esc to release.";
+    }
+
+    void EditorPlaySession::UpdateEmbeddedInputRegion(
+        const INPUT::MouseCaptureRegion& region) {
+        if (!embeddedInputCaptured_ || !IsEmbeddedRunning() ||
+            IsPaused() || !region.IsValid()) {
+            return;
+        }
+        SERVICES::GetInputService().SetMouseCaptureRegion(region);
+    }
+
+    void EditorPlaySession::ReleaseEmbeddedInput() {
+        if (mode_ != EditorPlayMode::Embedded &&
+            !embeddedInputCaptured_) {
+            return;
+        }
+        INPUT::InputService& input = SERVICES::GetInputService();
+        input.SetMouseCaptureMode(INPUT::MouseCaptureMode::Free);
+        input.ClearMouseCaptureRegion();
+        SetGameplayInputEnabled(false);
+        embeddedInputCaptured_ = false;
+        if (state_ == EditorPlayState::Running) {
+            statusMessage_ = "Embedded Play is running. Click the Game View to control.";
+        }
+    }
+
+    void EditorPlaySession::Update(DocumentSceneBase& scene) {
+        if (IsWindowedRunning() &&
             SERVICES::ConsumeInProcessGameCloseRequest()) {
             RequestStop(PlayStopReason::WindowClose);
         }
@@ -58,10 +103,10 @@ namespace HIKARI::EDITOR {
         if (state_ == EditorPlayState::StopRequested ||
             state_ == EditorPlayState::Draining ||
             state_ == EditorPlayState::RestoringEditor) {
-            if (mode_ == EditorPlayMode::InProcess) {
-                AdvanceInProcessStop(scene);
-            } else if (mode_ == EditorPlayMode::Standalone) {
-                StopStandalone(scene);
+            if (mode_ == EditorPlayMode::Embedded) {
+                StopEmbedded(scene);
+            } else if (mode_ == EditorPlayMode::Windowed) {
+                AdvanceWindowedStop(scene);
             }
             return;
         }
@@ -69,68 +114,85 @@ namespace HIKARI::EDITOR {
         const PendingAction action = pendingAction_;
         pendingAction_ = PendingAction::None;
         switch (action) {
-        case PendingAction::StartInProcess:
-            StartInProcess(scene);
+        case PendingAction::StartEmbedded:
+            StartEmbedded(scene);
             break;
-        case PendingAction::StartStandalone:
-            StartStandalone(scene);
+        case PendingAction::StartWindowed:
+            StartWindowed(scene);
             break;
         case PendingAction::None:
         default:
             break;
         }
     }
-	// プレイセッションをシャットダウンします。シーンを引数として受け取り、現在のプレイモードに応じて適切な処理を行い、プレイセッションの状態をリセットします。
+
     void EditorPlaySession::Shutdown(DocumentSceneBase* scene) {
         pendingAction_ = PendingAction::None;
-        if (mode_ == EditorPlayMode::InProcess) {
+        if (mode_ == EditorPlayMode::Embedded) {
+            ReleaseEmbeddedInput();
+            if (scene != nullptr) {
+                (void)scene->EndRuntimePlay();
+            }
+        } else if (mode_ == EditorPlayMode::Windowed) {
             (void)SERVICES::EndInProcessGamePresentation();
             if (scene != nullptr) {
                 (void)scene->EndRuntimePlay();
             }
         }
-        standaloneSession_.Stop();
-        if (scene != nullptr) {
-            (void)RestoreEditorAfterStandalone(*scene);
-        }
+        EndPlayTimeControl();
         mode_ = EditorPlayMode::None;
         state_ = EditorPlayState::Stopped;
-    }
-	// スタンドアロンモードのプレイセッションが終了するまで待機します。タイムアウト時間をミリ秒単位で指定し、終了した場合はtrue、タイムアウトした場合はfalseを返します。
-    bool EditorPlaySession::WaitForStandaloneExit(
-        uint32_t timeoutMilliseconds) const {
-        if (!IsStandaloneRunning()) {
-            return true;
-        }
-        return standaloneSession_.WaitForExit(timeoutMilliseconds);
+        embeddedInputCaptured_ = false;
     }
 
-    bool EditorPlaySession::IsRunning() const {
-        return state_ == EditorPlayState::Running;
+    bool EditorPlaySession::IsRunning() const noexcept {
+        return state_ == EditorPlayState::Running ||
+            state_ == EditorPlayState::Paused;
     }
 
-    bool EditorPlaySession::IsInProcessRunning() const {
-        return mode_ == EditorPlayMode::InProcess && IsRunning();
+    bool EditorPlaySession::IsPaused() const noexcept {
+        return state_ == EditorPlayState::Paused;
     }
 
-    bool EditorPlaySession::IsStandaloneRunning() const {
-        return mode_ == EditorPlayMode::Standalone && IsRunning();
+    bool EditorPlaySession::IsEmbeddedRunning() const noexcept {
+        return mode_ == EditorPlayMode::Embedded && IsRunning();
     }
 
-    bool EditorPlaySession::IsTransitioning() const {
+    bool EditorPlaySession::IsWindowedRunning() const noexcept {
+        return mode_ == EditorPlayMode::Windowed && IsRunning();
+    }
+
+    bool EditorPlaySession::IsTransitioning() const noexcept {
         return state_ == EditorPlayState::Starting ||
             state_ == EditorPlayState::StopRequested ||
             state_ == EditorPlayState::Draining ||
             state_ == EditorPlayState::RestoringEditor;
     }
 
-    void EditorPlaySession::StartInProcess(DocumentSceneBase& scene) {
+    void EditorPlaySession::StartEmbedded(DocumentSceneBase& scene) {
         state_ = EditorPlayState::Starting;
-        mode_ = EditorPlayMode::InProcess;
+        mode_ = EditorPlayMode::Embedded;
+        BeginPlayTimeControl();
+        if (!scene.BeginRuntimePlay()) {
+            Fail("Could not create the runtime scene for Embedded Play.");
+            return;
+        }
+
+        SetGameplayInputEnabled(false);
+        embeddedInputCaptured_ = false;
+        state_ = EditorPlayState::Running;
+        statusMessage_ = "Embedded Play is running. Click the Game View to control.";
+    }
+
+    void EditorPlaySession::StartWindowed(DocumentSceneBase& scene) {
+        state_ = EditorPlayState::Starting;
+        mode_ = EditorPlayMode::Windowed;
+        BeginPlayTimeControl();
         if (!scene.BeginRuntimePlay()) {
             Fail("Could not create the runtime scene for Play.");
             return;
         }
+        SERVICES::GetInputService().ClearMouseCaptureRegion();
         if (!SERVICES::BeginInProcessGamePresentation()) {
             (void)scene.EndRuntimePlay();
             Fail("Could not transfer presentation to the game window.");
@@ -141,30 +203,20 @@ namespace HIKARI::EDITOR {
         statusMessage_ = "Play in New Window is running.";
     }
 
-    void EditorPlaySession::StartStandalone(DocumentSceneBase& scene) {
-        state_ = EditorPlayState::Starting;
-        mode_ = EditorPlayMode::Standalone;
-        if (!SERVICES::ParkEditorForStandalone(scene)) {
-            Fail("Could not park editor resources for Standalone Game.");
-            return;
-        }
-        editorParkedForStandalone_ = true;
-        if (!standaloneSession_.Launch(
-                pendingProjectRoot_,
-                pendingSceneGuid_)) {
-            const std::string error = standaloneSession_.GetStatusMessage();
-            (void)RestoreEditorAfterStandalone(scene);
-            Fail(error);
-            return;
-        }
-
-        pendingProjectRoot_.clear();
-        pendingSceneGuid_.clear();
-        state_ = EditorPlayState::Running;
-        statusMessage_ = standaloneSession_.GetStatusMessage();
+    void EditorPlaySession::StopEmbedded(DocumentSceneBase& scene) {
+        ReleaseEmbeddedInput();
+        const bool sceneRestored = scene.EndRuntimePlay();
+        EndPlayTimeControl();
+        mode_ = EditorPlayMode::None;
+        state_ = sceneRestored
+            ? EditorPlayState::Stopped
+            : EditorPlayState::Failed;
+        statusMessage_ = sceneRestored
+            ? "Embedded Play stopped."
+            : "Embedded Play stopped, but the editor scene could not be restored.";
     }
-	// In-processプレイセッションの停止を進めます。シーンを引数として受け取り、現在の停止状態に応じて適切な処理を行います。プレイセッションの状態を更新し、必要に応じてエディタのプレゼンテーションを復元します。
-    void EditorPlaySession::AdvanceInProcessStop(DocumentSceneBase& scene) {
+
+    void EditorPlaySession::AdvanceWindowedStop(DocumentSceneBase& scene) {
         if (state_ == EditorPlayState::StopRequested) {
             if (!SERVICES::BeginInProcessGamePresentationStop()) {
                 state_ = EditorPlayState::Running;
@@ -199,7 +251,7 @@ namespace HIKARI::EDITOR {
         }
 
         const bool sceneRestored = scene.EndRuntimePlay();
-        TIME::ResetFrameClock();
+        EndPlayTimeControl();
         mode_ = EditorPlayMode::None;
         if (!presentationRestored || !sceneRestored) {
             state_ = EditorPlayState::Failed;
@@ -212,55 +264,33 @@ namespace HIKARI::EDITOR {
         statusMessage_ = "Play stopped.";
     }
 
-    void EditorPlaySession::StopStandalone(DocumentSceneBase& scene) {
-        standaloneSession_.Stop();
-        const bool restored = RestoreEditorAfterStandalone(scene);
-        mode_ = EditorPlayMode::None;
-        state_ = restored
-            ? EditorPlayState::Stopped
-            : EditorPlayState::Failed;
-        statusMessage_ = restored
-            ? "Standalone Game stopped."
-            : "Standalone Game stopped, but the editor scene restore failed.";
-    }
-
-    void EditorPlaySession::UpdateStandaloneState(DocumentSceneBase& scene) {
-        if (mode_ != EditorPlayMode::Standalone ||
-            state_ != EditorPlayState::Running) {
-            return;
+    void EditorPlaySession::BeginPlayTimeControl() {
+        if (!timePauseSnapshotValid_) {
+            timeWasPaused_ = TIME::IsPaused();
+            timePauseSnapshotValid_ = true;
         }
-
-        standaloneSession_.Update();
-        if (standaloneSession_.IsRunning()) {
-            return;
-        }
-
-        const GamePreviewState standaloneState = standaloneSession_.GetState();
-        statusMessage_ = standaloneSession_.GetStatusMessage();
-        const bool restored = RestoreEditorAfterStandalone(scene);
-        mode_ = EditorPlayMode::None;
-        state_ = standaloneState == GamePreviewState::Failed || !restored
-            ? EditorPlayState::Failed
-            : EditorPlayState::Stopped;
-        if (!restored) {
-            statusMessage_ += " Editor scene restore failed.";
-        }
-    }
-
-    bool EditorPlaySession::RestoreEditorAfterStandalone(
-        DocumentSceneBase& scene) {
-        if (!editorParkedForStandalone_) {
-            return true;
-        }
-        const bool restored = SERVICES::RestoreEditorAfterStandalone(scene);
+        TIME::SetPaused(false);
         TIME::ResetFrameClock();
-        editorParkedForStandalone_ = false;
-        return restored;
+    }
+
+    void EditorPlaySession::EndPlayTimeControl() {
+        if (!timePauseSnapshotValid_) {
+            return;
+        }
+        TIME::SetPaused(timeWasPaused_);
+        TIME::ResetFrameClock();
+        timePauseSnapshotValid_ = false;
+    }
+
+    void EditorPlaySession::SetGameplayInputEnabled(bool enabled) {
+        SERVICES::GetInputService().Contexts().SetActive(
+            "Gameplay",
+            enabled);
     }
 
     void EditorPlaySession::Fail(std::string message) {
-        pendingProjectRoot_.clear();
-        pendingSceneGuid_.clear();
+        ReleaseEmbeddedInput();
+        EndPlayTimeControl();
         mode_ = EditorPlayMode::None;
         state_ = EditorPlayState::Failed;
         statusMessage_ = std::move(message);

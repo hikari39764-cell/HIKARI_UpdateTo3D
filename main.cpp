@@ -41,10 +41,6 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 			Sleep(1);
 			continue;
 		}
-		if (app.IsStandalonePlayRunning()) {
-			app.WaitForStandalonePlay(50u);
-			continue;
-		}
 		if (!HIKARI::SERVICES::BeginFrame(servicesCfg)) {
 			break;
 		}
@@ -122,7 +118,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 			break;
 		}
 
-		if (app.IsInProcessPlayRunning() &&
+		if (app.IsWindowedPlayRunning() &&
 			input.IsPressed(HIKARI::INPUT::ActionIds::StopPlay)) {
 			app.RequestPlayStop();
 		}

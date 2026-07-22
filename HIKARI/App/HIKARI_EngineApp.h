@@ -1,5 +1,4 @@
 #pragma once
-#include <cstdint>
 #include <memory>
 
 #include "Scene/HIKARI_RuntimeSceneContext.h"
@@ -25,10 +24,8 @@ namespace HIKARI {
         void RenderImGui();
         void UpdatePlaySessions();
         void RequestPlayStop();
-        bool IsInProcessPlayRunning() const;
-        bool IsStandalonePlayRunning() const;
+        bool IsWindowedPlayRunning() const;
         bool IsPlayTransitioning() const;
-        void WaitForStandalonePlay(uint32_t timeoutMilliseconds) const;
         void Shutdown();
 
     private:

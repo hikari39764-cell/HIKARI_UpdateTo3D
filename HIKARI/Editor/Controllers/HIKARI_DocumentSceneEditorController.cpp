@@ -624,34 +624,37 @@ namespace HIKARI {
                 ImGuiID mainNode = dockspaceId;
                 ImGuiID leftNode = 0;
                 ImGuiID rightNode = 0;
-                ImGuiID rightLowerNode = 0;
-                ImGuiID rightEnvironmentNode = 0;
-                ImGuiID rightResourceNode = 0;
-                ImGuiID rightDebugNode = 0;
-                ImGui::DockBuilderSplitNode(mainNode, ImGuiDir_Left, 0.23f, &leftNode, &mainNode);
-                ImGui::DockBuilderSplitNode(mainNode, ImGuiDir_Right, 0.27f, &rightNode, &mainNode);
-                ImGui::DockBuilderSplitNode(rightNode, ImGuiDir_Down, 0.58f, &rightLowerNode, &rightEnvironmentNode);
-                ImGui::DockBuilderSplitNode(rightLowerNode, ImGuiDir_Down, 0.40f, &rightDebugNode, &rightResourceNode);
+                ImGuiID bottomNode = 0;
+                ImGui::DockBuilderSplitNode(
+                    mainNode,
+                    ImGuiDir_Left,
+                    0.19f,
+                    &leftNode,
+                    &mainNode);
+                ImGui::DockBuilderSplitNode(
+                    mainNode,
+                    ImGuiDir_Down,
+                    0.24f,
+                    &bottomNode,
+                    &mainNode);
+                ImGui::DockBuilderSplitNode(
+                    mainNode,
+                    ImGuiDir_Right,
+                    0.28f,
+                    &rightNode,
+                    &mainNode);
 
                 ImGui::DockBuilderDockWindow("Game View", mainNode);
                 ImGui::DockBuilderDockWindow("Scene Workspace", leftNode);
-                ImGui::DockBuilderDockWindow("Environment", rightEnvironmentNode);
-                ImGui::DockBuilderDockWindow("Quality", rightEnvironmentNode);
-                ImGui::DockBuilderDockWindow("Resource Workspace", rightResourceNode);
-                ImGui::DockBuilderDockWindow("Lighting Bake", rightResourceNode);
-                ImGui::DockBuilderDockWindow("Data Monitor", rightDebugNode);
-                ImGui::DockBuilderDockWindow("Debug View", rightDebugNode);
-                ImGui::DockBuilderDockWindow("Performance Audit", rightDebugNode);
-                ImGui::DockBuilderDockWindow("Renderer Health", rightDebugNode);
-
-                // Legacy standalone debug/editor windows are docked too if they are opened by older code or saved ImGui layouts.
-                ImGui::DockBuilderDockWindow("Validation Lab", rightDebugNode);
-                ImGui::DockBuilderDockWindow("Asset Browser", rightResourceNode);
-                ImGui::DockBuilderDockWindow("Debug Camera", rightDebugNode);
-                ImGui::DockBuilderDockWindow("Inspector", rightDebugNode);
-                ImGui::DockBuilderDockWindow("Scene Document", leftNode);
-                ImGui::DockBuilderDockWindow("Scene Hierarchy", leftNode);
-                ImGui::DockBuilderDockWindow("Scene Object Authoring", leftNode);
+                ImGui::DockBuilderDockWindow("Inspector", rightNode);
+                ImGui::DockBuilderDockWindow("Resource Workspace", bottomNode);
+                ImGui::DockBuilderDockWindow("Environment", bottomNode);
+                ImGui::DockBuilderDockWindow("Quality", bottomNode);
+                ImGui::DockBuilderDockWindow("Lighting Bake", bottomNode);
+                ImGui::DockBuilderDockWindow("Diagnostics", bottomNode);
+                ImGui::DockBuilderDockWindow("Debug View", bottomNode);
+                ImGui::DockBuilderDockWindow("Performance Audit", bottomNode);
+                ImGui::DockBuilderDockWindow("Renderer Health", bottomNode);
 
                 ImGui::DockBuilderFinish(dockspaceId);
             }
@@ -830,7 +833,7 @@ namespace HIKARI {
         if (HasImpact(
                 result.impact,
                 EDITOR::EditorDocumentImpact::Systems)) {
-            sceneSystemsPanel_.SetRuntimeApplyStatus(
+            sceneAuthoringUtilityWindows_.SetSystemsRuntimeApplyStatus(
                 scene.ApplySystemRuntimeChanges());
         }
         if (HasImpact(
@@ -1065,31 +1068,61 @@ namespace HIKARI {
             return;
         }
 
-        if (context_.windows.viewport.gameOnlyMode) {
-            DrawGameViewportWindow(scene, true, playSession);
-            DrawPendingSceneOpenModal(scene);
-            if (renderQualitySavePending_ && !ImGui::IsAnyItemActive()) {
-                (void)SaveRenderQualityProfile(scene);
-            }
-            return;
-        }
-
 #if defined(HIKARI_WITH_EDITOR)
         DrawEditorDockSpace(
             workspaceHost_.ConsumeReset(EDITOR::EditorWorkspaceId::Scene));
 #endif
 
         if (context_.windows.viewport.showGameView) {
-            DrawGameViewportWindow(scene, false, playSession);
+            DrawGameViewportWindow(scene, playSession);
         } else {
+            playSession.ReleaseEmbeddedInput();
+            viewportTransformHistory_.BeginFrame();
+            viewportTransformHistory_.EndFrame(
+                scene.GetSceneDocument());
             EDITOR::ClearGameViewportInputRect();
             SERVICES::SetEditorGameViewportSize(0, 0, false);
         }
         if (context_.windows.authoring.showSceneWorkspace) {
             DrawSceneWorkspaceWindow(scene);
         }
-        if (std::optional<SceneObjectAuthoringHistoryRequest> history =
-                sceneObjectAuthoringPanel_.ConsumeHistoryRequest()) {
+        if (context_.windows.authoring.showInspector) {
+            DrawInspectorWindow(scene);
+        }
+        const SceneSystemsPanelResult systemsResult =
+            sceneAuthoringUtilityWindows_.Draw(
+                scene,
+                context_.windows.authoring,
+                SERVICES::GetInputService(),
+                systemAuthoringRegistry_,
+                toolHost_);
+        if (systemsResult.changed) {
+            historyExternalDirty_ |=
+                context_.sceneDirty || scene.HasUnsavedSceneChanges();
+            documentHistory_.RecordApplied(
+                EDITOR::MakeSceneSystemsHistoryCommand(
+                    systemsResult.label,
+                    systemsResult.before,
+                    scene.GetSceneDocument().systems));
+            context_.sceneDirty = true;
+            scene.SetUnsavedSceneChanges(true);
+            sceneAuthoringUtilityWindows_.SetSystemsRuntimeApplyStatus(
+                scene.ApplySystemRuntimeChanges());
+        }
+        sceneCreationPanel_.DrawDeferredDialogs(
+            scene,
+            context_,
+            selectionSync_);
+        sceneInspectorPanel_.DrawDeferredDialogs(
+            scene,
+            context_,
+            selectionSync_,
+            sceneObjectCommands_);
+        const auto recordSceneObjectHistory =
+            [&](std::optional<SceneObjectAuthoringHistoryRequest> history) {
+            if (!history) {
+                return;
+            }
             historyExternalDirty_ |=
                 history->dirtyBefore && !documentHistory_.IsDirty();
             documentHistory_.RecordApplied(
@@ -1101,13 +1134,54 @@ namespace HIKARI {
                     std::move(history->afterCamera)));
             context_.sceneDirty = true;
             scene.SetUnsavedSceneChanges(true);
-        }
+        };
+        recordSceneObjectHistory(
+            sceneCreationPanel_.ConsumeHistoryRequest());
+        recordSceneObjectHistory(
+            sceneInspectorPanel_.ConsumeHistoryRequest());
+        recordSceneObjectHistory(
+            viewportTransformHistory_.ConsumeHistoryRequest());
+        recordSceneObjectHistory(
+            sceneObjectCommands_.ConsumeHistoryRequest());
         if (const std::optional<SceneObjectId> cameraRequest =
-                sceneObjectAuthoringPanel_.ConsumeOpenCinematicsWorkspaceCameraRequest()) {
+                sceneInspectorPanel_.ConsumeOpenCinematicsWorkspaceCameraRequest()) {
             EDITOR::EditorWorkspaceOpenRequest request{};
             request.workspaceId = EDITOR::EditorWorkspaceId::Cinematics;
             request.targetCameraObjectId = *cameraRequest;
             (void)workspaceHost_.RequestOpen(std::move(request));
+        }
+        if (const std::optional<SceneObjectId> focusRequest =
+                sceneInspectorPanel_.ConsumeFocusObjectRequest()) {
+            if (GameObject* object =
+                    scene.GetWorld().FindObject(*focusRequest)) {
+                DebugCameraController3D& debugCamera =
+                    scene.GetDebugCamera();
+                const float yaw = debugCamera.GetYaw();
+                const float pitch = debugCamera.GetPitch();
+                const float cp = std::cos(pitch);
+                const MATH::Vec3 forward = MATH::Normalize({
+                    std::sin(yaw) * cp,
+                    std::sin(pitch),
+                    std::cos(yaw) * cp
+                });
+                const Transform3D& transform = object->GetTransform();
+                const float radius = (std::max)({
+                    std::abs(transform.scale.x),
+                    std::abs(transform.scale.y),
+                    std::abs(transform.scale.z),
+                    1.0f
+                });
+                const float distance = (std::clamp)(
+                    radius * 3.0f,
+                    3.0f,
+                    50.0f);
+                const MATH::Vec3 position =
+                    transform.position - forward * distance;
+                debugCamera.SetPosition(position);
+                scene.GetCamera().SetLookAt(
+                    position,
+                    transform.position);
+            }
         }
         if (context_.windows.resources.showAssetBrowser) {
             ProjectSettingsService projectSettings{};
@@ -1305,7 +1379,7 @@ namespace HIKARI {
         if (!PrepareGamePreview(scene)) {
             return;
         }
-        playSession.RequestInProcessStart();
+        playSession.RequestEmbeddedStart();
         viewportDropMessage_ = playSession.GetStatusMessage();
 #else
         (void)scene;
@@ -1313,7 +1387,7 @@ namespace HIKARI {
 #endif
     }
 
-    void DocumentSceneEditorController::LaunchStandaloneGamePreview(
+    void DocumentSceneEditorController::LaunchWindowedGamePreview(
         DocumentSceneBase& scene,
         EDITOR::EditorPlaySession& playSession) {
 #if defined(HIKARI_WITH_EDITOR)
@@ -1325,9 +1399,7 @@ namespace HIKARI {
         if (!PrepareGamePreview(scene)) {
             return;
         }
-        playSession.RequestStandaloneStart(
-            scene.GetAssetDatabase().GetProjectRoot(),
-            scene.GetCurrentSceneAssetGuid().value);
+        playSession.RequestWindowedStart();
         viewportDropMessage_ = playSession.GetStatusMessage();
 #else
         (void)scene;
@@ -1366,35 +1438,30 @@ namespace HIKARI {
 
     void DocumentSceneEditorController::DrawGameViewportWindow(
         DocumentSceneBase& scene,
-        bool gameOnly,
         EDITOR::EditorPlaySession& playSession) {
 #if defined(HIKARI_WITH_EDITOR)
-        bool open = gameOnly ? true : context_.windows.viewport.showGameView;
+        viewportTransformHistory_.BeginFrame();
+        bool open = context_.windows.viewport.showGameView;
         const ImGuiWindowFlags flags =
             ImGuiWindowFlags_NoScrollbar |
             ImGuiWindowFlags_NoScrollWithMouse |
-            ImGuiWindowFlags_NoCollapse |
-            (gameOnly ? (ImGuiWindowFlags_NoDocking | ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoSavedSettings) : 0);
-
-        if (gameOnly) {
-            const ImGuiViewport* viewport = ImGui::GetMainViewport();
-            ImGui::SetNextWindowPos(viewport->WorkPos);
-            ImGui::SetNextWindowSize(viewport->WorkSize);
-        }
+            ImGuiWindowFlags_NoCollapse;
 
         ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
         if (!ImGui::Begin("Game View", &open, flags)) {
-            if (!gameOnly) {
-                context_.windows.viewport.showGameView = open;
-            }
+            context_.windows.viewport.showGameView = open;
+            playSession.ReleaseEmbeddedInput();
             EDITOR::ClearGameViewportInputRect();
             SERVICES::SetEditorGameViewportSize(0, 0, false);
+            viewportTransformHistory_.EndFrame(
+                scene.GetSceneDocument());
             ImGui::End();
             ImGui::PopStyleVar();
             return;
         }
-        if (!gameOnly) {
-            context_.windows.viewport.showGameView = open;
+        context_.windows.viewport.showGameView = open;
+        if (!open) {
+            playSession.ReleaseEmbeddedInput();
         }
 
         const float toolbarHeight = context_.windows.viewport.showViewportHud ? 38.0f : 0.0f;
@@ -1409,12 +1476,12 @@ namespace HIKARI {
                     previewRunning
                         ? EDITOR::EditorIconKind::Stop
                         : EDITOR::EditorIconKind::Play,
-                    "PlayInNewWindow",
+                    "EmbeddedPlay",
                     ImVec2(24.0f, 24.0f),
                     previewRunning,
                     previewRunning
                         ? "Stop Play"
-                        : "Play in New Window")) {
+                        : "Play in Game View")) {
                     ToggleGamePreview(scene, playSession);
                 }
                 ImGui::SameLine(0.0f, 3.0f);
@@ -1426,33 +1493,37 @@ namespace HIKARI {
                 }
                 if (ImGui::BeginPopup("Play Mode Menu")) {
                     if (ImGui::MenuItem(
-                            "Standalone Game",
+                            "Play in New Window",
                             nullptr,
                             false,
                             !previewRunning)) {
-                        LaunchStandaloneGamePreview(scene, playSession);
+                        LaunchWindowedGamePreview(scene, playSession);
                     }
                     ImGui::EndPopup();
                 }
-                ImGui::SameLine();
-                if (EDITOR::ToggleButton(
-                    "Game Only",
-                    "GameOnlyToggle",
-                    context_.windows.viewport.gameOnlyMode,
-                    ImVec2(78.0f, 24.0f),
-                    context_.windows.viewport.gameOnlyMode
-                        ? "Exit Game Only"
-                        : "Enter Game Only")) {
-                    context_.windows.viewport.gameOnlyMode = !context_.windows.viewport.gameOnlyMode;
+                if (playSession.IsEmbeddedRunning()) {
+                    ImGui::SameLine();
+                    if (ImGui::Button(
+                            playSession.IsPaused()
+                                ? "Resume##EmbeddedPlay"
+                                : "Pause##EmbeddedPlay",
+                            ImVec2(68.0f, 24.0f))) {
+                        playSession.TogglePause();
+                    }
                 }
                 ImGui::SameLine();
-                ImGui::TextUnformatted(gameOnly ? "Game Only" : "Scene View");
+                ImGui::TextUnformatted(
+                    playSession.IsEmbeddedRunning()
+                        ? "Game Preview"
+                        : "Scene View");
                 ImGui::SameLine();
                 ImGui::TextDisabled("%s", scene.GetSceneId().c_str());
                 if (playSession.GetState() != EDITOR::EditorPlayState::Stopped) {
                     ImGui::SameLine();
                     EDITOR::StatusText(
-                        previewRunning ? "Play Running" : "Play Status",
+                        playSession.IsPaused()
+                            ? "Paused"
+                            : (previewRunning ? "Play Running" : "Play Status"),
                         previewRunning
                             ? EDITOR::EditorStatusTone::Ready
                             : (playSession.GetState() == EDITOR::EditorPlayState::Failed
@@ -1465,46 +1536,48 @@ namespace HIKARI {
                             playSession.GetStatusMessage().c_str());
                     }
                 }
-                ImGui::SameLine();
-
-                RENDER3D::RenderQualitySettings qualitySettings = RENDER3D::GetRenderQualitySettings();
-                EDITOR::ToolbarLabel("Render");
-                ImGui::SameLine();
-                ImGui::SetNextItemWidth(118.0f);
-                if (ImGui::BeginCombo(
-                    "##GameViewRenderResolution",
-                    RENDER3D::RenderResolutionPresetLabel(qualitySettings.sceneResolution),
-                    ImGuiComboFlags_NoArrowButton)) {
-                    constexpr RENDER3D::RenderResolutionPreset presets[] = {
-                        RENDER3D::RenderResolutionPreset::Viewport,
-                        RENDER3D::RenderResolutionPreset::P720,
-                        RENDER3D::RenderResolutionPreset::P1080,
-                        RENDER3D::RenderResolutionPreset::P1440,
-                        RENDER3D::RenderResolutionPreset::P2160,
-                    };
-                    for (RENDER3D::RenderResolutionPreset preset : presets) {
-                        const bool selected = qualitySettings.sceneResolution == preset;
-                        if (ImGui::Selectable(RENDER3D::RenderResolutionPresetLabel(preset), selected)) {
-                            qualitySettings.sceneResolution = preset;
-                            RENDER3D::SetRenderQualitySettings(qualitySettings);
-                            renderQualitySavePending_ = true;
-                        }
-                        if (selected) {
-                            ImGui::SetItemDefaultFocus();
-                        }
-                    }
-                    ImGui::EndCombo();
-                }
-
-                ImGui::SameLine();
-                EDITOR::ToolbarLabel("View");
-                ImGui::SameLine();
-                DrawRenderDebugViewCombo("##GameViewDebug", context_.viewportDebug, 144.0f);
-                if (context_.viewportDebug.renderView != RenderDebugView::None) {
+                if (!previewRunning) {
                     ImGui::SameLine();
-                    EDITOR::StatusText(
-                        "Diagnostic output",
-                        EDITOR::EditorStatusTone::Ready);
+                    RENDER3D::RenderQualitySettings qualitySettings =
+                        RENDER3D::GetRenderQualitySettings();
+                    EDITOR::ToolbarLabel("Render");
+                    ImGui::SameLine();
+                    ImGui::SetNextItemWidth(118.0f);
+                    if (ImGui::BeginCombo(
+                        "##GameViewRenderResolution",
+                        RENDER3D::RenderResolutionPresetLabel(qualitySettings.sceneResolution),
+                        ImGuiComboFlags_NoArrowButton)) {
+                        constexpr RENDER3D::RenderResolutionPreset presets[] = {
+                            RENDER3D::RenderResolutionPreset::Viewport,
+                            RENDER3D::RenderResolutionPreset::P720,
+                            RENDER3D::RenderResolutionPreset::P1080,
+                            RENDER3D::RenderResolutionPreset::P1440,
+                            RENDER3D::RenderResolutionPreset::P2160,
+                        };
+                        for (RENDER3D::RenderResolutionPreset preset : presets) {
+                            const bool selected = qualitySettings.sceneResolution == preset;
+                            if (ImGui::Selectable(RENDER3D::RenderResolutionPresetLabel(preset), selected)) {
+                                qualitySettings.sceneResolution = preset;
+                                RENDER3D::SetRenderQualitySettings(qualitySettings);
+                                renderQualitySavePending_ = true;
+                            }
+                            if (selected) {
+                                ImGui::SetItemDefaultFocus();
+                            }
+                        }
+                        ImGui::EndCombo();
+                    }
+
+                    ImGui::SameLine();
+                    EDITOR::ToolbarLabel("View");
+                    ImGui::SameLine();
+                    DrawRenderDebugViewCombo("##GameViewDebug", context_.viewportDebug, 144.0f);
+                    if (context_.viewportDebug.renderView != RenderDebugView::None) {
+                        ImGui::SameLine();
+                        EDITOR::StatusText(
+                            "Diagnostic output",
+                            EDITOR::EditorStatusTone::Ready);
+                    }
                 }
             }
             ImGui::EndChild();
@@ -1517,7 +1590,35 @@ namespace HIKARI {
 
         const ImVec2 imageOrigin = ImGui::GetCursorScreenPos();
         const bool gameViewFocused = ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows);
-        HandleTransformGizmoShortcuts(context_.transformGizmo, gameViewFocused);
+        if (!playSession.IsRunning()) {
+            HandleTransformGizmoShortcuts(
+                context_.transformGizmo,
+                gameViewFocused);
+        }
+        if (!playSession.IsRunning() &&
+            CanUseViewportShortcut(gameViewFocused) &&
+            context_.selection.selectedObject != nullptr) {
+            if (ImGui::GetIO().KeyCtrl &&
+                ImGui::IsKeyPressed(ImGuiKey_D, false)) {
+                sceneObjectCommands_.Execute(
+                    EDITOR::SceneObjectCommandId::Duplicate,
+                    scene,
+                    context_,
+                    selectionSync_);
+            } else if (ImGui::IsKeyPressed(ImGuiKey_Delete, false)) {
+                sceneObjectCommands_.Execute(
+                    EDITOR::SceneObjectCommandId::Delete,
+                    scene,
+                    context_,
+                    selectionSync_);
+            } else if (ImGui::IsKeyPressed(ImGuiKey_F2, false)) {
+                sceneInspectorPanel_.RequestRename(
+                    *context_.selection.selectedObject);
+            } else if (ImGui::IsKeyPressed(ImGuiKey_F, false)) {
+                sceneInspectorPanel_.RequestFocus(
+                    context_.selection.selectedObject->GetDocumentId());
+            }
+        }
         EDITOR::SetGameViewportInputRect(imageOrigin.x, imageOrigin.y, imageSize.x, imageSize.y, gameViewFocused);
         SERVICES::SetEditorGameViewportSize(
             static_cast<int>(imageSize.x + 0.5f),
@@ -1527,7 +1628,7 @@ namespace HIKARI {
             context_.selection.selectedObject != nullptr &&
             context_.selection.selectedObject->GetComponent<CameraComponent>() != nullptr;
 
-        auto drawTransformGizmoOverlay = [&]() {
+        auto drawTransformGizmoOverlay = [&]() -> bool {
             bool gizmoCapture = false;
             const EDITOR::EditorViewportRect viewportRect{
                 imageOrigin.x,
@@ -1536,6 +1637,7 @@ namespace HIKARI {
                 imageSize.y
             };
             if (!context_.overlays.editReflectionProbe &&
+                !ImGui::IsPopupOpen("SceneViewportContextMenu") &&
                 context_.selection.selectedObject != nullptr &&
                 !(selectedObjectIsCamera &&
                     context_.transformGizmo.operation ==
@@ -1568,6 +1670,26 @@ namespace HIKARI {
                 }
                 gizmoCapture = gizmoResult.interacting;
 
+                const char* historyLabel = "Move Object";
+                switch (gizmoState.operation) {
+                case EditorTransformGizmoOperation::Rotate:
+                    historyLabel = "Rotate Object";
+                    break;
+                case EditorTransformGizmoOperation::Scale:
+                    historyLabel = "Scale Object";
+                    break;
+                case EditorTransformGizmoOperation::Translate:
+                default:
+                    break;
+                }
+                viewportTransformHistory_.ObserveBeforeApply(
+                    scene.GetSceneDocument(),
+                    context_.selection.selectedObject->GetDocumentId(),
+                    historyLabel,
+                    gizmoResult.manipulating || gizmoResult.changed,
+                    context_.sceneDirty ||
+                        scene.HasUnsavedSceneChanges());
+
                 if (gizmoResult.changed) {
                     if (selectedObjectIsCamera) {
                         (void)scene.ApplyCameraObjectPose(
@@ -1595,6 +1717,7 @@ namespace HIKARI {
                     }
                     context_.sceneDirty = true;
                     scene.SetUnsavedSceneChanges(true);
+                    viewportTransformHistory_.MarkChanged();
                 }
             }
 
@@ -1634,6 +1757,7 @@ namespace HIKARI {
             }
 
             EDITOR::SetGameViewportGizmoCapture(gizmoCapture);
+            return gizmoCapture;
         };
 
         auto drawViewportFloatingTools = [&]() {
@@ -1776,17 +1900,25 @@ namespace HIKARI {
             ImGui::SetCursorScreenPos(savedCursor);
         };
 
+        const EDITOR::SceneViewportRect sceneViewportRect{
+            imageOrigin.x,
+            imageOrigin.y,
+            imageSize.x,
+            imageSize.y
+        };
+        bool viewportImageHovered = false;
+        bool gizmoCapture = false;
         const bool ready = POST::PostSystem::IsEditorViewportReady();
         const D3D12_GPU_DESCRIPTOR_HANDLE viewportSrv = POST::PostSystem::GetEditorViewportSrv();
         if (ready && viewportSrv.ptr != 0) {
             const ImTextureID textureId = reinterpret_cast<ImTextureID>(static_cast<uintptr_t>(viewportSrv.ptr));
             ImGui::Image(textureId, imageSize);
+            viewportImageHovered = ImGui::IsItemHovered();
             // Drop target 縺ｯ viewport image 縺ｮ逶ｴ蠕後↓逋ｻ骭ｲ縺励∝ｾ檎ｶ壹・ overlay item 縺ｫ螂ｪ繧上○縺ｪ縺・・
-            HandleGameViewportAssetDrop(scene);
-            drawTransformGizmoOverlay();
-            DrawReflectionProbeLabels(scene, context_.overlays, imageOrigin, imageSize);
-            DrawLightOverlayIcons(scene, context_.overlays, imageOrigin, imageSize);
-            drawViewportFloatingTools();
+            if (!playSession.IsRunning()) {
+                HandleGameViewportAssetDrop(scene);
+                gizmoCapture = drawTransformGizmoOverlay();
+            }
         } else {
             const ImVec2 max{ imageOrigin.x + imageSize.x, imageOrigin.y + imageSize.y };
             ImDrawList* drawList = ImGui::GetWindowDrawList();
@@ -1794,15 +1926,123 @@ namespace HIKARI {
             drawList->AddRect(imageOrigin, max, IM_COL32(80, 108, 124, 160), 4.0f, 0, 1.0f);
             drawList->AddText(ImVec2(imageOrigin.x + 16.0f, imageOrigin.y + 16.0f), IM_COL32(190, 205, 215, 255), "Waiting for editor viewport texture");
             ImGui::Dummy(imageSize);
+            viewportImageHovered = ImGui::IsItemHovered();
             // Dummy 縺・viewport 蜈ｨ菴薙・ hit rect 縺ｫ縺ｪ繧九◆繧√｛verlay 謠冗判蜑阪↓ drop target 縺ｫ縺吶ｋ縲・
-            HandleGameViewportAssetDrop(scene);
-            drawTransformGizmoOverlay();
-            DrawReflectionProbeLabels(scene, context_.overlays, imageOrigin, imageSize);
-            DrawLightOverlayIcons(scene, context_.overlays, imageOrigin, imageSize);
-            drawViewportFloatingTools();
+            if (!playSession.IsRunning()) {
+                HandleGameViewportAssetDrop(scene);
+                gizmoCapture = drawTransformGizmoOverlay();
+            }
         }
 
-        if (!viewportDropMessage_.empty()) {
+        const INPUT::MouseCaptureRegion embeddedInputRegion{
+            static_cast<int32_t>(std::lround(imageOrigin.x)),
+            static_cast<int32_t>(std::lround(imageOrigin.y)),
+            static_cast<int32_t>(std::lround(imageOrigin.x + imageSize.x)),
+            static_cast<int32_t>(std::lround(imageOrigin.y + imageSize.y)),
+        };
+        if (playSession.IsEmbeddedRunning()) {
+            if (playSession.HasEmbeddedInput()) {
+                if (!gameViewFocused ||
+                    ImGui::IsKeyPressed(ImGuiKey_Escape, false)) {
+                    playSession.ReleaseEmbeddedInput();
+                } else {
+                    playSession.UpdateEmbeddedInputRegion(
+                        embeddedInputRegion);
+                }
+            } else if (!playSession.IsPaused() &&
+                viewportImageHovered &&
+                ImGui::IsMouseClicked(ImGuiMouseButton_Left)) {
+                playSession.CaptureEmbeddedInput(
+                    embeddedInputRegion);
+            }
+        }
+
+        const bool authoringInteractionEnabled =
+            !playSession.IsRunning() &&
+            !context_.overlays.editReflectionProbe;
+        const EDITOR::SceneViewportRect floatingToolsRect{
+            imageOrigin.x + 6.0f,
+            imageOrigin.y + 6.0f,
+            48.0f,
+            344.0f
+        };
+        const EDITOR::SceneViewportInteractionResult interaction =
+            viewportSelectionService_.UpdateInput(
+                scene.GetCamera(),
+                sceneViewportRect,
+                floatingToolsRect,
+                authoringInteractionEnabled,
+                viewportImageHovered,
+                gizmoCapture);
+        if (interaction.selectionChanged) {
+            SelectViewportObject(scene, interaction.selection);
+        }
+        if (interaction.openContextMenu) {
+            ImGui::OpenPopup("SceneViewportContextMenu");
+        }
+
+        if (!playSession.IsRunning()) {
+            if (context_.selection.selectedObject != nullptr) {
+                viewportSelectionService_.DrawSelectionOutline(
+                    scene.GetCamera(),
+                    sceneViewportRect,
+                    context_.selection.selectedObject->GetDocumentId(),
+                    ImGui::GetWindowDrawList());
+            }
+            DrawReflectionProbeLabels(
+                scene,
+                context_.overlays,
+                imageOrigin,
+                imageSize);
+            DrawLightOverlayIcons(
+                scene,
+                context_.overlays,
+                imageOrigin,
+                imageSize);
+            drawViewportFloatingTools();
+            DrawViewportContextMenu(scene);
+        }
+        viewportTransformHistory_.EndFrame(scene.GetSceneDocument());
+
+        if (playSession.IsEmbeddedRunning()) {
+            ImDrawList* drawList = ImGui::GetWindowDrawList();
+            const ImVec2 max{
+                imageOrigin.x + imageSize.x,
+                imageOrigin.y + imageSize.y
+            };
+            if (playSession.HasEmbeddedInput()) {
+                drawList->AddRect(
+                    imageOrigin,
+                    max,
+                    IM_COL32(64, 205, 222, 230),
+                    0.0f,
+                    0,
+                    2.0f);
+            }
+            const char* hint = playSession.IsPaused()
+                ? "Paused"
+                : (playSession.HasEmbeddedInput()
+                    ? "Game input active  |  Esc releases mouse"
+                    : "Click Game View to control");
+            const ImVec2 textSize = ImGui::CalcTextSize(hint);
+            const ImVec2 textMin{
+                imageOrigin.x + 12.0f,
+                imageOrigin.y + 12.0f
+            };
+            const ImVec2 textMax{
+                textMin.x + textSize.x + 16.0f,
+                textMin.y + textSize.y + 10.0f
+            };
+            drawList->AddRectFilled(
+                textMin,
+                textMax,
+                IM_COL32(8, 12, 17, 205),
+                4.0f);
+            drawList->AddText(
+                ImVec2(textMin.x + 8.0f, textMin.y + 5.0f),
+                IM_COL32(220, 235, 240, 245),
+                hint);
+        } else if (!viewportDropMessage_.empty()) {
             ImDrawList* drawList = ImGui::GetWindowDrawList();
             const ImVec2 textPos{ imageOrigin.x + 14.0f, imageOrigin.y + imageSize.y - 28.0f };
             drawList->AddText(textPos, IM_COL32(210, 226, 236, 230), viewportDropMessage_.c_str());
@@ -1812,8 +2052,60 @@ namespace HIKARI {
         ImGui::PopStyleVar();
 #else
         (void)scene;
-        (void)gameOnly;
         (void)playSession;
+#endif
+    }
+
+    void DocumentSceneEditorController::SelectViewportObject(
+        DocumentSceneBase& scene,
+        SceneObjectId objectId) {
+#if defined(HIKARI_WITH_EDITOR)
+        context_.selection.selectedObject = objectId.value != 0u
+            ? scene.GetWorld().FindObject(objectId)
+            : nullptr;
+        context_.selection.selectedAsset = nullptr;
+        context_.selection.selectedAssetGuid.clear();
+        context_.selection.selectedAssetPath.clear();
+        scene.SetSelectedGizmoObjectId(
+            context_.selection.selectedObject != nullptr
+                ? context_.selection.selectedObject->GetDocumentId()
+                : SceneObjectId{});
+#else
+        (void)scene;
+        (void)objectId;
+#endif
+    }
+
+    void DocumentSceneEditorController::DrawViewportContextMenu(
+        DocumentSceneBase& scene) {
+#if defined(HIKARI_WITH_EDITOR)
+        if (!ImGui::BeginPopup("SceneViewportContextMenu")) {
+            return;
+        }
+
+        const SceneObjectId contextTarget =
+            viewportSelectionService_.GetContextTarget();
+        GameObject* target = contextTarget.value != 0u
+            ? scene.GetWorld().FindObject(contextTarget)
+            : nullptr;
+        if (target != nullptr) {
+            sceneInspectorPanel_.DrawObjectContextMenu(
+                scene,
+                context_,
+                selectionSync_,
+                sceneObjectCommands_,
+                *target);
+        } else {
+            ImGui::TextDisabled("Create in Scene");
+            sceneCreationPanel_.DrawCreationMenu(
+                scene,
+                context_,
+                selectionSync_,
+                sceneObjectCommands_);
+        }
+        ImGui::EndPopup();
+#else
+        (void)scene;
 #endif
     }
 
@@ -1976,84 +2268,52 @@ namespace HIKARI {
             return;
         }
 
-        if (ImGui::BeginTabBar("SceneWorkspaceTabs", ImGuiTabBarFlags_Reorderable | ImGuiTabBarFlags_FittingPolicyScroll)) {
-            if (ImGui::BeginTabItem("Objects")) {
-                ImGui::SeparatorText("Objects");
-                ImGui::TextDisabled("Current scene object list");
-                hierarchyPanel_.DrawContents(scene.GetWorld(), context_.selection);
-                ImGui::EndTabItem();
-            }
-            if (ImGui::BeginTabItem("Create")) {
-                ImGui::SeparatorText("Create Object");
-                sceneObjectAuthoringPanel_.DrawContents(scene, context_, selectionSync_);
-                ImGui::EndTabItem();
-            }
-            if (ImGui::BeginTabItem("Scene Settings")) {
-                ImGui::SeparatorText("Current Scene");
-                SceneDocument& document = scene.GetSceneDocument();
-                char sceneNameBuffer[128]{};
-                std::snprintf(sceneNameBuffer, sizeof(sceneNameBuffer), "%s", document.sceneName.c_str());
-                if (ImGui::InputText("Name", sceneNameBuffer, sizeof(sceneNameBuffer))) {
-                    document.sceneName = sceneNameBuffer;
-                    context_.sceneNameEditBuffer = document.sceneName;
-                    context_.sceneDirty = true;
-                    scene.SetUnsavedSceneChanges(true);
-                }
-
-                const AssetGuid& currentSceneGuid = scene.GetCurrentSceneAssetGuid();
-                ImGui::Text("Asset GUID: %s", currentSceneGuid.IsValid() ? currentSceneGuid.value.c_str() : "<transient>");
-                ImGui::TextWrapped("Path: %s", scene.GetScenePath().empty() ? "<not saved as Scene Asset>" : scene.GetScenePath().c_str());
-                ImGui::Text("Dirty: %s", (context_.sceneDirty || scene.HasUnsavedSceneChanges()) ? "Yes" : "No");
-
-                ImGui::Spacing();
-                ImGui::TextDisabled("Scene file operations are handled in Resource Workspace.");
-                ImGui::SeparatorText("Environment Summary");
-                const SceneEnvironment& environment = scene.GetSceneEnvironment();
-                ImGui::Text("Sky: %s", environment.sky.skyAsset.empty() ? "<none>" : environment.sky.skyAsset.c_str());
-                ImGui::Text("Directional Light: %s / %.2f",
-                    environment.directional.enabled ? "Enabled" : "Disabled",
-                    environment.directional.intensity);
-                ImGui::Text("Ambient: %.2f", environment.ambient.intensity);
-                ImGui::EndTabItem();
-            }
-            if (ImGui::BeginTabItem("Project Features")) {
-                ImGui::SeparatorText("Project Runtime Modules");
-                projectFeaturesPanel_.Draw(scene);
-                ImGui::EndTabItem();
-            }
-            if (ImGui::BeginTabItem("Input")) {
-                ImGui::SeparatorText("Project Input Actions");
-                inputActionMapPanel_.DrawLauncher(
-                    SERVICES::GetInputService());
-                ImGui::EndTabItem();
-            }
-            if (ImGui::BeginTabItem("Systems")) {
-                ImGui::SeparatorText("Scene Systems");
-                SceneSystemsPanelResult systemsResult =
-                    sceneSystemsPanel_.Draw(
-                        scene,
-                        systemAuthoringRegistry_,
-                        toolHost_);
-                if (systemsResult.changed) {
-                    historyExternalDirty_ |=
-                        context_.sceneDirty ||
-                        scene.HasUnsavedSceneChanges();
-                    documentHistory_.RecordApplied(
-                        EDITOR::MakeSceneSystemsHistoryCommand(
-                            systemsResult.label,
-                            std::move(systemsResult.before),
-                            scene.GetSceneDocument().systems));
-                    context_.sceneDirty = true;
-                    scene.SetUnsavedSceneChanges(true);
-                    sceneSystemsPanel_.SetRuntimeApplyStatus(
-                        scene.ApplySystemRuntimeChanges());
-                }
-                ImGui::EndTabItem();
-            }
-            ImGui::EndTabBar();
+        ImGui::AlignTextToFramePadding();
+        ImGui::TextUnformatted("Objects");
+        ImGui::SameLine();
+        const float createButtonWidth = ImGui::GetFrameHeight() * 1.8f;
+        ImGui::SetCursorPosX((std::max)(
+            ImGui::GetCursorPosX(),
+            ImGui::GetWindowContentRegionMax().x - createButtonWidth));
+        if (ImGui::Button("+", ImVec2(createButtonWidth, 0.0f))) {
+            ImGui::OpenPopup("SceneHierarchyCreateMenu");
+        }
+        if (ImGui::IsItemHovered()) {
+            ImGui::SetTooltip("Create Object");
+        }
+        if (ImGui::BeginPopup("SceneHierarchyCreateMenu")) {
+            sceneCreationPanel_.DrawCreationMenu(
+                scene,
+                context_,
+                selectionSync_,
+                sceneObjectCommands_);
+            ImGui::EndPopup();
         }
 
-        inputActionMapPanel_.DrawModal(SERVICES::GetInputService());
+        ImGui::Separator();
+        hierarchyPanel_.DrawContents(
+            scene.GetWorld(),
+            context_.selection,
+            [&](GameObject& object) {
+                sceneInspectorPanel_.DrawObjectContextMenu(
+                    scene,
+                    context_,
+                    selectionSync_,
+                    sceneObjectCommands_,
+                    object);
+            });
+
+        if (ImGui::BeginPopupContextWindow(
+                "SceneHierarchyEmptyContext",
+                ImGuiPopupFlags_MouseButtonRight |
+                    ImGuiPopupFlags_NoOpenOverItems)) {
+            sceneCreationPanel_.DrawCreationMenu(
+                scene,
+                context_,
+                selectionSync_,
+                sceneObjectCommands_);
+            ImGui::EndPopup();
+        }
 
         ImGui::End();
 #else
@@ -2061,9 +2321,23 @@ namespace HIKARI {
 #endif
     }
 
+    void DocumentSceneEditorController::DrawInspectorWindow(
+        DocumentSceneBase& scene) {
+#if defined(HIKARI_WITH_EDITOR)
+        sceneInspectorPanel_.Draw(
+            scene,
+            context_,
+            selectionSync_,
+            sceneObjectCommands_,
+            &context_.windows.authoring.showInspector);
+#else
+        (void)scene;
+#endif
+    }
+
     void DocumentSceneEditorController::DrawDebugWorkspaceWindow(DocumentSceneBase& scene) {
 #if defined(HIKARI_WITH_EDITOR)
-        if (!ImGui::Begin("Data Monitor")) {
+        if (!ImGui::Begin("Diagnostics")) {
             ImGui::End();
             return;
         }
@@ -2072,17 +2346,6 @@ namespace HIKARI {
             if (ImGui::BeginTabItem("Stats")) {
                 ImGui::SeparatorText("Frame Overview");
                 statsPanel_.DrawContents(scene.GetSceneName(), scene.GetWorld(), scene.GetModelManager(), context_.selection, scene.GetCamera());
-                ImGui::EndTabItem();
-            }
-            if (ImGui::BeginTabItem("Inspector")) {
-                ImGui::SeparatorText("Selection");
-                inspectorPanel_.DrawContents(
-                    context_.selection,
-                    &scene.GetAssetRegistry(),
-                    &scene.GetAssetDatabase());
-                if (!ImGui::IsAnyItemActive()) {
-                    selectionSync_.SyncSelectedObjectBackToDocument(scene, context_.selection, context_.sceneDirty, context_.nextSceneObjectId);
-                }
                 ImGui::EndTabItem();
             }
             if (ImGui::BeginTabItem("Time")) {

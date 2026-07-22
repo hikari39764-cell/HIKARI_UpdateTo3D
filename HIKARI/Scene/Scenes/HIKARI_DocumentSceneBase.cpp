@@ -1667,42 +1667,6 @@ namespace HIKARI {
         HIKARI_LOG_INFO("Document scene restored after runtime Play.");
         return true;
     }
-    bool DocumentSceneBase::ParkRuntimeForStandalone() {
-        if (runtimeParkedForStandalone_) {
-            return true;
-        }
-        if (runtimePlayActive_) {
-            return false;
-        }
-
-        systemScheduler_.DetachWorld(world_);
-        systemScheduler_.Clear();
-        RuntimeSceneContext::SetCurrentWorld(nullptr);
-        world_.Clear();
-        RenderSubmissionSystem::InvalidateSceneResources(true);
-        MODELRENDERER::Reset();
-        modelManager_.UnloadAllAssets();
-        skyManager_.Clear();
-        SKYRENDERER::InvalidateSkyTextureCache();
-        runtimeParkedForStandalone_ = true;
-        HIKARI_LOG_INFO("Editor scene runtime parked for Standalone Game.");
-        return true;
-    }
-    bool DocumentSceneBase::RestoreRuntimeAfterStandalone() {
-        if (!runtimeParkedForStandalone_) {
-            return true;
-        }
-
-        if (!ReloadSceneDocument()) {
-            HIKARI_LOG_ERROR(
-                "Editor scene runtime restoration after Standalone Game failed.");
-            return false;
-        }
-        VFX::SetAssetRegistry(&assetRegistry_);
-        runtimeParkedForStandalone_ = false;
-        HIKARI_LOG_INFO("Editor scene runtime restored after Standalone Game.");
-        return true;
-    }
     bool DocumentSceneBase::RequestOpenSceneAsset(const AssetGuid& sceneGuid) {
         return OpenSceneAssetNow(sceneGuid);
     }

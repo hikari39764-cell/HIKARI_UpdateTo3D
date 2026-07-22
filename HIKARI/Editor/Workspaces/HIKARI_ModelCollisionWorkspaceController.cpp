@@ -441,6 +441,51 @@ namespace HIKARI::EDITOR {
             });
     }
 
+    bool ModelCollisionWorkspaceController::ShouldDrawShape(
+        uint64_t shapeId) const noexcept {
+        if (IsShapeHidden(shapeId)) {
+            return false;
+        }
+        switch (collisionVisibility_) {
+        case ModelCollisionPreviewVisibility::All:
+        case ModelCollisionPreviewVisibility::SelectedWithContext:
+            return true;
+        case ModelCollisionPreviewVisibility::SelectedOnly:
+            return IsShapeSelected(shapeId) || shapeId == hoveredShapeId_;
+        case ModelCollisionPreviewVisibility::Hidden:
+            return false;
+        }
+        return false;
+    }
+
+    float ModelCollisionWorkspaceController::ShapeOverlayOpacity(
+        uint64_t shapeId) const noexcept {
+        if (collisionVisibility_ !=
+                ModelCollisionPreviewVisibility::SelectedWithContext ||
+            IsShapeSelected(shapeId) || shapeId == hoveredShapeId_) {
+            return 1.0f;
+        }
+        return selectionMode_ == ModelCollisionSelectionMode::SourceNodes
+            ? 0.12f
+            : 0.28f;
+    }
+
+    void ModelCollisionWorkspaceController::ShowAllShapes() noexcept {
+        hiddenShapeIds_.clear();
+        collisionVisibility_ = ModelCollisionPreviewVisibility::All;
+    }
+
+    void ModelCollisionWorkspaceController::HideUnselectedShapes() noexcept {
+        for (const ASSETS::COLLISION::ModelCollisionShape& shape :
+                setup_.shapes) {
+            if (!IsShapeSelected(shape.id)) {
+                hiddenShapeIds_.insert(shape.id);
+            }
+        }
+        collisionVisibility_ =
+            ModelCollisionPreviewVisibility::SelectedOnly;
+    }
+
     ASSETS::COLLISION::ModelCollisionShape*
         ModelCollisionWorkspaceController::SelectedShape() noexcept {
         return setup_.FindShape(selectedShapeId_);

@@ -6,24 +6,25 @@
 #include "Editor/HIKARI_DebugMenuBar.h"
 #include "Editor/HIKARI_EditorContext.h"
 #include "Editor/History/HIKARI_EditorDocumentHistory.h"
+#include "Editor/History/HIKARI_SceneObjectTransformHistorySession.h"
 #include "Editor/SystemAuthoring/HIKARI_SystemAuthoringRegistry.h"
 #include "Editor/Gizmos/HIKARI_EditorTransformGizmo.h"
 #include "Editor/Panels/HIKARI_EnvironmentPanel.h"
 #include "Editor/HIKARI_HierarchyPanel.h"
-#include "Editor/HIKARI_InspectorPanel.h"
+#include "Editor/Commands/HIKARI_SceneObjectCommandService.h"
+#include "Editor/Panels/HIKARI_SceneCreationPanel.h"
+#include "Editor/Panels/HIKARI_SceneInspectorPanel.h"
 #include "Editor/Panels/HIKARI_PerformanceAuditPanel.h"
-#include "Editor/Panels/HIKARI_ProjectFeaturesPanel.h"
-#include "Editor/Panels/HIKARI_SceneSystemsPanel.h"
-#include "Editor/Panels/HIKARI_InputActionMapPanel.h"
 #include "Editor/Panels/HIKARI_QualityPanel.h"
 #include "Editor/Panels/HIKARI_ResourceWorkspacePanel.h"
 #include "Editor/Panels/HIKARI_ValidationLabPanel.h"
 #include "Editor/Tools/HIKARI_EditorToolHost.h"
+#include "Editor/Viewport/HIKARI_SceneViewportSelectionService.h"
+#include "Editor/Windows/HIKARI_SceneAuthoringUtilityWindows.h"
 #include "Editor/Workspaces/HIKARI_CinematicsWorkspaceController.h"
 #include "Editor/Workspaces/HIKARI_EditorWorkspaceHost.h"
 #include "Editor/Workspaces/HIKARI_ModelCollisionWorkspaceController.h"
 #include "Editor/Workspaces/HIKARI_AnimationStateMachineWorkspaceController.h"
-#include "Editor/HIKARI_SceneObjectAuthoringPanel.h"
 #include "Editor/HIKARI_SelectionSyncService.h"
 #include "Editor/HIKARI_StatsPanel.h"
 #include "Editor/Controllers/HIKARI_DocumentToolbarController.h"
@@ -51,17 +52,17 @@ namespace HIKARI {
 
         DebugMenuBar debugMenuBar_{};
         DocumentToolbarController documentToolbarController_{};
-        SceneObjectAuthoringPanel sceneObjectAuthoringPanel_{};
+        EDITOR::SceneObjectCommandService sceneObjectCommands_{};
+        EDITOR::SceneCreationPanel sceneCreationPanel_{};
+        EDITOR::SceneInspectorPanel sceneInspectorPanel_{};
+        EDITOR::SceneViewportSelectionService viewportSelectionService_{};
 
         HierarchyPanel hierarchyPanel_{};
         TimePanel timePanel_{};
-        InspectorPanel inspectorPanel_{};
         ResourceWorkspacePanel resourceWorkspacePanel_{};
         StatsPanel statsPanel_{};
         PerformanceAuditPanel performanceAuditPanel_{};
-        ProjectFeaturesPanel projectFeaturesPanel_{};
-        SceneSystemsPanel sceneSystemsPanel_{};
-        InputActionMapPanel inputActionMapPanel_{};
+        EDITOR::SceneAuthoringUtilityWindows sceneAuthoringUtilityWindows_{};
         ValidationLabPanel validationLabPanel_{};
         EnvironmentPanel environmentPanel_{};
         QualityPanel qualityPanel_{};
@@ -76,17 +77,21 @@ namespace HIKARI {
         EDITOR::EditorTransformGizmo transformGizmo_{};
         void DrawGameViewportWindow(
             DocumentSceneBase& scene,
-            bool gameOnly,
             EDITOR::EditorPlaySession& playSession);
         void ToggleGamePreview(
             DocumentSceneBase& scene,
             EDITOR::EditorPlaySession& playSession);
-        void LaunchStandaloneGamePreview(
+        void LaunchWindowedGamePreview(
             DocumentSceneBase& scene,
             EDITOR::EditorPlaySession& playSession);
         bool PrepareGamePreview(DocumentSceneBase& scene);
         bool SaveRenderQualityProfile(DocumentSceneBase& scene);
         void DrawSceneWorkspaceWindow(DocumentSceneBase& scene);
+        void DrawInspectorWindow(DocumentSceneBase& scene);
+        void SelectViewportObject(
+            DocumentSceneBase& scene,
+            SceneObjectId objectId);
+        void DrawViewportContextMenu(DocumentSceneBase& scene);
         void DrawDebugWorkspaceWindow(DocumentSceneBase& scene);
         void DrawDebugViewWindow(DocumentSceneBase& scene, bool& open);
         void HandleGameViewportAssetDrop(DocumentSceneBase& scene);
@@ -112,6 +117,8 @@ namespace HIKARI {
         std::string viewportDropMessage_{};
         bool renderQualitySavePending_ = false;
         EDITOR::EditorDocumentHistory documentHistory_{};
+        EDITOR::SceneObjectTransformHistorySession
+            viewportTransformHistory_{};
         bool historyExternalDirty_ = false;
     };
 

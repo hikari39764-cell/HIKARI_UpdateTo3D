@@ -2269,13 +2269,30 @@ namespace HIKARI {
         ImGui::SetNextItemWidth(104.0f);
         ImGui::Combo("##AssetViewMode", &viewMode_, ViewModeItems, IM_ARRAYSIZE(ViewModeItems));
         ImGui::SameLine();
-        if (ImGui::SmallButton(filtersExpanded_ ? "Hide Filters" : "Filters")) {
+        const int activeFilterCount =
+            (searchBuffer_[0] != '\0' ? 1 : 0) +
+            (typeFilter_ != 0 ? 1 : 0) +
+            (stateFilter_ != 0 ? 1 : 0);
+        const std::string filterButtonLabel = filtersExpanded_
+            ? "Hide Filters"
+            : (activeFilterCount > 0
+                ? "Filters (" + std::to_string(activeFilterCount) + ")"
+                : "Filters");
+        if (ImGui::SmallButton(filterButtonLabel.c_str())) {
             filtersExpanded_ = !filtersExpanded_;
+        }
+        if (activeFilterCount > 0) {
+            ImGui::SameLine();
+            if (ImGui::SmallButton("Clear##AssetFilters")) {
+                searchBuffer_.fill('\0');
+                typeFilter_ = 0;
+                stateFilter_ = 0;
+            }
         }
         ImGui::SameLine();
         ImGui::Checkbox("Recursive", &recursive_);
 
-        if (filtersExpanded_ || searchBuffer_[0] != '\0' || typeFilter_ != 0 || stateFilter_ != 0) {
+        if (filtersExpanded_) {
             ImGui::SetNextItemWidth((std::max)(220.0f, ImGui::GetContentRegionAvail().x * 0.42f));
             ImGui::InputTextWithHint("##AssetSearch", "Search assets...", searchBuffer_.data(), searchBuffer_.size());
             ImGui::SameLine();

@@ -1,5 +1,7 @@
 #pragma once
 
+#include <optional>
+
 #include "Input/Platform/HIKARI_IInputBackend.h"
 
 namespace HIKARI::INPUT {
@@ -10,6 +12,8 @@ public:
 
     void SetHostWindow(void* nativeWindow) override;
     void SetMouseCaptureMode(MouseCaptureMode mode) override;
+    void SetMouseCaptureRegion(const MouseCaptureRegion& region) override;
+    void ClearMouseCaptureRegion() override;
     MouseCaptureMode GetMouseCaptureMode() const noexcept override {
         return mouseCaptureMode_;
     }
@@ -40,6 +44,7 @@ private:
 
     void* hostWindow_ = nullptr;
     MouseCaptureMode mouseCaptureMode_ = MouseCaptureMode::Free;
+    std::optional<MouseCaptureRegion> mouseCaptureRegion_{};
     float externalWheel_ = 0.0f;
     bool hasPreviousMouse_ = false;
     bool relativeMouseActive_ = false;

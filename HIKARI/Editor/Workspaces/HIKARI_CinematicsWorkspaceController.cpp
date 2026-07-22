@@ -201,7 +201,6 @@ namespace HIKARI::EDITOR {
             return;
         }
 
-        context.windows.viewport.gameOnlyMode = false;
         if (activation.previous != EditorWorkspaceId::Cinematics) {
             cameraPreviewOwned_ = false;
             preWorkspacePreviewObjectId_.reset();

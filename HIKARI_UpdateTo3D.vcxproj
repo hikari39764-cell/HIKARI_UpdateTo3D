@@ -485,6 +485,7 @@
     </ClCompile>
     <ClCompile Include="HIKARI\Editor\HIKARI_DebugMenuBar.cpp" />
     <ClCompile Include="HIKARI\Editor\History\HIKARI_EditorDocumentHistory.cpp" />
+    <ClCompile Include="HIKARI\Editor\History\HIKARI_SceneObjectTransformHistorySession.cpp" />
     <ClCompile Include="HIKARI\Editor\History\HIKARI_CinematicsHistoryCommand.cpp" />
     <ClCompile Include="HIKARI\Editor\History\HIKARI_SceneObjectsHistoryCommand.cpp" />
     <ClCompile Include="HIKARI\Editor\History\HIKARI_SceneSystemsHistoryCommand.cpp" />
@@ -537,7 +538,6 @@
     <ClCompile Include="HIKARI\Editor\Export\HIKARI_GameExporter.cpp" />
     <ClCompile Include="HIKARI\Editor\Export\HIKARI_NativeRuntimeDeployment.cpp" />
     <ClCompile Include="HIKARI\Editor\Play\HIKARI_EditorPlaySession.cpp" />
-    <ClCompile Include="HIKARI\Editor\Play\HIKARI_GamePreviewSession.cpp" />
     <ClCompile Include="HIKARI\Editor\HIKARI_EditorStyle.cpp" />
     <ClCompile Include="HIKARI\Editor\HIKARI_EditorViewportInput.cpp" />
     <ClCompile Include="HIKARI\Editor\Authoring\HIKARI_CollisionAuthoringDialog.cpp" />
@@ -566,12 +566,16 @@
     <ClCompile Include="HIKARI\Editor\Panels\HIKARI_LightingBakePanel.cpp" />
     <ClCompile Include="HIKARI\Editor\HIKARI_DebugCameraPanel.cpp" />
     <ClCompile Include="HIKARI\Editor\Controllers\HIKARI_DocumentSceneEditorController.cpp" />
+    <ClCompile Include="HIKARI\Editor\Commands\HIKARI_SceneObjectCommandService.cpp" />
+    <ClCompile Include="HIKARI\Editor\Panels\HIKARI_SceneCreationPanel.cpp" />
+    <ClCompile Include="HIKARI\Editor\Panels\HIKARI_SceneInspectorPanel.cpp" />
+    <ClCompile Include="HIKARI\Editor\Viewport\HIKARI_SceneViewportSelectionService.cpp" />
+    <ClCompile Include="HIKARI\Editor\Windows\HIKARI_SceneAuthoringUtilityWindows.cpp" />
     <ClCompile Include="HIKARI\Scene\Debug\HIKARI_ComponentGizmoRenderer.cpp" />
     <ClCompile Include="HIKARI\Scene\Debug\HIKARI_ComponentGizmoRegistry.cpp" />
     <ClCompile Include="HIKARI\Scene\Debug\HIKARI_BuiltInComponentGizmoProviders.cpp" />
     <ClCompile Include="HIKARI\Scene\Debug\HIKARI_ColliderGizmoProvider.cpp" />
     <ClCompile Include="HIKARI\Scene\Debug\HIKARI_PhysicsShapeDebugDraw.cpp" />
-    <ClCompile Include="HIKARI\Editor\HIKARI_SceneObjectAuthoringPanel.cpp" />
     <ClCompile Include="HIKARI\Editor\HIKARI_SelectionSyncService.cpp" />
     <ClCompile Include="HIKARI\Editor\Controllers\HIKARI_DocumentToolbarController.cpp" />
     <ClCompile Include="HIKARI\Editor\HIKARI_DocumentComponentAuthoringService.cpp" />
@@ -626,7 +630,6 @@
     <ClCompile Include="HIKARI\Runtime\HIKARI_RuntimeResourceRefreshService.cpp" />
     <ClCompile Include="HIKARI\Runtime\HIKARI_RuntimeLaunchConfig.cpp" />
     <ClCompile Include="HIKARI\Runtime\HIKARI_GamePresentationController.cpp" />
-    <ClCompile Include="HIKARI\Runtime\HIKARI_RuntimeRenderResourceParking.cpp" />
     <ClCompile Include="HIKARI\RuntimeTools\HIKARI_PortableObjectToolsPanel.cpp" />
     <ClCompile Include="HIKARI\Tools\Baking\HIKARI_LightingBakeService.cpp" />
     <ClCompile Include="HIKARI\Tools\Baking\HIKARI_LightProbeBaker.cpp" />
@@ -644,6 +647,7 @@
     <ClCompile Include="HIKARI\Editor\Inspectors\HIKARI_ImGuiInspectorBuilder.cpp" />
     <ClCompile Include="HIKARI\Editor\Inspectors\HIKARI_PhysicsCollisionFilterInspector.cpp" />
     <ClCompile Include="HIKARI\Editor\Widgets\HIKARI_AssetFieldWidget.cpp" />
+    <ClCompile Include="HIKARI\Editor\Widgets\HIKARI_InspectorPropertyLayout.cpp" />
     <ClCompile Include="HIKARI\Editor\Widgets\HIKARI_InputActionFieldWidget.cpp" />
     <ClCompile Include="HIKARI\Editor\Widgets\HIKARI_AssetPickerPopup.cpp" />
     <ClCompile Include="HIKARI\Editor\Widgets\HIKARI_MaterialTextureSlotWidget.cpp" />
@@ -661,7 +665,6 @@
     <ClCompile Include="HIKARI\Scene\Scenes\HIKARI_DocumentSceneBase.cpp" />
     <ClCompile Include="HIKARI\Scene\Scenes\HIKARI_GameDocumentScene.cpp" />
     <ClCompile Include="HIKARI\Editor\HIKARI_HierarchyPanel.cpp" />
-    <ClCompile Include="HIKARI\Editor\HIKARI_InspectorPanel.cpp" />
     <ClCompile Include="HIKARI\Editor\HIKARI_AssetBrowserPanel.cpp" />
     <ClCompile Include="HIKARI\Editor\HIKARI_StatsPanel.cpp" />
     <ClCompile Include="HIKARI\App\HIKARI_EngineApp.cpp" />
@@ -1015,6 +1018,7 @@
     <ClInclude Include="HIKARI\Scene\Scenes\HIKARI_GameDocumentScene.h" />
     <ClInclude Include="HIKARI\Editor\HIKARI_EditorContext.h" />
     <ClInclude Include="HIKARI\Editor\History\HIKARI_EditorDocumentHistory.h" />
+    <ClInclude Include="HIKARI\Editor\History\HIKARI_SceneObjectTransformHistorySession.h" />
     <ClInclude Include="HIKARI\Editor\History\HIKARI_CinematicsHistoryCommand.h" />
     <ClInclude Include="HIKARI\Editor\History\HIKARI_SceneObjectsHistoryCommand.h" />
     <ClInclude Include="HIKARI\Editor\History\HIKARI_SceneSystemsHistoryCommand.h" />
@@ -1083,7 +1087,6 @@
     <ClInclude Include="HIKARI\Editor\Style\HIKARI_EditorWidgets.h" />
     <ClInclude Include="HIKARI\Editor\HIKARI_HierarchyPanel.h" />
     <ClInclude Include="HIKARI\Editor\HIKARI_ComponentDocumentEditor.h" />
-    <ClInclude Include="HIKARI\Editor\HIKARI_InspectorPanel.h" />
     <ClInclude Include="HIKARI\Editor\HIKARI_AssetBrowserPanel.h" />
     <ClInclude Include="HIKARI\Editor\HIKARI_StatsPanel.h" />
     <ClInclude Include="HIKARI\Render3D\Debug\HIKARI_DebugCameraController3D.h" />
@@ -1146,15 +1149,18 @@
     <ClInclude Include="HIKARI\Editor\Panels\HIKARI_QualityPanel.h" />
     <ClInclude Include="HIKARI\Editor\Export\HIKARI_NativeRuntimeDeployment.h" />
     <ClInclude Include="HIKARI\Editor\Play\HIKARI_EditorPlaySession.h" />
-    <ClInclude Include="HIKARI\Editor\Play\HIKARI_GamePreviewSession.h" />
     <ClInclude Include="HIKARI\Editor\Controllers\HIKARI_DocumentSceneEditorController.h" />
+    <ClInclude Include="HIKARI\Editor\Commands\HIKARI_SceneObjectCommandService.h" />
+    <ClInclude Include="HIKARI\Editor\Panels\HIKARI_SceneCreationPanel.h" />
+    <ClInclude Include="HIKARI\Editor\Panels\HIKARI_SceneInspectorPanel.h" />
+    <ClInclude Include="HIKARI\Editor\Viewport\HIKARI_SceneViewportSelectionService.h" />
+    <ClInclude Include="HIKARI\Editor\Windows\HIKARI_SceneAuthoringUtilityWindows.h" />
     <ClInclude Include="HIKARI\Scene\Debug\HIKARI_ComponentGizmoRenderer.h" />
     <ClInclude Include="HIKARI\Scene\Debug\HIKARI_ComponentGizmoRegistry.h" />
     <ClInclude Include="HIKARI\Scene\Debug\HIKARI_ViewportDebugState.h" />
     <ClInclude Include="HIKARI\Scene\Debug\HIKARI_BuiltInComponentGizmoProviders.h" />
     <ClInclude Include="HIKARI\Scene\Debug\HIKARI_ColliderGizmoProvider.h" />
     <ClInclude Include="HIKARI\Scene\Debug\HIKARI_PhysicsShapeDebugDraw.h" />
-    <ClInclude Include="HIKARI\Editor\HIKARI_SceneObjectAuthoringPanel.h" />
     <ClInclude Include="HIKARI\Editor\HIKARI_SelectionSyncService.h" />
     <ClInclude Include="HIKARI\Editor\Controllers\HIKARI_DocumentToolbarController.h" />
     <ClInclude Include="HIKARI\Editor\HIKARI_DocumentComponentAuthoringService.h" />
@@ -1218,7 +1224,6 @@
     <ClInclude Include="HIKARI\Runtime\HIKARI_RuntimeHost.h" />
     <ClInclude Include="HIKARI\Runtime\HIKARI_RuntimeLaunchConfig.h" />
     <ClInclude Include="HIKARI\Runtime\HIKARI_GamePresentationController.h" />
-    <ClInclude Include="HIKARI\Runtime\HIKARI_RuntimeRenderResourceParking.h" />
     <ClInclude Include="HIKARI\Runtime\HIKARI_RuntimeResourceRefreshService.h" />
     <ClInclude Include="HIKARI\RuntimeTools\HIKARI_PortableObjectToolsPanel.h" />
     <ClInclude Include="HIKARI\Scene\HIKARI_SceneDocument.h" />
@@ -1231,6 +1236,7 @@
     <ClInclude Include="HIKARI\Editor\Inspectors\HIKARI_PhysicsCollisionFilterInspector.h" />
     <ClInclude Include="HIKARI\Editor\Inspectors\HIKARI_ImGuiInspectorBuilder.h" />
     <ClInclude Include="HIKARI\Editor\Widgets\HIKARI_AssetFieldWidget.h" />
+    <ClInclude Include="HIKARI\Editor\Widgets\HIKARI_InspectorPropertyLayout.h" />
     <ClInclude Include="HIKARI\Editor\Widgets\HIKARI_InputActionFieldWidget.h" />
     <ClInclude Include="HIKARI\Editor\Widgets\HIKARI_AssetPickerPopup.h" />
     <ClInclude Include="HIKARI\Editor\Export\HIKARI_GameExporter.h" />

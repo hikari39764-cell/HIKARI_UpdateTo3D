@@ -20,6 +20,7 @@ namespace HIKARI {
         struct EditorTransformGizmoResult {
             bool changed = false;
             bool interacting = false;
+            bool manipulating = false;
             TransformData transform{};
             MATH::Quat rotation = MATH::Quat::Identity();
         };

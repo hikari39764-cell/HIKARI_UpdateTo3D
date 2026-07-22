@@ -26,6 +26,14 @@ namespace HIKARI {
     }
 
     void HierarchyPanel::DrawContents(World& world, EditorSelection& selection) const {
+        DrawContents(world, selection, {});
+    }
+
+    void HierarchyPanel::DrawContents(
+        World& world,
+        EditorSelection& selection,
+        const std::function<void(GameObject&)>&
+            drawObjectContextMenu) const {
 #if defined(HIKARI_WITH_EDITOR)
         const auto& objects = world.GetObjects();
         ImGui::TextDisabled("%d objects", static_cast<int>(objects.size()));
@@ -48,11 +56,23 @@ namespace HIKARI {
                 selection.selectedAssetGuid.clear();
                 selection.selectedAssetPath.clear();
             }
+            if (ImGui::IsItemClicked(ImGuiMouseButton_Right)) {
+                selection.selectedObject = objectPtr;
+                selection.selectedAsset = nullptr;
+                selection.selectedAssetGuid.clear();
+                selection.selectedAssetPath.clear();
+            }
+            if (drawObjectContextMenu &&
+                ImGui::BeginPopupContextItem("ObjectContextMenu")) {
+                drawObjectContextMenu(*objectPtr);
+                ImGui::EndPopup();
+            }
             ImGui::PopID();
         }
 #else
         (void)world;
         (void)selection;
+        (void)drawObjectContextMenu;
 #endif
     }
 

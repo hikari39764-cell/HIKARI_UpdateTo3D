@@ -12,6 +12,7 @@
 #include "Assets/HIKARI_AssetTypes.h"
 #include "Editor/Widgets/HIKARI_AssetFieldWidget.h"
 #include "Editor/Widgets/HIKARI_InputActionFieldWidget.h"
+#include "Editor/Widgets/HIKARI_InspectorPropertyLayout.h"
 #include "Input/Runtime/HIKARI_InputService.h"
 #include "Scene/HIKARI_WorldServiceRegistry.h"
 #include "Scene/HIKARI_SceneDocument.h"
@@ -100,7 +101,9 @@ namespace HIKARI {
 
     bool ImGuiInspectorBuilder::Button(std::string_view label) {
 #if defined(HIKARI_WITH_EDITOR)
-        return ImGui::Button(std::string(label).c_str());
+        return ImGui::Button(
+            std::string(label).c_str(),
+            ImVec2(-1.0f, 0.0f));
 #else
         (void)label;
         return false;
@@ -109,7 +112,10 @@ namespace HIKARI {
 
     bool ImGuiInspectorBuilder::Bool(std::string_view label, bool& value) {
 #if defined(HIKARI_WITH_EDITOR)
-        return ImGui::Checkbox(std::string(label).c_str(), &value);
+        EDITOR::InspectorPropertyRow row(
+            label,
+            EDITOR::InspectorPropertyValueKind::Compact);
+        return row.IsVisible() && ImGui::Checkbox("##Value", &value);
 #else
         (void)label;
         (void)value;
@@ -119,7 +125,8 @@ namespace HIKARI {
 
     bool ImGuiInspectorBuilder::Int(std::string_view label, int& value) {
 #if defined(HIKARI_WITH_EDITOR)
-        return ImGui::InputInt(std::string(label).c_str(), &value);
+        EDITOR::InspectorPropertyRow row(label);
+        return row.IsVisible() && ImGui::InputInt("##Value", &value);
 #else
         (void)label;
         (void)value;
@@ -129,7 +136,9 @@ namespace HIKARI {
 
     bool ImGuiInspectorBuilder::Float(std::string_view label, float& value) {
 #if defined(HIKARI_WITH_EDITOR)
-        return ImGui::DragFloat(std::string(label).c_str(), &value, 0.1f);
+        EDITOR::InspectorPropertyRow row(label);
+        return row.IsVisible() &&
+            ImGui::DragFloat("##Value", &value, 0.1f);
 #else
         (void)label;
         (void)value;
@@ -141,7 +150,9 @@ namespace HIKARI {
 #if defined(HIKARI_WITH_EDITOR)
         char buffer[256]{};
         strncpy_s(buffer, value.c_str(), sizeof(buffer) - 1);
-        if (ImGui::InputText(std::string(label).c_str(), buffer, sizeof(buffer))) {
+        EDITOR::InspectorPropertyRow row(label);
+        if (row.IsVisible() &&
+            ImGui::InputText("##Value", buffer, sizeof(buffer))) {
             value = buffer;
             return true;
         }
@@ -161,15 +172,17 @@ namespace HIKARI {
         const auto* inputService = context_.worldServices != nullptr
             ? context_.worldServices->Find<INPUT::InputService>()
             : nullptr;
+        EDITOR::InspectorPropertyRow row(label);
+        if (!row.IsVisible()) {
+            return false;
+        }
         if (inputService == nullptr) {
-            ImGui::TextDisabled(
-                "%s: input action map unavailable",
-                std::string(label).c_str());
+            ImGui::TextDisabled("Input action map unavailable");
             return false;
         }
         return EDITOR::DrawInputActionField(
             inputService->GetActionMap(),
-            label,
+            "##Value",
             expectedType,
             value);
 #else
@@ -185,14 +198,16 @@ namespace HIKARI {
         float maximum,
         float speed) {
 #if defined(HIKARI_WITH_EDITOR)
-        return ImGui::DragFloat(
-            std::string(label).c_str(),
-            &value,
-            speed,
-            minimum,
-            maximum,
-            "%.3f",
-            ImGuiSliderFlags_AlwaysClamp);
+        EDITOR::InspectorPropertyRow row(label);
+        return row.IsVisible() &&
+            ImGui::DragFloat(
+                "##Value",
+                &value,
+                speed,
+                minimum,
+                maximum,
+                "%.3f",
+                ImGuiSliderFlags_AlwaysClamp);
 #else
         (void)label;
         (void)value;
@@ -216,9 +231,12 @@ namespace HIKARI {
             0,
             static_cast<int>(choices.size() - 1));
         bool changed = false;
-        const std::string labelText(label);
+        EDITOR::InspectorPropertyRow row(label);
+        if (!row.IsVisible()) {
+            return false;
+        }
         if (ImGui::BeginCombo(
-                labelText.c_str(),
+                "##Value",
                 choices[static_cast<size_t>(selectedIndex)])) {
             for (size_t index = 0; index < choices.size(); ++index) {
                 const bool selected = static_cast<int>(index) ==
@@ -245,7 +263,9 @@ namespace HIKARI {
     bool ImGuiInspectorBuilder::Vec2(std::string_view label, float& x, float& y) {
 #if defined(HIKARI_WITH_EDITOR)
         float values[2]{ x, y };
-        if (!ImGui::DragFloat2(std::string(label).c_str(), values, 1.0f)) {
+        EDITOR::InspectorPropertyRow row(label);
+        if (!row.IsVisible() ||
+            !ImGui::DragFloat2("##Value", values, 1.0f)) {
             return false;
         }
 
@@ -263,14 +283,19 @@ namespace HIKARI {
     bool ImGuiInspectorBuilder::AssetIdPicker(std::string_view label, AssetType assetType, std::string& value) {
 #if defined(HIKARI_WITH_EDITOR)
         if (context_.assetDatabase) {
+            EDITOR::InspectorPropertyRow row(label);
+            if (!row.IsVisible()) {
+                return false;
+            }
             return EDITOR::DrawAssetField(
                 context_.assetDatabase,
                 EDITOR::AssetFieldOptions{
-                    label,
+                    "##Value",
                     assetType,
                     true,
                     false,
-                    true
+                    true,
+                    false
                 },
                 value);
         }
@@ -299,13 +324,17 @@ namespace HIKARI {
             }
         }
 
+        EDITOR::InspectorPropertyRow row(label);
+        if (!row.IsVisible()) {
+            return false;
+        }
         bool changed = false;
         const std::string labelText(label);
         const std::string previewText = value.empty()
             ? std::string("<none>")
             : (current ? current->name : ("Missing: " + value));
 
-        if (ImGui::BeginCombo(labelText.c_str(), previewText.c_str())) {
+        if (ImGui::BeginCombo("##Value", previewText.c_str())) {
             static char searchBuffer[128]{};
             ImGui::SetNextItemWidth(-1.0f);
             ImGui::InputText("Search##AssetPicker", searchBuffer, sizeof(searchBuffer));
@@ -389,10 +418,13 @@ namespace HIKARI {
             return lhs->displayName < rhs->displayName;
         });
 
+        EDITOR::InspectorPropertyRow row(label);
+        if (!row.IsVisible()) {
+            return false;
+        }
         bool changed = false;
-        const std::string labelText(label);
         const std::string previewText = value.empty() ? std::string("<none>") : value;
-        if (ImGui::BeginCombo(labelText.c_str(), previewText.c_str())) {
+        if (ImGui::BeginCombo("##Value", previewText.c_str())) {
             // Scene 鬩包ｽｷ驕假ｽｻ陷亥現繝ｻ Scene Asset 邵ｺ・ｮ GUID 邵ｺ・ｧ鬩包ｽｸ邵ｺ・ｶ邵ｲ繝ｻ
             if (ImGui::Selectable("<none>", value.empty())) {
                 value.clear();
@@ -446,11 +478,14 @@ namespace HIKARI {
         std::string_view label,
         SceneObjectId& value) {
 #if defined(HIKARI_WITH_EDITOR)
-        const std::string labelText(label);
+        EDITOR::InspectorPropertyRow row(label);
+        if (!row.IsVisible()) {
+            return false;
+        }
         if (context_.sceneDocument == nullptr) {
             uint64_t rawValue = value.value;
             if (ImGui::InputScalar(
-                    labelText.c_str(),
+                    "##Value",
                     ImGuiDataType_U64,
                     &rawValue)) {
                 value.value = rawValue;
@@ -475,7 +510,7 @@ namespace HIKARI {
                 : "Missing Object [" +
                     std::to_string(value.value) + "]");
         bool changed = false;
-        if (ImGui::BeginCombo(labelText.c_str(), preview.c_str())) {
+        if (ImGui::BeginCombo("##Value", preview.c_str())) {
             if (ImGui::Selectable("<none>", value.value == 0)) {
                 value = {};
                 changed = true;

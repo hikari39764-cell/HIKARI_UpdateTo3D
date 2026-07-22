@@ -140,6 +140,29 @@ void Win32InputBackend::SetMouseCaptureMode(MouseCaptureMode mode) {
     relativeMousePrimed_ = false;
 }
 
+void Win32InputBackend::SetMouseCaptureRegion(
+    const MouseCaptureRegion& region) {
+    if (!region.IsValid()) {
+        ClearMouseCaptureRegion();
+        return;
+    }
+    if (mouseCaptureRegion_ &&
+        mouseCaptureRegion_->left == region.left &&
+        mouseCaptureRegion_->top == region.top &&
+        mouseCaptureRegion_->right == region.right &&
+        mouseCaptureRegion_->bottom == region.bottom) {
+        return;
+    }
+    ReleaseRelativeMouseCapture();
+    mouseCaptureRegion_ = region;
+}
+
+void Win32InputBackend::ClearMouseCaptureRegion() {
+    if (!mouseCaptureRegion_) return;
+    ReleaseRelativeMouseCapture();
+    mouseCaptureRegion_.reset();
+}
+
 void Win32InputBackend::SetExternalMouseWheel(float delta) {
     externalWheel_ += delta;
 }
@@ -147,6 +170,7 @@ void Win32InputBackend::SetExternalMouseWheel(float delta) {
 void Win32InputBackend::Reset() {
     ReleaseRelativeMouseCapture();
     mouseCaptureMode_ = MouseCaptureMode::Free;
+    mouseCaptureRegion_.reset();
     externalWheel_ = 0.0f;
     hasPreviousMouse_ = false;
     previousMouseX_ = 0;
@@ -195,12 +219,29 @@ void Win32InputBackend::Poll(InputDeviceState& out) {
                     };
                     (void)::MapWindowPoints(
                         host, nullptr, corners, 2);
-                    RECT clipRect{
+                    RECT hostClipRect{
                         corners[0].x,
                         corners[0].y,
                         corners[1].x,
                         corners[1].y,
                     };
+                    RECT clipRect = hostClipRect;
+                    if (mouseCaptureRegion_) {
+                        const RECT requested{
+                            mouseCaptureRegion_->left,
+                            mouseCaptureRegion_->top,
+                            mouseCaptureRegion_->right,
+                            mouseCaptureRegion_->bottom,
+                        };
+                        if (::IntersectRect(
+                                &clipRect,
+                                &hostClipRect,
+                                &requested) == FALSE) {
+                            ReleaseRelativeMouseCapture();
+                            externalWheel_ = 0.0f;
+                            return;
+                        }
+                    }
                     POINT center{
                         (clipRect.left + clipRect.right) / 2,
                         (clipRect.top + clipRect.bottom) / 2,
@@ -220,10 +261,10 @@ void Win32InputBackend::Poll(InputDeviceState& out) {
                         (void)::ClipCursor(&clipRect);
                     }
 
-                    out.mouseX = static_cast<float>(
-                        (clientRect.left + clientRect.right) / 2);
-                    out.mouseY = static_cast<float>(
-                        (clientRect.top + clientRect.bottom) / 2);
+                    POINT clientCenter = center;
+                    (void)::ScreenToClient(host, &clientCenter);
+                    out.mouseX = static_cast<float>(clientCenter.x);
+                    out.mouseY = static_cast<float>(clientCenter.y);
                     if (relativeMousePrimed_) {
                         out.mouseDeltaX = static_cast<float>(cursor.x - center.x);
                         out.mouseDeltaY = static_cast<float>(cursor.y - center.y);

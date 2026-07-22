@@ -11,6 +11,10 @@
 
 namespace HIKARI {
 
+void InputActionMapPanel::RequestOpen() noexcept {
+    openRequested_ = true;
+}
+
 void InputActionMapPanel::DrawLauncher(INPUT::InputService& inputService) {
 #if defined(HIKARI_WITH_EDITOR)
     const INPUT::InputActionMap& map = inputService.GetActionMap();

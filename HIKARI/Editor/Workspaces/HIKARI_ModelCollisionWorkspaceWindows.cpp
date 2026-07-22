@@ -143,7 +143,52 @@ namespace HIKARI::EDITOR {
         ImGui::SameLine();
         ImGui::Checkbox("Model", &showModel_);
         ImGui::SameLine();
-        ImGui::Checkbox("Collision", &showCollision_);
+        if (ImGui::Button("Collision View...")) {
+            ImGui::OpenPopup("CollisionVisibilityMenu");
+        }
+        if (ImGui::BeginPopup("CollisionVisibilityMenu")) {
+            if (ImGui::MenuItem(
+                    "Show All",
+                    nullptr,
+                    collisionVisibility_ ==
+                        ModelCollisionPreviewVisibility::All)) {
+                collisionVisibility_ =
+                    ModelCollisionPreviewVisibility::All;
+            }
+            if (ImGui::MenuItem(
+                    "Selected + Dim Context",
+                    nullptr,
+                    collisionVisibility_ ==
+                        ModelCollisionPreviewVisibility::SelectedWithContext)) {
+                collisionVisibility_ =
+                    ModelCollisionPreviewVisibility::SelectedWithContext;
+            }
+            if (ImGui::MenuItem(
+                    "Selected Only",
+                    nullptr,
+                    collisionVisibility_ ==
+                        ModelCollisionPreviewVisibility::SelectedOnly)) {
+                collisionVisibility_ =
+                    ModelCollisionPreviewVisibility::SelectedOnly;
+            }
+            if (ImGui::MenuItem(
+                    "Hide All",
+                    nullptr,
+                    collisionVisibility_ ==
+                        ModelCollisionPreviewVisibility::Hidden)) {
+                collisionVisibility_ =
+                    ModelCollisionPreviewVisibility::Hidden;
+            }
+            ImGui::Separator();
+            if (ImGui::MenuItem(
+                    "Show Individually Hidden Shapes",
+                    nullptr,
+                    false,
+                    !hiddenShapeIds_.empty())) {
+                hiddenShapeIds_.clear();
+            }
+            ImGui::EndPopup();
+        }
         ImGui::SameLine();
         if (ImGui::Button("Exit to Scene")) {
             if (history_.IsDirty()) {
@@ -359,8 +404,13 @@ namespace HIKARI::EDITOR {
             }
             if (selectionMode_ ==
                     ModelCollisionSelectionMode::CollisionShapes &&
+                !io.KeyCtrl && io.KeyShift &&
+                ImGui::IsKeyPressed(ImGuiKey_H, false)) {
+                ShowAllShapes();
+            } else if (selectionMode_ ==
+                    ModelCollisionSelectionMode::CollisionShapes &&
                 !io.KeyCtrl && ImGui::IsKeyPressed(ImGuiKey_H, false)) {
-                SetSelectedShapesHidden(!AreAllSelectedShapesHidden());
+                SetSelectedShapesHidden(true);
             }
             if (selectionMode_ ==
                     ModelCollisionSelectionMode::CollisionShapes &&
@@ -395,12 +445,17 @@ namespace HIKARI::EDITOR {
             !input.orbitMouseCaptured) {
             if (selectionMode_ ==
                     ModelCollisionSelectionMode::CollisionShapes &&
-                showCollision_ && !previewingGenerationDraft) {
+                collisionVisibility_ !=
+                    ModelCollisionPreviewVisibility::Hidden &&
+                !previewingGenerationDraft) {
                 hoveredShapeId_ = PickModelCollisionShape(
                     pointerRay,
                     viewportSetup,
                     hiddenShapeIds_,
                     showGeneratedOnly_);
+                if (!ShouldDrawShape(hoveredShapeId_)) {
+                    hoveredShapeId_ = 0u;
+                }
             } else if (selectionMode_ ==
                     ModelCollisionSelectionMode::SourceNodes &&
                 showModel_ && previewScene_.GetModel() != nullptr) {
@@ -411,13 +466,14 @@ namespace HIKARI::EDITOR {
             }
         }
 
-        if (showCollision_) {
+        if (collisionVisibility_ !=
+                ModelCollisionPreviewVisibility::Hidden) {
             for (const ASSETS::COLLISION::ModelCollisionShape& shape :
                     viewportSetup.shapes) {
                 if (showGeneratedOnly_ && !shape.generated) {
                     continue;
                 }
-                if (IsShapeHidden(shape.id)) {
+                if (!ShouldDrawShape(shape.id)) {
                     continue;
                 }
                 DrawModelCollisionShapeOverlay(
@@ -431,7 +487,8 @@ namespace HIKARI::EDITOR {
                     !previewingGenerationDraft &&
                         IsShapeSelected(shape.id),
                     shape.id == hoveredShapeId_,
-                    IsShapeLocked(shape.id));
+                    IsShapeLocked(shape.id),
+                    ShapeOverlayOpacity(shape.id));
             }
         }
         if (previewingGenerationDraft) {
@@ -522,8 +579,8 @@ namespace HIKARI::EDITOR {
         if (selectionMode_ ==
                 ModelCollisionSelectionMode::CollisionShapes &&
             !previewingGenerationDraft &&
-            selected != nullptr && showCollision_ && selected->enabled &&
-            !IsShapeHidden(selected->id) &&
+            selected != nullptr && selected->enabled &&
+            ShouldDrawShape(selected->id) &&
             !IsShapeLocked(selected->id) &&
             !block.pointer) {
             gizmo = transformGizmo_.DrawTransform(
@@ -587,6 +644,106 @@ namespace HIKARI::EDITOR {
                     sourceSearch_[0] = '\0';
                 }
             }
+        }
+
+        if (hovered &&
+            ImGui::IsMouseReleased(ImGuiMouseButton_Right) &&
+            !block.pointer) {
+            const ImVec2 drag = ImGui::GetMouseDragDelta(
+                ImGuiMouseButton_Right);
+            if (drag.x * drag.x + drag.y * drag.y <= 16.0f) {
+                ImGui::OpenPopup("CollisionViewportContext");
+            }
+            ImGui::ResetMouseDragDelta(ImGuiMouseButton_Right);
+        }
+        if (ImGui::BeginPopup("CollisionViewportContext")) {
+            if (ImGui::BeginMenu("Collision Visibility")) {
+                if (ImGui::MenuItem(
+                        "Show All",
+                        "Shift+H",
+                        collisionVisibility_ ==
+                            ModelCollisionPreviewVisibility::All)) {
+                    ShowAllShapes();
+                }
+                if (ImGui::MenuItem(
+                        "Selected + Dim Context",
+                        nullptr,
+                        collisionVisibility_ ==
+                            ModelCollisionPreviewVisibility::SelectedWithContext)) {
+                    collisionVisibility_ = ModelCollisionPreviewVisibility::
+                        SelectedWithContext;
+                }
+                if (ImGui::MenuItem(
+                        "Selected Only",
+                        nullptr,
+                        collisionVisibility_ ==
+                            ModelCollisionPreviewVisibility::SelectedOnly)) {
+                    collisionVisibility_ =
+                        ModelCollisionPreviewVisibility::SelectedOnly;
+                }
+                if (ImGui::MenuItem(
+                        "Hide All",
+                        nullptr,
+                        collisionVisibility_ ==
+                            ModelCollisionPreviewVisibility::Hidden)) {
+                    collisionVisibility_ =
+                        ModelCollisionPreviewVisibility::Hidden;
+                }
+                ImGui::EndMenu();
+            }
+            if (selectionMode_ ==
+                    ModelCollisionSelectionMode::CollisionShapes) {
+                ImGui::Separator();
+                const bool hasSelection = !selectedShapeIds_.empty();
+                if (ImGui::MenuItem(
+                        "Duplicate Selected",
+                        "Ctrl+D",
+                        false,
+                        hasSelection)) {
+                    DuplicateSelectedShapes();
+                }
+                if (ImGui::MenuItem(
+                        "Hide Selected",
+                        "H",
+                        false,
+                        hasSelection)) {
+                    SetSelectedShapesHidden(true);
+                }
+                if (ImGui::MenuItem(
+                        "Hide Unselected",
+                        nullptr,
+                        false,
+                        hasSelection)) {
+                    HideUnselectedShapes();
+                }
+                if (ImGui::MenuItem(
+                        "Isolate Selected",
+                        nullptr,
+                        false,
+                        hasSelection)) {
+                    collisionVisibility_ =
+                        ModelCollisionPreviewVisibility::SelectedOnly;
+                }
+                if (ImGui::MenuItem(
+                        AreAllSelectedShapesLocked()
+                            ? "Unlock Selected"
+                            : "Lock Selected",
+                        "L",
+                        false,
+                        hasSelection)) {
+                    SetSelectedShapesLocked(
+                        !AreAllSelectedShapesLocked());
+                }
+                ImGui::Separator();
+                if (ImGui::MenuItem(
+                        "Delete Selected",
+                        "Delete",
+                        false,
+                        hasSelection)) {
+                    DeleteSelectedShapes();
+                }
+            }
+            ImGui::EndPopup();
         }
 
         if (showModel_ && previewScene_.IsReady()) {

@@ -23,7 +23,8 @@ namespace HIKARI::EDITOR {
         const ASSETS::COLLISION::ModelCollisionShape& shape,
         bool selected,
         bool hovered,
-        bool locked);
+        bool locked,
+        float opacity = 1.0f);
 
     void DrawModelCollisionBoundsOverlay(
         ImDrawList* drawList,

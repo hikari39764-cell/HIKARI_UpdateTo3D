@@ -12,7 +12,6 @@
 #include "Diagnostics/HIKARI_CpuFrameProfiler.h"
 #include "Runtime/HIKARI_RuntimeHost.h"
 #include "Runtime/HIKARI_GamePresentationController.h"
-#include "Runtime/HIKARI_RuntimeRenderResourceParking.h"
 #include "Vfx/Runtime/HIKARI_VfxSystem.h"
 
 #include "Platform/HIKARI_Win32Window.h"
@@ -563,6 +562,7 @@ namespace HIKARI {
             gInputService.Contexts().SetActive(
                 "Gameplay", !IsEditorHost());
             gInputService.SetHostWindow(gWindow.GetHWND());
+            gInputService.ClearMouseCaptureRegion();
             gInputService.SetMouseCaptureMode(
                 IsStandaloneGameHost()
                     ? INPUT::MouseCaptureMode::Relative
@@ -772,6 +772,7 @@ namespace HIKARI {
                 return false;
             }
             gInputService.SetHostWindow(gameWindow->GetHWND());
+            gInputService.ClearMouseCaptureRegion();
             gInputService.SetMouseCaptureMode(
                 INPUT::MouseCaptureMode::Relative);
             gLogicalScreenWidth = gameWindow->Width();
@@ -852,6 +853,7 @@ namespace HIKARI {
             UpdateGpuContexts();
             gInputService.SetMouseCaptureMode(
                 INPUT::MouseCaptureMode::Free);
+            gInputService.ClearMouseCaptureRegion();
             gInputService.SetHostWindow(gWindow.GetHWND());
             gLogicalScreenWidth = gWindow.Width();
             gLogicalScreenHeight = gWindow.Height();
@@ -882,25 +884,6 @@ namespace HIKARI {
 
         inline bool ConsumeInProcessGameCloseRequest() {
             return gGamePresentationController.HasCloseRequest();
-        }
-
-        inline bool ParkEditorForStandalone(DocumentSceneBase& scene) {
-            if (!IsEditorHost() || gGpuFrameReady) {
-                return false;
-            }
-            if (!RUNTIME::ParkEditorForStandalone(scene, gCore)) {
-                return false;
-            }
-            ShowWindow(gWindow.GetHWND(), SW_MINIMIZE);
-            return true;
-        }
-
-        inline bool RestoreEditorAfterStandalone(DocumentSceneBase& scene) {
-            const bool restored =
-                RUNTIME::RestoreEditorAfterStandalone(scene, gCtx);
-            ShowWindow(gWindow.GetHWND(), SW_RESTORE);
-            SetForegroundWindow(gWindow.GetHWND());
-            return restored;
         }
 
         inline void UpdateGamePresentationPerformanceTitle() {

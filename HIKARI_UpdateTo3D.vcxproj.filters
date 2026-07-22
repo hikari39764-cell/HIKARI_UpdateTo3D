@@ -876,6 +876,9 @@
     <ClCompile Include="HIKARI\Editor\History\HIKARI_EditorDocumentHistory.cpp">
       <Filter>Source Files\Editor\History</Filter>
     </ClCompile>
+    <ClCompile Include="HIKARI\Editor\History\HIKARI_SceneObjectTransformHistorySession.cpp">
+      <Filter>Source Files\Editor\History</Filter>
+    </ClCompile>
     <ClCompile Include="HIKARI\Editor\History\HIKARI_CinematicsHistoryCommand.cpp">
       <Filter>Source Files\Editor\History</Filter>
     </ClCompile>
@@ -1030,9 +1033,6 @@
       <Filter>Source Files\Editor\Export</Filter>
     </ClCompile>
     <ClCompile Include="HIKARI\Editor\Play\HIKARI_EditorPlaySession.cpp">
-      <Filter>Source Files\Editor\Play</Filter>
-    </ClCompile>
-    <ClCompile Include="HIKARI\Editor\Play\HIKARI_GamePreviewSession.cpp">
       <Filter>Source Files\Editor\Play</Filter>
     </ClCompile>
     <ClCompile Include="HIKARI\Editor\HIKARI_EditorStyle.cpp">
@@ -1920,9 +1920,6 @@
     <ClCompile Include="HIKARI\Editor\HIKARI_DebugCameraPanel.cpp">
       <Filter>Source Files\Editor\Panels</Filter>
     </ClCompile>
-    <ClCompile Include="HIKARI\Editor\HIKARI_InspectorPanel.cpp">
-      <Filter>Source Files\Editor\Panels</Filter>
-    </ClCompile>
     <ClCompile Include="HIKARI\Editor\HIKARI_HierarchyPanel.cpp">
       <Filter>Source Files\Editor\Panels</Filter>
     </ClCompile>
@@ -1977,6 +1974,9 @@
     <ClCompile Include="HIKARI\Editor\Widgets\HIKARI_AssetFieldWidget.cpp">
       <Filter>Source Files\Editor\Panels</Filter>
     </ClCompile>
+    <ClCompile Include="HIKARI\Editor\Widgets\HIKARI_InspectorPropertyLayout.cpp">
+      <Filter>Source Files\Editor\Panels</Filter>
+    </ClCompile>
     <ClCompile Include="HIKARI\Editor\Widgets\HIKARI_InputActionFieldWidget.cpp">
       <Filter>Source Files\Editor\Panels</Filter>
     </ClCompile>
@@ -1995,8 +1995,20 @@
     <ClCompile Include="HIKARI\Editor\HIKARI_DocumentComponentAuthoringService.cpp">
       <Filter>Source Files\Editor\Controllers</Filter>
     </ClCompile>
-    <ClCompile Include="HIKARI\Editor\HIKARI_SceneObjectAuthoringPanel.cpp">
+    <ClCompile Include="HIKARI\Editor\Commands\HIKARI_SceneObjectCommandService.cpp">
+      <Filter>Source Files\Editor\Controllers</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Editor\Panels\HIKARI_SceneCreationPanel.cpp">
       <Filter>Source Files\Editor\Panels</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Editor\Panels\HIKARI_SceneInspectorPanel.cpp">
+      <Filter>Source Files\Editor\Panels</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Editor\Viewport\HIKARI_SceneViewportSelectionService.cpp">
+      <Filter>Source Files\Editor\Controllers</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Editor\Windows\HIKARI_SceneAuthoringUtilityWindows.cpp">
+      <Filter>Source Files\Editor\Controllers</Filter>
     </ClCompile>
     <ClCompile Include="HIKARI\Project\HIKARI_ProjectSettings.cpp">
       <Filter>Source Files\Project</Filter>
@@ -2008,9 +2020,6 @@
       <Filter>Source Files\Runtime</Filter>
     </ClCompile>
     <ClCompile Include="HIKARI\Runtime\HIKARI_GamePresentationController.cpp">
-      <Filter>Source Files\Runtime</Filter>
-    </ClCompile>
-    <ClCompile Include="HIKARI\Runtime\HIKARI_RuntimeRenderResourceParking.cpp">
       <Filter>Source Files\Runtime</Filter>
     </ClCompile>
     <ClCompile Include="HIKARI\RuntimeTools\HIKARI_PortableObjectToolsPanel.cpp">
@@ -2456,6 +2465,9 @@
       <Filter>Header Files\Editor</Filter>
     </ClInclude>
     <ClInclude Include="HIKARI\Editor\History\HIKARI_EditorDocumentHistory.h">
+      <Filter>Header Files\Editor\History</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Editor\History\HIKARI_SceneObjectTransformHistorySession.h">
       <Filter>Header Files\Editor\History</Filter>
     </ClInclude>
     <ClInclude Include="HIKARI\Editor\History\HIKARI_CinematicsHistoryCommand.h">
@@ -3403,9 +3415,6 @@
     <ClInclude Include="HIKARI\Editor\HIKARI_StatsPanel.h">
       <Filter>Header Files\Editor\Panels</Filter>
     </ClInclude>
-    <ClInclude Include="HIKARI\Editor\HIKARI_InspectorPanel.h">
-      <Filter>Header Files\Editor\Panels</Filter>
-    </ClInclude>
     <ClInclude Include="HIKARI\Editor\HIKARI_HierarchyPanel.h">
       <Filter>Header Files\Editor\Panels</Filter>
     </ClInclude>
@@ -3454,6 +3463,9 @@
     <ClInclude Include="HIKARI\Editor\Widgets\HIKARI_AssetFieldWidget.h">
       <Filter>Header Files\Editor\Panels</Filter>
     </ClInclude>
+    <ClInclude Include="HIKARI\Editor\Widgets\HIKARI_InspectorPropertyLayout.h">
+      <Filter>Header Files\Editor\Panels</Filter>
+    </ClInclude>
     <ClInclude Include="HIKARI\Editor\Widgets\HIKARI_InputActionFieldWidget.h">
       <Filter>Header Files\Editor\Panels</Filter>
     </ClInclude>
@@ -3463,8 +3475,20 @@
     <ClInclude Include="HIKARI\Editor\Widgets\HIKARI_MaterialTextureSlotWidget.h">
       <Filter>Header Files\Editor\Panels</Filter>
     </ClInclude>
-    <ClInclude Include="HIKARI\Editor\HIKARI_SceneObjectAuthoringPanel.h">
+    <ClInclude Include="HIKARI\Editor\Commands\HIKARI_SceneObjectCommandService.h">
+      <Filter>Header Files\Editor\Controllers</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Editor\Panels\HIKARI_SceneCreationPanel.h">
       <Filter>Header Files\Editor\Panels</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Editor\Panels\HIKARI_SceneInspectorPanel.h">
+      <Filter>Header Files\Editor\Panels</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Editor\Viewport\HIKARI_SceneViewportSelectionService.h">
+      <Filter>Header Files\Editor\Controllers</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Editor\Windows\HIKARI_SceneAuthoringUtilityWindows.h">
+      <Filter>Header Files\Editor\Controllers</Filter>
     </ClInclude>
     <ClInclude Include="HIKARI\Project\HIKARI_ProjectSettings.h">
       <Filter>Header Files\Project</Filter>
@@ -3481,9 +3505,6 @@
     <ClInclude Include="HIKARI\Runtime\HIKARI_GamePresentationController.h">
       <Filter>Header Files\Runtime</Filter>
     </ClInclude>
-    <ClInclude Include="HIKARI\Runtime\HIKARI_RuntimeRenderResourceParking.h">
-      <Filter>Header Files\Runtime</Filter>
-    </ClInclude>
     <ClInclude Include="HIKARI\RuntimeTools\HIKARI_PortableObjectToolsPanel.h">
       <Filter>Header Files\Runtime</Filter>
     </ClInclude>
@@ -3494,9 +3515,6 @@
       <Filter>Header Files\Editor\Export</Filter>
     </ClInclude>
     <ClInclude Include="HIKARI\Editor\Play\HIKARI_EditorPlaySession.h">
-      <Filter>Header Files\Editor\Play</Filter>
-    </ClInclude>
-    <ClInclude Include="HIKARI\Editor\Play\HIKARI_GamePreviewSession.h">
       <Filter>Header Files\Editor\Play</Filter>
     </ClInclude>
     <ClInclude Include="HIKARI\Render3D\Core\HIKARI_MeshDrawExecutor.h" />
