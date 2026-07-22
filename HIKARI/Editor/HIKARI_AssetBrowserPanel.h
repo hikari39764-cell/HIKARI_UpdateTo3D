@@ -61,6 +61,8 @@ namespace HIKARI {
         mutable bool recursive_ = false;
         mutable bool filtersExpanded_ = false;
         mutable std::string lastOperationMessage_{};
+        mutable std::string observedOperationMessage_{};
+        mutable double operationMessageVisibleUntil_ = 0.0;
         mutable std::string activatedSceneGuid_{};
         mutable std::string activatedSequenceGuid_{};
         mutable std::string activatedAnimationStateMachineGuid_{};

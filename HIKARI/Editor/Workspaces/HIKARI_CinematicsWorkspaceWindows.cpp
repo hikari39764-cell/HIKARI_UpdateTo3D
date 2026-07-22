@@ -6,6 +6,8 @@
 #include "Editor/HIKARI_EditorViewportInput.h"
 #include "Editor/HIKARI_SelectionSyncService.h"
 #include "Editor/Play/HIKARI_EditorPlaySession.h"
+#include "Editor/Style/HIKARI_EditorGlyphs.h"
+#include "Editor/Style/HIKARI_EditorWidgets.h"
 #include "HIKARI_Services.h"
 #include "Render3D/Views/HIKARI_EditorInteractiveViewRenderer.h"
 #include "Scene/Components/HIKARI_CameraComponent.h"
@@ -321,19 +323,26 @@ namespace HIKARI::EDITOR {
                 ImGuiWindowFlags_NoScrollbar)) {
             ImGui::SetCursorPos(ImVec2(8.0f, 7.0f));
             const bool previewRunning = playSession.IsRunning();
-            if (ImGui::Button(previewRunning ? "Stop" : "Play")) {
+            if (IconButton(
+                    previewRunning ? EditorGlyph::Stop : EditorGlyph::Play,
+                    "CinematicsPreviewToggle",
+                    previewRunning
+                        ? EditorButtonTone::Danger
+                        : EditorButtonTone::Primary,
+                    ImVec2(24.0f, 24.0f),
+                    previewRunning ? "Stop preview" : "Play preview")) {
                 toggleRequested = true;
             }
             ImGui::SameLine();
-            ImGui::TextUnformatted("Primary Full Quality");
-            ImGui::SameLine();
-            ImGui::TextDisabled(
-                "%s",
+            StatusBadge(
                 scene.IsRuntimePlayActive()
                     ? "Scene Director"
                     : (boundCameraObjectId_
                         ? "Camera Preview"
-                        : "Editor Camera"));
+                        : "Editor Camera"),
+                scene.IsRuntimePlayActive()
+                    ? EditorStatusTone::Ready
+                    : EditorStatusTone::Normal);
         }
         ImGui::EndChild();
         ImGui::PopStyleColor();
@@ -467,10 +476,6 @@ namespace HIKARI::EDITOR {
             ImGui::End();
             return;
         }
-        ImGui::TextUnformatted("Cinematics Workspace");
-        ImGui::TextDisabled(
-            "Select a camera here, then use Look Through or Pilot in Director.");
-        ImGui::Separator();
         const CameraOverviewPanelResult panelResult =
             cameraOverviewPanel_.DrawCameraListContents(scene, context);
         ApplyCameraOverviewAction(

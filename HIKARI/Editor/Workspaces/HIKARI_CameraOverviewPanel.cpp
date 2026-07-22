@@ -8,6 +8,8 @@
 #include <vector>
 
 #include "Editor/HIKARI_EditorContext.h"
+#include "Editor/Style/HIKARI_EditorGlyphs.h"
+#include "Editor/Style/HIKARI_EditorWidgets.h"
 #include "Editor/Views/HIKARI_EditorViewInputGate.h"
 #include "Scene/Components/HIKARI_CameraComponent.h"
 #include "Scene/HIKARI_GameObject.h"
@@ -449,7 +451,13 @@ namespace HIKARI::EDITOR {
         CameraOverviewPanelResult result{};
         std::vector<OverviewCameraEntry> cameras = GatherCameras(scene, context);
 
-        if (ImGui::Button("Fit Cameras")) {
+        if (IconTextButton(
+                EditorGlyph::Focus,
+                "Fit All",
+                "CameraOverviewFitAll",
+                EditorButtonTone::Neutral,
+                ImVec2(0.0f, 28.0f),
+                "Fit all cameras in the overview")) {
             FitCameras(view, cameras);
         }
         const OverviewCameraEntry* selectedCamera = FindSelectedCamera(cameras);
@@ -457,18 +465,29 @@ namespace HIKARI::EDITOR {
         if (selectedCamera == nullptr) {
             ImGui::BeginDisabled();
         }
-        if (ImGui::Button("Focus Selected")) {
+        if (IconButton(
+                EditorGlyph::Focus,
+                "CameraOverviewFocusSelected",
+                EditorButtonTone::Quiet,
+                ImVec2(28.0f, 28.0f),
+                "Focus selected camera")) {
             view.overviewCenterXZ = selectedCamera->positionXZ;
         }
         if (selectedCamera == nullptr) {
             ImGui::EndDisabled();
         }
         ImGui::SameLine();
-        ImGui::Checkbox(
-            "Objects",
-            &view.visualization.showSceneObjectMarkers);
-        ImGui::SameLine();
-        ImGui::TextUnformatted("Markers");
+        if (IconToggleButton(
+                EditorGlyph::Object,
+                "CameraOverviewObjectMarkers",
+                view.visualization.showSceneObjectMarkers,
+                ImVec2(28.0f, 28.0f),
+                view.visualization.showSceneObjectMarkers
+                    ? "Hide scene object markers"
+                    : "Show scene object markers")) {
+            view.visualization.showSceneObjectMarkers =
+                !view.visualization.showSceneObjectMarkers;
+        }
         ImGui::SameLine();
         ImGui::SetNextItemWidth(82.0f);
         ImGui::SliderFloat(
@@ -477,9 +496,25 @@ namespace HIKARI::EDITOR {
             0.5f,
             2.0f,
             "%.1fx");
-        ImGui::TextDisabled(
-            "%zu cameras | Middle-drag pan | Wheel zoom",
-            cameras.size());
+        ImGui::SameLine();
+        StatusBadge(
+            (std::to_string(cameras.size()) + " cameras").c_str(),
+            EditorStatusTone::Normal);
+        ImGui::SameLine();
+        if (IconButton(
+                EditorGlyph::More,
+                "CameraOverviewControls",
+                EditorButtonTone::Quiet,
+                ImVec2(28.0f, 28.0f),
+                "Overview controls")) {
+            ImGui::OpenPopup("CameraOverviewControlsPopup");
+        }
+        if (ImGui::BeginPopup("CameraOverviewControlsPopup")) {
+            ImGui::TextDisabled("Middle-drag   Pan");
+            ImGui::TextDisabled("Mouse wheel  Zoom");
+            ImGui::TextDisabled("Left click   Select camera");
+            ImGui::EndPopup();
+        }
 
         ImVec2 canvasSize = ImGui::GetContentRegionAvail();
         canvasSize.x = (std::max)(canvasSize.x, kMinCanvasSize);
@@ -636,7 +671,9 @@ namespace HIKARI::EDITOR {
         CameraOverviewPanelResult result{};
         std::vector<OverviewCameraEntry> cameras = GatherCameras(scene, context);
 
-        ImGui::TextDisabled("%zu scene cameras", cameras.size());
+        StatusBadge(
+            (std::to_string(cameras.size()) + " cameras").c_str(),
+            EditorStatusTone::Normal);
         const CameraDirectorStatus directorStatus =
             scene.GetCameraDirector().GetStatus();
         if (directorStatus.overrideCount > 0u ||
@@ -650,7 +687,13 @@ namespace HIKARI::EDITOR {
         }
         if (scene.IsEditorCameraPreviewActive()) {
             ImGui::SameLine();
-            if (ImGui::Button("Exit Camera View")) {
+            if (IconTextButton(
+                    EditorGlyph::Exit,
+                    "Exit View",
+                    "CameraListExitView",
+                    EditorButtonTone::Quiet,
+                    ImVec2(0.0f, 26.0f),
+                    "Exit camera preview")) {
                 return MakeAction(
                     CameraOverviewActionKind::ExitView,
                     scene.GetEditorCameraPreviewObjectId());
@@ -676,7 +719,7 @@ namespace HIKARI::EDITOR {
         ImGui::TableSetupColumn("Camera", ImGuiTableColumnFlags_WidthStretch, 1.2f);
         ImGui::TableSetupColumn("State", ImGuiTableColumnFlags_WidthFixed, 110.0f);
         ImGui::TableSetupColumn("Lens", ImGuiTableColumnFlags_WidthFixed, 190.0f);
-        ImGui::TableSetupColumn("Actions", ImGuiTableColumnFlags_WidthFixed, 190.0f);
+        ImGui::TableSetupColumn("Actions", ImGuiTableColumnFlags_WidthFixed, 112.0f);
         ImGui::TableHeadersRow();
 
         for (const OverviewCameraEntry& camera : cameras) {
@@ -732,7 +775,14 @@ namespace HIKARI::EDITOR {
             if (camera.isDefault) {
                 ImGui::BeginDisabled();
             }
-            if (ImGui::SmallButton("Default")) {
+            if (IconButton(
+                    EditorGlyph::Camera,
+                    "CameraSetDefault",
+                    EditorButtonTone::Quiet,
+                    ImVec2(26.0f, 26.0f),
+                    camera.isDefault
+                        ? "Default camera"
+                        : "Set as default camera")) {
                 result = MakeAction(
                     CameraOverviewActionKind::SetDefault,
                     camera.objectId);
@@ -745,7 +795,18 @@ namespace HIKARI::EDITOR {
             if (!camera.enabled) {
                 ImGui::BeginDisabled();
             }
-            if (ImGui::SmallButton(camera.isPreviewed ? "Exit" : "View")) {
+            if (IconButton(
+                    camera.isPreviewed
+                        ? EditorGlyph::Exit
+                        : EditorGlyph::Reveal,
+                    "CameraPreview",
+                    camera.isPreviewed
+                        ? EditorButtonTone::Primary
+                        : EditorButtonTone::Quiet,
+                    ImVec2(26.0f, 26.0f),
+                    camera.isPreviewed
+                        ? "Exit camera preview"
+                        : "Look through camera")) {
                 result = MakeAction(
                     camera.isPreviewed
                         ? CameraOverviewActionKind::ExitView
@@ -760,7 +821,14 @@ namespace HIKARI::EDITOR {
             if (camera.hasParent) {
                 ImGui::BeginDisabled();
             }
-            if (ImGui::SmallButton("Snap")) {
+            if (IconButton(
+                    EditorGlyph::Snap,
+                    "CameraSnapToView",
+                    EditorButtonTone::Quiet,
+                    ImVec2(26.0f, 26.0f),
+                    camera.hasParent
+                        ? "Parented cameras cannot be snapped"
+                        : "Snap camera to editor view")) {
                 result = MakeAction(
                     CameraOverviewActionKind::SnapToView,
                     camera.objectId);

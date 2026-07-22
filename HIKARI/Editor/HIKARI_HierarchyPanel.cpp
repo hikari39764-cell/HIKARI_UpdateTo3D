@@ -6,7 +6,7 @@
 #include <vector>
 
 #include "Editor/HIKARI_EditorContext.h"
-#include "Editor/Style/HIKARI_EditorIconManager.h"
+#include "Editor/Style/HIKARI_EditorGlyphs.h"
 #include "Editor/Style/HIKARI_EditorTheme.h"
 #include "Editor/Style/HIKARI_EditorWidgets.h"
 #include "Scene/HIKARI_GameObject.h"
@@ -116,9 +116,17 @@ namespace HIKARI {
                 ImGui::PushID(objectPtr);
                 const bool isSelected =
                     selection.selectedObject == objectPtr;
-                EDITOR::EditorIconManager::DrawIcon(
-                    EDITOR::EditorIconKind::GameObject,
-                    ImVec2(16.0f, 16.0f));
+                const ImVec2 iconMin = ImGui::GetCursorScreenPos();
+                ImGui::Dummy(ImVec2(16.0f, metrics.rowHeight));
+                EDITOR::DrawEditorGlyph(
+                    *ImGui::GetWindowDrawList(),
+                    EDITOR::EditorGlyph::Object,
+                    ImVec2(
+                        iconMin.x + 8.0f,
+                        iconMin.y + metrics.rowHeight * 0.5f),
+                    13.0f,
+                    ImGui::GetColorU32(
+                        EDITOR::GetEditorThemePalette().accent));
                 ImGui::SameLine();
                 if (ImGui::Selectable(
                         objectPtr->GetName().c_str(),

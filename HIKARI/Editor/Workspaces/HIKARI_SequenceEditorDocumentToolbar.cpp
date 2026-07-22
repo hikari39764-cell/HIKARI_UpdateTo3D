@@ -39,17 +39,19 @@ namespace HIKARI::EDITOR {
                 SequenceEditorSourceKind::TransientAsset) {
             sourceLabel = "Unsaved Sequence Asset";
         }
-        ImGui::TextDisabled("Source");
-        ImGui::SameLine();
-        ImGui::TextUnformatted(sourceLabel);
-        ImGui::SameLine();
         std::string documentName = activeSequence != nullptr
             ? activeSequence->name
             : document.GetDisplayName();
         if (document.IsDirty()) {
             documentName += " *";
         }
-        ImGui::Text("|  %s", documentName.c_str());
+        ToolbarLabel(documentName.c_str());
+        ImGui::SameLine();
+        StatusBadge(
+            sourceLabel,
+            document.IsDirty()
+                ? EditorStatusTone::Warning
+                : EditorStatusTone::Normal);
 
         if (!actionsAllowed) {
             ImGui::BeginDisabled();
@@ -162,19 +164,11 @@ namespace HIKARI::EDITOR {
             ImGui::EndDisabled();
         }
 
-        if (document.IsEmbeddedScene()) {
-            ImGui::TextDisabled(
-                "Scene: %s  |  Saved with the scene document",
-                sceneDisplayName.c_str());
-        } else if (document.GetSourceKind() ==
+        if (document.GetSourceKind() ==
                 SequenceEditorSourceKind::TransientAsset) {
-            ImGui::TextDisabled(
-                "Not saved yet. Save will create Assets/Sequences/*.hsequence");
-        } else {
-            ImGui::TextDisabled(
-                "%s  |  GUID %s",
-                document.GetSourcePath().generic_string().c_str(),
-                document.GetAssetGuid().value.c_str());
+            StatusText(
+                "Save to create a reusable sequence asset.",
+                EditorStatusTone::Warning);
         }
 #else
         (void)controller;

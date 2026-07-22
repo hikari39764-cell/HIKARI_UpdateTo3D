@@ -527,6 +527,7 @@
     <ClCompile Include="HIKARI\Editor\Workspaces\HIKARI_ModelCollisionWorkspaceController.cpp" />
     <ClCompile Include="HIKARI\Editor\Workspaces\HIKARI_ModelCollisionWorkspacePanels.cpp" />
     <ClCompile Include="HIKARI\Editor\Workspaces\HIKARI_ModelCollisionWorkspaceWindows.cpp" />
+    <ClCompile Include="HIKARI\Editor\Workspaces\HIKARI_ModelCollisionWorkspaceToolbar.cpp" />
     <ClCompile Include="HIKARI\Editor\Workspaces\HIKARI_AnimationStateMachineWorkspaceController.cpp" />
     <ClCompile Include="HIKARI\Editor\Workspaces\HIKARI_AnimationStateMachineDocumentWorkflow.cpp" />
     <ClCompile Include="HIKARI\Editor\Workspaces\HIKARI_AnimationStateMachineWorkspaceWindows.cpp" />
@@ -560,7 +561,6 @@
     <ClCompile Include="HIKARI\Editor\Gizmos\HIKARI_LightProbeVolumeGizmoRenderer.cpp" />
     <ClCompile Include="HIKARI\Editor\Gizmos\HIKARI_ReflectionProbeGizmoRenderer.cpp" />
     <ClCompile Include="HIKARI\Editor\Viewport\HIKARI_ViewportAuthoringToolbar.cpp" />
-    <ClCompile Include="HIKARI\Editor\Style\HIKARI_EditorIconManager.cpp" />
     <ClCompile Include="HIKARI\Editor\Style\HIKARI_EditorAssetIcons.cpp" />
     <ClCompile Include="HIKARI\Editor\Style\HIKARI_EditorFontManager.cpp" />
     <ClCompile Include="HIKARI\Editor\Style\HIKARI_EditorGlyphs.cpp" />
@@ -1089,7 +1089,6 @@
     <ClInclude Include="HIKARI\Editor\Gizmos\HIKARI_LightProbeVolumeGizmoRenderer.h" />
     <ClInclude Include="HIKARI\Editor\Gizmos\HIKARI_ReflectionProbeGizmoRenderer.h" />
     <ClInclude Include="HIKARI\Editor\Viewport\HIKARI_ViewportAuthoringToolbar.h" />
-    <ClInclude Include="HIKARI\Editor\Style\HIKARI_EditorIconManager.h" />
     <ClInclude Include="HIKARI\Editor\Style\HIKARI_EditorAssetIcons.h" />
     <ClInclude Include="HIKARI\Editor\Style\HIKARI_EditorFontManager.h" />
     <ClInclude Include="HIKARI\Editor\Style\HIKARI_EditorGlyphs.h" />
@@ -1383,7 +1382,6 @@
     <None Include="ProjectSettings\Input\global.inputmap.json" />
     <None Include="ProjectSettings\render_quality.json" />
     <None Include="Data\transition_profiles\noise_wipe.json" />
-    <None Include="HIKARI\Icon\hikari_asset_icons.png" />
     <None Include="HIKARI\Shaders\Include\HIKARI_ClusterGeometryConfig.h" />
     <None Include="HIKARI\Shaders\Include\Contracts\HIKARI_ShaderResourceBindings.hlsli" />
     <None Include="HIKARI\Shaders\Include\Forward\HIKARI_ForwardCommon.hlsli" />

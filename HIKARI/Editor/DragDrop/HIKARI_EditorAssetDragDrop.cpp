@@ -3,7 +3,7 @@
 #include <cstring>
 #include <string>
 
-#include "Editor/Style/HIKARI_EditorIconManager.h"
+#include "Editor/Style/HIKARI_EditorAssetIcons.h"
 
 #if defined(HIKARI_WITH_EDITOR)
 #include "imgui.h"
@@ -25,7 +25,7 @@ namespace HIKARI::EDITOR {
             record.guid.value.c_str(),
             record.guid.value.size() + 1u);
 
-        EditorIconManager::DrawAssetIcon(record.type, ImVec2(18.0f, 18.0f));
+        DrawAssetTypeGlyph(record.type, ImVec2(18.0f, 18.0f));
         ImGui::SameLine();
         const std::string displayName = record.displayName.empty()
             ? record.sourcePath.filename().string()

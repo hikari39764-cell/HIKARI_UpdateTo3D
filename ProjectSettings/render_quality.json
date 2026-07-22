@@ -1,9 +1,9 @@
 {
   "renderQuality": {
-    "antiAliasingMode": "DLAA",
+    "antiAliasingMode": "DLSS",
     "dlssQualityMode": "Quality",
     "forwardCostMode": "Full",
-    "frameGenerationMode": "DLSS",
+    "frameGenerationMode": "Off",
     "frameGenerationMultiplier": 2,
     "geometryPipeline": "MeshShader",
     "lightProbeVolumeSampling": "FastSmooth",

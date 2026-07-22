@@ -112,6 +112,9 @@ namespace HIKARI::EDITOR {
             DocumentSceneBase& scene,
             EditorWorkspaceHost& workspaceHost,
             ModelCollisionWorkspaceResult& result);
+        void DrawPreviewToolbar(
+            DocumentSceneBase& scene,
+            ModelCollisionWorkspaceResult& result);
         void DrawShapeListWindow();
         void DrawShapeDetailsWindow();
         void DrawSourceModelWindow();

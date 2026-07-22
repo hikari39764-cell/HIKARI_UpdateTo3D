@@ -68,6 +68,7 @@ namespace HIKARI::EDITOR {
         const char* tooltip = nullptr);
 
     void ToolbarLabel(const char* label);
+    void ToolbarDivider(float height = 20.0f);
     void StatusText(const char* label, EditorStatusTone tone);
     void StatusBadge(const char* label, EditorStatusTone tone);
     void PanelTitle(const char* title, const char* subtitle = nullptr);

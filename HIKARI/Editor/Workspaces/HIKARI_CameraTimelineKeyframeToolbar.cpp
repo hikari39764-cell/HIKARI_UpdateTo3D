@@ -143,15 +143,29 @@ namespace HIKARI::EDITOR {
             ImGui::BeginDisabled();
         }
         bool transformEnabled = sequence.cameraTransformTrack.enabled;
-        if (ImGui::Checkbox("Transform Track", &transformEnabled)) {
-            sequence.cameraTransformTrack.enabled = transformEnabled;
+        if (IconToggleButton(
+                EditorGlyph::Transform,
+                "CameraTimelineTransformTrack",
+                transformEnabled,
+                ImVec2(28.0f, 28.0f),
+                transformEnabled
+                    ? "Disable camera transform track"
+                    : "Enable camera transform track")) {
+            sequence.cameraTransformTrack.enabled = !transformEnabled;
             result.sequenceChanged = true;
             result.previewRequested = true;
         }
         ImGui::SameLine();
         bool lensEnabled = sequence.cameraLensTrack.enabled;
-        if (ImGui::Checkbox("Lens Track", &lensEnabled)) {
-            sequence.cameraLensTrack.enabled = lensEnabled;
+        if (IconToggleButton(
+                EditorGlyph::Lens,
+                "CameraTimelineLensTrack",
+                lensEnabled,
+                ImVec2(28.0f, 28.0f),
+                lensEnabled
+                    ? "Disable camera lens track"
+                    : "Enable camera lens track")) {
+            sequence.cameraLensTrack.enabled = !lensEnabled;
             result.sequenceChanged = true;
             result.previewRequested = true;
         }
@@ -161,8 +175,13 @@ namespace HIKARI::EDITOR {
 
         ImGui::SameLine();
         bool snapEnabled = canvas.IsSnapEnabled();
-        if (ImGui::Checkbox("Snap", &snapEnabled)) {
-            canvas.SetSnapEnabled(snapEnabled);
+        if (IconToggleButton(
+                EditorGlyph::Snap,
+                "CameraTimelineSnap",
+                snapEnabled,
+                ImVec2(28.0f, 28.0f),
+                snapEnabled ? "Disable timeline snapping" : "Enable timeline snapping")) {
+            canvas.SetSnapEnabled(!snapEnabled);
         }
         ImGui::SameLine();
         int snapFramesPerSecond = canvas.GetSnapFramesPerSecond();
@@ -177,6 +196,26 @@ namespace HIKARI::EDITOR {
             canvas.SetSnapFramesPerSecond(snapFramesPerSecond);
         }
 
+        ImGui::SameLine();
+        if (IconButton(
+                EditorGlyph::More,
+                "CameraTimelineControls",
+                EditorButtonTone::Quiet,
+                ImVec2(28.0f, 28.0f),
+                "Timeline controls")) {
+            ImGui::OpenPopup("CameraTimelineControlsPopup");
+        }
+        if (ImGui::BeginPopup("CameraTimelineControlsPopup")) {
+            ImGui::TextUnformatted("Timeline controls");
+            ImGui::Separator();
+            ImGui::TextDisabled("Shift + click      Add to selection");
+            ImGui::TextDisabled("Ctrl + click       Toggle selection");
+            ImGui::TextDisabled("Drag empty lane    Box select");
+            ImGui::TextDisabled("Ctrl + A/C/V/D     Select/copy/paste/duplicate");
+            ImGui::TextDisabled("Delete             Remove selected keys");
+            ImGui::EndPopup();
+        }
+
         if (canvas.DrawSelectedKeyframeInspector(
                 sequence,
                 editingAllowed)) {
@@ -184,9 +223,6 @@ namespace HIKARI::EDITOR {
             result.previewRequested = true;
         }
 
-        ImGui::TextDisabled(
-            "Shift: add | Ctrl: toggle | Drag empty lane: box select | "
-            "Ctrl+A/C/V/D | Delete");
 #else
         (void)document;
         (void)sequence;

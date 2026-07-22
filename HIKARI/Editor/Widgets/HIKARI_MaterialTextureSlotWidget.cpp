@@ -6,7 +6,7 @@
 #include "Assets/HIKARI_AssetDatabase.h"
 #include "Editor/DragDrop/HIKARI_EditorAssetDragDrop.h"
 #include "Editor/HIKARI_EditorContext.h"
-#include "Editor/Style/HIKARI_EditorIconManager.h"
+#include "Editor/Style/HIKARI_EditorAssetIcons.h"
 #include "Render2D/HIKARI_DxTexture.h"
 
 #if defined(HIKARI_WITH_EDITOR)
@@ -140,7 +140,7 @@ namespace HIKARI::EDITOR {
         if (!descriptor || descriptor->sourcePath.empty()) {
             drawList->AddRectFilled(min, max, IM_COL32(18, 24, 31, 255), 6.0f);
             ImGui::SetCursorScreenPos(ImVec2(min.x + 16.0f, min.y + 16.0f));
-            EditorIconManager::DrawAssetIcon(AssetType::Texture, ImVec2(32.0f, 32.0f));
+            DrawAssetTypeGlyph(AssetType::Texture, ImVec2(32.0f, 32.0f));
         }
         ImGui::SetCursorScreenPos(ImVec2(max.x + 8.0f, min.y));
         ImGui::EndGroup();

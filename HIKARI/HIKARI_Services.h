@@ -39,7 +39,6 @@
 #include "Audio/HIKARI_Audio.h"
 #if defined(HIKARI_WITH_EDITOR)
 #include "Editor/Style/HIKARI_EditorFontManager.h"
-#include "Editor/Style/HIKARI_EditorIconManager.h"
 #include "Editor/HIKARI_EditorStyle.h"
 #include "Editor/HIKARI_EditorViewportInput.h"
 #endif
@@ -530,16 +529,6 @@ namespace HIKARI {
             HIKARI_LOG_INFO("TextureManager initialized.");
             RENDER3D::UpdateRenderResourceDescriptorPoolContext(gCtx);
             RENDER3D::UpdateClusterGeometryResourceContext(gCtx);
-#if defined(HIKARI_WITH_EDITOR)
-            if (IsEditorHost() && gEnableImGui) {
-                if (EDITOR::EditorIconManager::Initialize()) {
-                    HIKARI_LOG_INFO("Editor icons initialized.");
-                }
-                else {
-                    HIKARI_LOG_WARN("Editor icon initialization failed.");
-                }
-            }
-#endif
             HIKARI::DefaultPbrResources::Initialize();
             HIKARI_LOG_INFO("Default PBR resources initialized.");
             DX::DxRenderer::Init(gCtx);
@@ -658,9 +647,6 @@ namespace HIKARI {
             RENDER3D::VOLUMETRIC::ShutdownVolumetricLightingStage();
             RENDER3D::ShutdownClusterGeometryResourceSystem();
             RENDER3D::ShutdownRenderResourceDescriptorPool();
-#if defined(HIKARI_WITH_EDITOR)
-            EDITOR::EditorIconManager::Finalize();
-#endif
             DXTEX::DxTextureManager::Finalize();
             HIKARI_LOG_INFO("TextureManager finalized.");
             HIKARI::VFX::Shutdown();

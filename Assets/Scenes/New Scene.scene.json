@@ -654,7 +654,7 @@
             "groundGraceSeconds": 0.10000000149011612,
             "inputDeadZone": 0.07999999821186066,
             "jumpBufferSeconds": 0.10000000149011612,
-            "jumpHeight": 1.0,
+            "jumpHeight": 3.0,
             "maximumCollisionHits": 256,
             "maximumFallSpeed": 55.0,
             "maximumSlopeAngleDegrees": 50.0,
@@ -668,7 +668,7 @@
             "stepForwardTestDistance": 1.0,
             "stepHeight": 0.4000000059604645,
             "stickToFloorDistance": 1.0,
-            "turnSpeedDegrees": 720.0
+            "turnSpeedDegrees": 557.9000244140625
           },
           "type": "CharacterLocomotionComponent"
         },
@@ -726,9 +726,9 @@
           0.0
         ],
         "scale": [
-          1.0,
-          1.0,
-          1.0
+          2.0,
+          2.0,
+          2.0
         ]
       }
     },
@@ -752,15 +752,15 @@
             "collisionLayerMask": 4294967295,
             "collisionPadding": 0.07999999821186066,
             "collisionRadius": 0.25,
-            "distanceSmooth": 18.0,
+            "distanceSmooth": 15.300000190734863,
             "enabled": true,
-            "followSmooth": 22.600000381469727,
+            "followSmooth": 5.400000095367432,
             "initialDistance": 5.800000190734863,
             "initialPitchDegrees": 28.0,
             "initialYawDegrees": 0.0,
             "invertVerticalLook": false,
             "lookAction": "Gameplay.Look",
-            "lookSmooth": 14.0,
+            "lookSmooth": 8.800000190734863,
             "maximumDistance": 20.0,
             "maximumPitchDegrees": 75.0,
             "minimumDistance": 1.0,

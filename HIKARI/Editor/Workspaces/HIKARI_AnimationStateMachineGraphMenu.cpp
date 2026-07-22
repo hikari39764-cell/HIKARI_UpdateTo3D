@@ -3,6 +3,8 @@
 #include <string>
 
 #include "Assets/HIKARI_AssetDatabase.h"
+#include "Editor/Style/HIKARI_EditorGlyphs.h"
+#include "Editor/Style/HIKARI_EditorWidgets.h"
 #include "Scene/Scenes/HIKARI_DocumentSceneBase.h"
 
 #if defined(HIKARI_WITH_EDITOR)
@@ -125,6 +127,65 @@ namespace HIKARI::EDITOR {
             ImGui::Separator();
             ImGui::TextDisabled("Zoom: %.0f%%", graphZoom_ * 100.0f);
             ImGui::EndMenu();
+        }
+
+        constexpr ImVec2 kQuickActionSize{ 22.0f, 22.0f };
+        ImGui::SameLine(0.0f, 8.0f);
+        ToolbarDivider(18.0f);
+        ImGui::SameLine(0.0f, 6.0f);
+        if (IconButton(
+                EditorGlyph::NewDocument,
+                "AnimationSmNew",
+                EditorButtonTone::Quiet,
+                kQuickActionSize,
+                "New state machine")) {
+            RequestDocumentAction(
+                scene,
+                result,
+                requests,
+                PendingDocumentAction::NewDocument);
+        }
+        ImGui::SameLine();
+        if (IconButton(
+                EditorGlyph::Save,
+                "AnimationSmSave",
+                document_.IsDirty()
+                    ? EditorButtonTone::Primary
+                    : EditorButtonTone::Quiet,
+                kQuickActionSize,
+                "Save state machine (Ctrl+S)")) {
+            (void)Save(scene, statusMessage_);
+        }
+        ImGui::SameLine();
+        ImGui::BeginDisabled(!CanUndo());
+        if (IconButton(
+                EditorGlyph::Undo,
+                "AnimationSmUndo",
+                EditorButtonTone::Quiet,
+                kQuickActionSize,
+                "Undo (Ctrl+Z)")) {
+            (void)Undo(statusMessage_);
+        }
+        ImGui::EndDisabled();
+        ImGui::SameLine();
+        ImGui::BeginDisabled(!CanRedo());
+        if (IconButton(
+                EditorGlyph::Redo,
+                "AnimationSmRedo",
+                EditorButtonTone::Quiet,
+                kQuickActionSize,
+                "Redo (Ctrl+Y)")) {
+            (void)Redo(statusMessage_);
+        }
+        ImGui::EndDisabled();
+        ImGui::SameLine();
+        if (IconButton(
+                EditorGlyph::Focus,
+                "AnimationSmFrameAll",
+                EditorButtonTone::Quiet,
+                kQuickActionSize,
+                "Frame all states (Home)")) {
+            requests.frameAll = true;
         }
 
         const std::string documentLabel =

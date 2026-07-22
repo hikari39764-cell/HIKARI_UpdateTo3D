@@ -1008,6 +1008,9 @@
     <ClCompile Include="HIKARI\Editor\Workspaces\HIKARI_ModelCollisionWorkspaceWindows.cpp">
       <Filter>Source Files\Editor\Workspaces</Filter>
     </ClCompile>
+    <ClCompile Include="HIKARI\Editor\Workspaces\HIKARI_ModelCollisionWorkspaceToolbar.cpp">
+      <Filter>Source Files\Editor\Workspaces</Filter>
+    </ClCompile>
     <ClCompile Include="HIKARI\Editor\Workspaces\HIKARI_AnimationStateMachineWorkspaceController.cpp">
       <Filter>Source Files\Editor\Workspaces</Filter>
     </ClCompile>
@@ -1106,9 +1109,6 @@
     </ClCompile>
     <ClCompile Include="HIKARI\Editor\Gizmos\HIKARI_LightProbeVolumeGizmoRenderer.cpp">
       <Filter>Source Files\Editor\Gizmos</Filter>
-    </ClCompile>
-    <ClCompile Include="HIKARI\Editor\Style\HIKARI_EditorIconManager.cpp">
-      <Filter>Source Files\Editor\Style</Filter>
     </ClCompile>
     <ClCompile Include="HIKARI\Editor\Style\HIKARI_EditorAssetIcons.cpp">
       <Filter>Source Files\Editor\Style</Filter>
@@ -2686,9 +2686,6 @@
     <ClInclude Include="HIKARI\Editor\Gizmos\HIKARI_LightProbeVolumeGizmoRenderer.h">
       <Filter>Header Files\Editor\Gizmos</Filter>
     </ClInclude>
-    <ClInclude Include="HIKARI\Editor\Style\HIKARI_EditorIconManager.h">
-      <Filter>Header Files\Editor\Style</Filter>
-    </ClInclude>
     <ClInclude Include="HIKARI\Editor\Style\HIKARI_EditorAssetIcons.h">
       <Filter>Header Files\Editor\Style</Filter>
     </ClInclude>
@@ -3731,9 +3728,6 @@
     </None>
     <None Include="Data\transition_profiles\noise_wipe.json">
       <Filter>Project\Data\TransitionProfiles</Filter>
-    </None>
-    <None Include="HIKARI\Icon\hikari_asset_icons.png">
-      <Filter>Project\Icons</Filter>
     </None>
     <None Include="HIKARI\Shaders\Include\HIKARI_ClusterGeometryConfig.h">
       <Filter>Project\Shaders\Include</Filter>

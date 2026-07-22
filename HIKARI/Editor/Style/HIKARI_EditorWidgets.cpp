@@ -284,6 +284,18 @@ namespace HIKARI::EDITOR {
         ImGui::TextDisabled("%s", label);
     }
 
+    void ToolbarDivider(float height) {
+        const EditorThemePalette& theme = GetEditorThemePalette();
+        const ImVec2 minimum = ImGui::GetCursorScreenPos();
+        const float resolvedHeight = (std::max)(8.0f, height);
+        ImGui::Dummy(ImVec2(1.0f, resolvedHeight));
+        ImGui::GetWindowDrawList()->AddLine(
+            ImVec2(minimum.x, minimum.y + 3.0f),
+            ImVec2(minimum.x, minimum.y + resolvedHeight - 3.0f),
+            ImGui::GetColorU32(theme.border),
+            1.0f);
+    }
+
     void StatusText(const char* label, EditorStatusTone tone) {
         ImGui::TextColored(ResolveStatusColor(tone), "%s", label);
     }

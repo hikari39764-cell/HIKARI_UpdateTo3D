@@ -413,6 +413,25 @@ namespace HIKARI::EDITOR {
             canvas.Line(0.0f, -0.82f, 0.0f, -0.38f);
             canvas.Line(0.0f, 0.38f, 0.0f, 0.82f);
             break;
+        case EditorGlyph::Object: {
+            const ImVec2 top[]{
+                { 0.0f, -0.72f }, { 0.66f, -0.34f },
+                { 0.0f, 0.04f }, { -0.66f, -0.34f }
+            };
+            canvas.Polyline(top, 4, true);
+            canvas.Line(-0.66f, -0.34f, -0.66f, 0.34f);
+            canvas.Line(0.66f, -0.34f, 0.66f, 0.34f);
+            canvas.Line(-0.66f, 0.34f, 0.0f, 0.72f);
+            canvas.Line(0.66f, 0.34f, 0.0f, 0.72f);
+            canvas.Line(0.0f, 0.04f, 0.0f, 0.72f);
+            break;
+        }
+        case EditorGlyph::Exit:
+            canvas.Rect(-0.72f, -0.64f, 0.20f, 0.64f, 0.06f);
+            canvas.Line(-0.12f, 0.0f, 0.76f, 0.0f);
+            canvas.Line(0.76f, 0.0f, 0.42f, -0.34f);
+            canvas.Line(0.76f, 0.0f, 0.42f, 0.34f);
+            break;
         case EditorGlyph::File:
             canvas.Rect(-0.60f, -0.72f, 0.54f, 0.72f, 0.05f);
             canvas.Line(0.08f, -0.72f, 0.54f, -0.26f);

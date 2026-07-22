@@ -3,6 +3,8 @@
 #include <string>
 #include <utility>
 
+#include "Editor/Style/HIKARI_EditorGlyphs.h"
+#include "Editor/Style/HIKARI_EditorWidgets.h"
 #include "Scene/Scenes/HIKARI_DocumentSceneBase.h"
 
 #if defined(HIKARI_WITH_EDITOR)
@@ -96,7 +98,13 @@ namespace HIKARI::EDITOR {
             ImGui::End();
             return;
         }
-        if (ImGui::Button("+ Parameter")) {
+        if (IconTextButton(
+                EditorGlyph::Add,
+                "Parameter",
+                "AnimationSmAddParameter",
+                EditorButtonTone::Neutral,
+                ImVec2(0.0f, 28.0f),
+                "Add a state machine parameter")) {
             ImGui::OpenPopup("AddAnimationParameter");
         }
         if (ImGui::BeginPopup("AddAnimationParameter")) {
@@ -113,7 +121,14 @@ namespace HIKARI::EDITOR {
         ImGui::SameLine();
         ImGui::BeginDisabled(
             selectionKind_ != SelectionKind::Parameter);
-        if (ImGui::Button("Delete")) DeleteSelectedParameter();
+        if (IconButton(
+                EditorGlyph::Delete,
+                "AnimationSmDeleteParameter",
+                EditorButtonTone::Danger,
+                ImVec2(28.0f, 28.0f),
+                "Delete selected parameter")) {
+            DeleteSelectedParameter();
+        }
         ImGui::EndDisabled();
         ImGui::Separator();
         for (const auto& parameter : document_.Definition().parameters) {
@@ -144,12 +159,27 @@ namespace HIKARI::EDITOR {
         }
         ImGui::BeginDisabled(
             document_.Definition().states.size() < 2u);
-        if (ImGui::Button("+ Transition")) AddTransition();
+        if (IconTextButton(
+                EditorGlyph::Add,
+                "Transition",
+                "AnimationSmAddTransition",
+                EditorButtonTone::Neutral,
+                ImVec2(0.0f, 28.0f),
+                "Add a state transition")) {
+            AddTransition();
+        }
         ImGui::EndDisabled();
         ImGui::SameLine();
         ImGui::BeginDisabled(
             selectionKind_ != SelectionKind::Transition);
-        if (ImGui::Button("Delete")) DeleteSelectedTransition();
+        if (IconButton(
+                EditorGlyph::Delete,
+                "AnimationSmDeleteTransition",
+                EditorButtonTone::Danger,
+                ImVec2(28.0f, 28.0f),
+                "Delete selected transition")) {
+            DeleteSelectedTransition();
+        }
         ImGui::EndDisabled();
         ImGui::Separator();
         const auto& definition = document_.Definition();

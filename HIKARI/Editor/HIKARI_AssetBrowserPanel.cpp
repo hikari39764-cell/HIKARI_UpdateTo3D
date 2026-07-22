@@ -9,6 +9,7 @@
 #include <exception>
 #include <filesystem>
 #include <fstream>
+#include <iterator>
 #include <string>
 #include <string_view>
 #include <utility>
@@ -26,6 +27,7 @@
 #include "Editor/DragDrop/HIKARI_EditorAssetDragDrop.h"
 #include "Editor/Style/HIKARI_EditorAssetIcons.h"
 #include "Editor/Style/HIKARI_EditorGlyphs.h"
+#include "Editor/Style/HIKARI_EditorTheme.h"
 #include "Editor/Style/HIKARI_EditorWidgets.h"
 #include "Editor/HIKARI_EditorContext.h"
 #include "Platform/HIKARI_Win32Window.h"
@@ -1043,6 +1045,39 @@ namespace HIKARI {
 
             return ImGui::CalcTextSize(kSuffix).x <= maxWidth ? std::string(kSuffix) : std::string{};
         }
+
+        void DrawDirectoryBreadcrumbs(
+            std::filesystem::path& currentDirectory) {
+            const std::filesystem::path normalized =
+                currentDirectory.lexically_normal();
+            std::filesystem::path accumulated{};
+            bool first = true;
+            int segmentIndex = 0;
+            for (const auto& segment : normalized) {
+                accumulated /= segment;
+                const std::string label = segment.generic_string();
+                if (label.empty() || label == ".") {
+                    continue;
+                }
+                if (!first) {
+                    ImGui::SameLine(0.0f, 5.0f);
+                    ImGui::TextDisabled(">");
+                    ImGui::SameLine(0.0f, 5.0f);
+                }
+                const std::string id =
+                    "AssetBreadcrumb" + std::to_string(segmentIndex++);
+                const std::string tooltip = accumulated.generic_string();
+                if (EDITOR::ActionButton(
+                        label.c_str(),
+                        id.c_str(),
+                        EDITOR::EditorButtonTone::Quiet,
+                        ImVec2(0.0f, 24.0f),
+                        tooltip.c_str())) {
+                    currentDirectory = accumulated.lexically_normal();
+                }
+                first = false;
+            }
+        }
 #endif
 
         void ShowInExplorer(const std::filesystem::path& path) {
@@ -1974,9 +2009,9 @@ namespace HIKARI {
 
             (void)usageSummary;
 
-            const float cardWidth = 142.0f;
-            const float cardHeight = 132.0f;
-            const float iconSize = 58.0f;
+            const float cardWidth = 132.0f;
+            const float cardHeight = 116.0f;
+            const float iconSize = 46.0f;
             const float spacing = ImGui::GetStyle().ItemSpacing.x;
             const float availableWidth = (std::max)(cardWidth, ImGui::GetContentRegionAvail().x);
             const int columns = (std::max)(1, static_cast<int>(availableWidth / (cardWidth + spacing)));
@@ -1985,6 +2020,8 @@ namespace HIKARI {
                 return;
             }
 
+            const EDITOR::EditorThemePalette& theme =
+                EDITOR::GetEditorThemePalette();
             int column = 0;
             for (const AssetRecord* record : records) {
                 if (!record) {
@@ -2051,8 +2088,12 @@ namespace HIKARI {
                 }
 
                 const ImVec4 baseColor = isSelected
-                    ? ImVec4(0.16f, 0.30f, 0.46f, 1.0f)
-                    : (cardHovered ? ImVec4(0.16f, 0.21f, 0.27f, 1.0f) : ImVec4(0.11f, 0.14f, 0.18f, 1.0f));
+                    ? ImVec4(
+                        theme.accent.x * 0.42f,
+                        theme.accent.y * 0.42f,
+                        theme.accent.z * 0.42f,
+                        1.0f)
+                    : (cardHovered ? theme.raisedHover : theme.raised);
                 ImDrawList* drawList = ImGui::GetWindowDrawList();
                 drawList->AddRectFilled(
                     cardMin,
@@ -2062,8 +2103,11 @@ namespace HIKARI {
                 drawList->AddRect(
                     cardMin,
                     cardMax,
-                    ImGui::GetColorU32(isSelected ? ImVec4(0.36f, 0.62f, 0.92f, 1.0f) : ImVec4(0.22f, 0.27f, 0.34f, 1.0f)),
-                    6.0f);
+                    ImGui::GetColorU32(
+                        isSelected ? theme.accent : theme.border),
+                    6.0f,
+                    0,
+                    isSelected ? 2.0f : 1.0f);
 
                 const AssetImportState state = GetImportState(*record);
                 drawList->AddCircleFilled(
@@ -2073,7 +2117,7 @@ namespace HIKARI {
 
                 const ImVec2 iconPos{
                     cardMin.x + (cardWidth - iconSize) * 0.5f,
-                    cardMin.y + 15.0f
+                    cardMin.y + 13.0f
                 };
                 ImGui::SetCursorScreenPos(iconPos);
                 EDITOR::DrawAssetTypeGlyph(
@@ -2085,7 +2129,9 @@ namespace HIKARI {
                     : record->displayName;
                 const float labelWidth = cardWidth - 20.0f;
                 const std::string gridLabel = BuildGridCardLabel(displayName, labelWidth);
-                ImGui::SetCursorScreenPos(ImVec2(cardMin.x + 10.0f, cardMin.y + iconSize + 27.0f));
+                ImGui::SetCursorScreenPos(ImVec2(
+                    cardMin.x + 10.0f,
+                    cardMin.y + iconSize + 23.0f));
                 ImGui::TextUnformatted(gridLabel.c_str());
                 ImGui::SetCursorScreenPos(cursorAfterCard);
 
@@ -2314,8 +2360,6 @@ namespace HIKARI {
         }
         ImGui::SameLine();
         ImGui::Checkbox("Recursive", &recursive_);
-        ImGui::SameLine();
-        ImGui::TextDisabled("Drop files/folders here to import");
 
         if (filtersExpanded_) {
             EDITOR::SearchField(
@@ -2339,7 +2383,12 @@ namespace HIKARI {
         }
         ImGui::PopStyleVar();
 
-        if (!lastOperationMessage_.empty()) {
+        if (lastOperationMessage_ != observedOperationMessage_) {
+            observedOperationMessage_ = lastOperationMessage_;
+            operationMessageVisibleUntil_ = ImGui::GetTime() + 3.5;
+        }
+        if (!lastOperationMessage_.empty() &&
+            ImGui::GetTime() <= operationMessageVisibleUntil_) {
             ImGui::TextDisabled("%s", lastOperationMessage_.c_str());
         }
 
@@ -2366,16 +2415,42 @@ namespace HIKARI {
         });
 
         if (showFolderTree) {
-            const float treeWidth = (std::min)(280.0f, (std::max)(180.0f, available.x * 0.24f));
+            const float treeWidth = (std::min)(
+                240.0f,
+                (std::max)(160.0f, available.x * 0.20f));
             ImGui::BeginChild("##AssetFolderTree", ImVec2(treeWidth, 0.0f), true);
-            ImGui::TextUnformatted("Folders");
+            ImGui::TextDisabled("Folders");
             ImGui::Separator();
             for (const std::filesystem::path& directory : assetDatabase.CollectDirectories()) {
                 const bool selected = directory.lexically_normal().generic_string() == currentDirectory_.lexically_normal().generic_string();
+                const std::filesystem::path relative =
+                    directory.lexically_relative("Assets");
+                int depth = 0;
+                if (!relative.empty() && relative != ".") {
+                    depth = static_cast<int>(std::distance(
+                        relative.begin(), relative.end()));
+                }
+                if (depth > 0) {
+                    ImGui::Indent(static_cast<float>(depth) * 11.0f);
+                }
                 EDITOR::DrawFolderGlyph(ImVec2(15.0f, 15.0f));
                 ImGui::SameLine();
-                if (ImGui::Selectable(directory.generic_string().c_str(), selected)) {
+                const std::string folderLabel =
+                    directory == std::filesystem::path("Assets")
+                        ? std::string("Assets")
+                        : directory.filename().generic_string();
+                const std::string selectableLabel = folderLabel + "##" +
+                    directory.generic_string();
+                if (ImGui::Selectable(selectableLabel.c_str(), selected)) {
                     currentDirectory_ = directory;
+                }
+                if (ImGui::IsItemHovered()) {
+                    ImGui::SetTooltip(
+                        "%s",
+                        directory.generic_string().c_str());
+                }
+                if (depth > 0) {
+                    ImGui::Unindent(static_cast<float>(depth) * 11.0f);
                 }
             }
             ImGui::EndChild();
@@ -2383,9 +2458,11 @@ namespace HIKARI {
         }
 
         ImGui::BeginChild("##AssetList", ImVec2(0.0f, 0.0f), true);
-        ImGui::Text("%s", scope == AssetBrowserScope::Project
-            ? currentDirectory_.generic_string().c_str()
-            : ToScopeTitle(scope));
+        if (scope == AssetBrowserScope::Project) {
+            DrawDirectoryBreadcrumbs(currentDirectory_);
+        } else {
+            ImGui::TextUnformatted(ToScopeTitle(scope));
+        }
         ImGui::SameLine();
         ImGui::TextDisabled("%d assets", static_cast<int>(records.size()));
         ImGui::Separator();
@@ -2410,9 +2487,9 @@ namespace HIKARI {
         }
 
         if (records.empty()) {
-            ImGui::Dummy(ImVec2(0.0f, 16.0f));
-            ImGui::TextDisabled("No assets here");
-            ImGui::TextDisabled("Create folders here, or add source files under Assets and press Refresh.");
+            EDITOR::EmptyState(
+                "No assets in this folder",
+                "Right-click to create an asset or folder.");
         } else if (viewMode_ == 1) {
             DrawRecordList(
                 assetDatabase,
