@@ -939,9 +939,9 @@
         16.014245986938477
       ],
       "enabled": true,
-      "generated": true,
+      "generated": false,
       "generationError": 0.0,
-      "generationMethod": "PrimitiveFit",
+      "generationMethod": "",
       "geometryIndexCount": 0,
       "geometryVertexCount": 0,
       "height": 1.0,
@@ -950,17 +950,15 @@
       "radius": 0.5,
       "rotationEulerDegrees": [
         18.50388526916504,
-        -0.007362943608313799,
+        -0.007363797165453434,
         -89.98149108886719
       ],
       "size": [
-        7.337398052215576,
-        1.9871978759765625,
+        7.337399005889893,
+        0.6885485053062439,
         0.7983798384666443
       ],
-      "sourceNodeIndices": [
-        1154
-      ],
+      "sourceNodeIndices": [],
       "type": "Box"
     },
     {
@@ -1373,9 +1371,9 @@
         3.3216681480407715
       ],
       "enabled": true,
-      "generated": true,
+      "generated": false,
       "generationError": 0.0,
-      "generationMethod": "PrimitiveFit",
+      "generationMethod": "",
       "geometryIndexCount": 0,
       "geometryVertexCount": 0,
       "height": 1.0,
@@ -1383,18 +1381,16 @@
       "name": "Auto Box",
       "radius": 0.5,
       "rotationEulerDegrees": [
-        68.48739624023438,
+        68.48737335205078,
         -0.023019444197416306,
-        -89.98941802978516
+        -89.98941040039063
       ],
       "size": [
         7.337432384490967,
-        1.9872002601623535,
-        0.7986918687820435
+        0.9416512846946716,
+        0.7986919283866882
       ],
-      "sourceNodeIndices": [
-        1152
-      ],
+      "sourceNodeIndices": [],
       "type": "Box"
     },
     {
@@ -1404,9 +1400,9 @@
         7.393730163574219
       ],
       "enabled": true,
-      "generated": true,
+      "generated": false,
       "generationError": 0.0,
-      "generationMethod": "PrimitiveFit",
+      "generationMethod": "",
       "geometryIndexCount": 0,
       "geometryVertexCount": 0,
       "height": 1.0,
@@ -1415,17 +1411,15 @@
       "radius": 0.5,
       "rotationEulerDegrees": [
         25.840251922607422,
-        -0.011173334904015064,
+        -0.011174188926815987,
         -89.98194122314453
       ],
       "size": [
-        7.337406158447266,
-        1.9871997833251953,
-        0.7982745170593262
+        7.337405681610107,
+        0.9333163499832153,
+        0.7982744574546814
       ],
-      "sourceNodeIndices": [
-        1153
-      ],
+      "sourceNodeIndices": [],
       "type": "Box"
     },
     {
@@ -1962,9 +1956,9 @@
         -6.671355247497559
       ],
       "enabled": true,
-      "generated": true,
+      "generated": false,
       "generationError": 0.0,
-      "generationMethod": "PrimitiveFit",
+      "generationMethod": "",
       "geometryIndexCount": 0,
       "geometryVertexCount": 0,
       "height": 1.0,
@@ -1972,18 +1966,16 @@
       "name": "Auto Box",
       "radius": 0.5,
       "rotationEulerDegrees": [
-        127.13970184326172,
-        -0.019969765096902847,
+        127.13966369628906,
+        -0.019968057051301003,
         -90.0147476196289
       ],
       "size": [
-        7.337430000305176,
-        1.9872002601623535,
+        7.337429523468018,
+        0.6213880777359009,
         0.7985765337944031
       ],
-      "sourceNodeIndices": [
-        1147
-      ],
+      "sourceNodeIndices": [],
       "type": "Box"
     },
     {
@@ -2117,9 +2109,9 @@
         -33.98115158081055
       ],
       "enabled": true,
-      "generated": true,
+      "generated": false,
       "generationError": 0.0,
-      "generationMethod": "PrimitiveFit",
+      "generationMethod": "",
       "geometryIndexCount": 0,
       "geometryVertexCount": 0,
       "height": 1.0,
@@ -2127,18 +2119,16 @@
       "name": "Auto Box",
       "radius": 0.5,
       "rotationEulerDegrees": [
-        127.14356994628906,
-        -0.016138028353452682,
-        -90.01410675048828
+        127.14358520507813,
+        -0.016151688992977142,
+        -90.01412200927734
       ],
       "size": [
         7.337407112121582,
-        1.9871983528137207,
-        0.7983485460281372
+        0.7052728533744812,
+        0.7983487844467163
       ],
-      "sourceNodeIndices": [
-        1148
-      ],
+      "sourceNodeIndices": [],
       "type": "Box"
     },
     {

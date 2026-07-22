@@ -3,6 +3,7 @@
 #include <utility>
 
 #include "Physics/HIKARI_PhysicsRuntimeStatusService.h"
+#include "Physics/HIKARI_PhysicsPresentation.h"
 #include "Physics/HIKARI_PhysicsSceneBridge.h"
 #include "Physics/HIKARI_PhysicsWorldService.h"
 #include "Scene/HIKARI_GameObject.h"
@@ -10,35 +11,6 @@
 #include "Scene/HIKARI_World.h"
 
 namespace HIKARI::PHYSICS {
-    namespace {
-        MATH::Vec3 Lerp(
-            const MATH::Vec3& from,
-            const MATH::Vec3& to,
-            float alpha) noexcept {
-            return from * (1.0f - alpha) + to * alpha;
-        }
-
-        MATH::Quat NlerpShortest(
-            const MATH::Quat& from,
-            MATH::Quat to,
-            float alpha) noexcept {
-            const float dot = from.x * to.x + from.y * to.y +
-                from.z * to.z + from.w * to.w;
-            if (dot < 0.0f) {
-                to.x = -to.x;
-                to.y = -to.y;
-                to.z = -to.z;
-                to.w = -to.w;
-            }
-            MATH::Quat blended{};
-            blended.x = from.x * (1.0f - alpha) + to.x * alpha;
-            blended.y = from.y * (1.0f - alpha) + to.y * alpha;
-            blended.z = from.z * (1.0f - alpha) + to.z * alpha;
-            blended.w = from.w * (1.0f - alpha) + to.w * alpha;
-            return MATH::NormalizeQ(blended);
-        }
-    }
-
     void PhysicsSystem::PushSceneDrivenPoses(World& world) {
         if (service_ == nullptr) {
             return;
@@ -92,13 +64,7 @@ namespace HIKARI::PHYSICS {
                 !service_->TryGetBodyState(binding.body, state)) {
                 continue;
             }
-            if (binding.hasFixedState) {
-                binding.previousFixedState = binding.currentFixedState;
-            } else {
-                binding.previousFixedState = state;
-            }
-            binding.currentFixedState = state;
-            binding.hasFixedState = true;
+            CommitFixedState(binding, state, false);
             (void)ApplyPhysicsWorldPose(*object, state.pose);
 
             if (runtimeStatus_ != nullptr) {
@@ -114,6 +80,21 @@ namespace HIKARI::PHYSICS {
         }
     }
 
+    void PhysicsSystem::CommitFixedState(
+        BodyBinding& binding,
+        const PhysicsBodyState& state,
+        bool discontinuity) noexcept {
+        if (!binding.hasFixedState || discontinuity) {
+            binding.previousFixedState = state;
+        } else {
+            binding.previousFixedState = binding.currentFixedState;
+        }
+        binding.currentFixedState = state;
+        binding.hasFixedState = true;
+        binding.presentationDiscontinuity =
+            binding.presentationDiscontinuity || discontinuity;
+    }
+
     void PhysicsSystem::UpdatePresentationPoses(
         World& world,
         float interpolationAlpha) {
@@ -121,27 +102,32 @@ namespace HIKARI::PHYSICS {
             return;
         }
         for (auto& [_, binding] : bindings_) {
-            if (binding.effectiveMotionType !=
-                    PhysicsMotionType::Dynamic ||
-                !binding.hasFixedState) {
-                presentationTransforms_->Remove(binding.object);
-                continue;
-            }
             GameObject* object = world.FindObject(binding.object);
-            if (object == nullptr) {
-                presentationTransforms_->Remove(binding.object);
+            const bool interpolatesDynamic =
+                binding.effectiveMotionType ==
+                    PhysicsMotionType::Dynamic;
+            const bool interpolatesControlledKinematic =
+                binding.effectiveMotionType ==
+                    PhysicsMotionType::Kinematic &&
+                binding.kinematicPresentationActive;
+            if (object == nullptr || !binding.hasFixedState ||
+                (!interpolatesDynamic &&
+                    !interpolatesControlledKinematic)) {
+                const bool removed =
+                    presentationTransforms_->Remove(binding.object);
+                if (removed && object != nullptr) {
+                    object->MarkRenderStateDirty();
+                }
                 continue;
             }
 
-            PhysicsPose presented{};
-            presented.position = Lerp(
-                binding.previousFixedState.pose.position,
-                binding.currentFixedState.pose.position,
-                interpolationAlpha);
-            presented.rotation = NlerpShortest(
-                binding.previousFixedState.pose.rotation,
-                binding.currentFixedState.pose.rotation,
-                interpolationAlpha);
+            const PhysicsPose presented =
+                binding.presentationDiscontinuity
+                ? binding.currentFixedState.pose
+                : InterpolatePhysicsPose(
+                    binding.previousFixedState.pose,
+                    binding.currentFixedState.pose,
+                    interpolationAlpha);
             PhysicsPose authoritativePose{};
             MATH::Vec3 worldScale{};
             if (!TryGetPhysicsWorldPoseAndScale(
@@ -157,6 +143,7 @@ namespace HIKARI::PHYSICS {
                     presented.position,
                     presented.rotation,
                     worldScale));
+            binding.presentationDiscontinuity = false;
             object->MarkRenderStateDirty();
         }
     }

@@ -16,7 +16,7 @@ namespace HIKARI {
         void SetWorldMatrix(
             RuntimeObjectHandle object,
             const MATH::Mat4& worldMatrix);
-        void Remove(RuntimeObjectHandle object) noexcept;
+        bool Remove(RuntimeObjectHandle object) noexcept;
         void Clear() noexcept;
 
         bool TryGetWorldMatrix(

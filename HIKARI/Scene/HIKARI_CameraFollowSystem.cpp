@@ -14,6 +14,7 @@
 #include "Scene/Components/HIKARI_CameraComponent.h"
 #include "Scene/Components/HIKARI_CameraFollowComponent.h"
 #include "Scene/HIKARI_GameObject.h"
+#include "Scene/HIKARI_PresentationTransformService.h"
 #include "Scene/HIKARI_RuntimeWorldServices.h"
 #include "Scene/HIKARI_World.h"
 
@@ -118,9 +119,24 @@ namespace HIKARI {
             return cameraObject.GetParent();
         }
 
-        float ResolveTargetYawDegrees(const GameObject& target) noexcept {
+        MATH::Mat4 ResolveTargetWorldMatrix(
+            const GameObject& target,
+            const PresentationTransformService* presentationTransforms)
+            noexcept {
+            MATH::Mat4 result =
+                target.GetTransform().GetWorldMatrix();
+            if (presentationTransforms != nullptr) {
+                (void)presentationTransforms->TryGetWorldMatrix(
+                    target.GetRuntimeHandle(),
+                    result);
+            }
+            return result;
+        }
+
+        float ResolveTargetYawDegrees(
+            const MATH::Mat4& targetWorld) noexcept {
             MATH::Vec3 forward = MATH::Normalize(ExtractAxis(
-                target.GetTransform().GetWorldMatrix(),
+                targetWorld,
                 2));
             if (MATH::Length(forward) <= kViewEpsilon) {
                 return 0.0f;
@@ -181,6 +197,8 @@ namespace HIKARI {
         inputService_ = world.Services().Find<INPUT::InputService>();
         physicsService_ = world.Services().Find<
             PHYSICS::PhysicsWorldService>();
+        presentationTransforms_ = world.Services().Find<
+            PresentationTransformService>();
         runtimePlayState_ = world.Services().Find<
             RuntimePlayStateService>();
     }
@@ -190,6 +208,7 @@ namespace HIKARI {
         motionIntentService_ = nullptr;
         inputService_ = nullptr;
         physicsService_ = nullptr;
+        presentationTransforms_ = nullptr;
         runtimePlayState_ = nullptr;
     }
 
@@ -235,7 +254,9 @@ namespace HIKARI {
                 }
 
                 const MATH::Mat4 targetWorld =
-                    target->GetTransform().GetWorldMatrix();
+                    ResolveTargetWorldMatrix(
+                        *target,
+                        presentationTransforms_);
                 const MATH::Vec3 pivot = TransformPoint(
                     targetWorld,
                     component.GetPivotOffset());
@@ -335,7 +356,7 @@ namespace HIKARI {
                         : component.GetAutoRecenterSpeedDegreesPerSecond() * dt;
                     yaw = MoveTowardsAngle(
                         yaw,
-                        ResolveTargetYawDegrees(*target),
+                        ResolveTargetYawDegrees(targetWorld),
                         recenterDelta);
                 }
                 yaw = WrapDegrees(yaw);

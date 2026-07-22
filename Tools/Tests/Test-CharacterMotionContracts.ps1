@@ -61,6 +61,7 @@ $backend = Read-Source 'HIKARI\Physics\HIKARI_IPhysicsWorldBackend.h'
 $physicsSystemHeader = Read-Source 'HIKARI\Physics\HIKARI_PhysicsSystem.h'
 $physicsSystem = Read-Source 'HIKARI\Physics\HIKARI_PhysicsSystem.cpp'
 $kinematicSystem = Read-Source 'HIKARI\Physics\HIKARI_PhysicsSystemKinematicMotion.cpp'
+$physicsSynchronization = Read-Source 'HIKARI\Physics\HIKARI_PhysicsSystemSynchronization.cpp'
 $kinematicSolver = Read-Source 'HIKARI\Physics\HIKARI_PhysicsSystemKinematicSolver.cpp'
 $joltCharacters = Read-Source 'HIKARI\Physics\Backends\Jolt\HIKARI_JoltCharacters.cpp'
 $joltCharacterSimulation = Read-Source 'HIKARI\Physics\Backends\Jolt\HIKARI_JoltCharacterSimulation.cpp'
@@ -191,6 +192,12 @@ Assert-Contains $kinematicSystem 'const bool allowGroundTraversal = onGround &&'
     'Step-up and floor snap must require a stable grounded traversal state.'
 Assert-Contains $kinematicSystem 'after.IsGrounded() &&' `
     'The jump lifecycle must close only after the solver reports a landing.'
+Assert-Contains $kinematicSystem 'binding.kinematicPresentationActive = true;' `
+    'Controller-driven kinematic motion must opt into render presentation interpolation.'
+Assert-Contains $physicsSynchronization 'InterpolatePhysicsPose(' `
+    'Character presentation must smooth fixed-step poses without changing physics ownership.'
+Assert-Contains $physicsSynchronization 'ApplyPhysicsWorldPose(*object, state.pose)' `
+    'Physics synchronization must retain an authoritative, non-interpolated scene transform.'
 Assert-Contains $kinematicSolver 'const PhysicsCharacterHandle previous' `
     'Solver settings hot reload must replace only after candidate creation.'
 

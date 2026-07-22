@@ -82,6 +82,10 @@ Assert-Contains $follow 'targetSpeed > 0.05f' `
     'Automatic recentering must not fight the player while the target is idle.'
 Assert-Contains $follow 'motionIntentService_->PeekIntent(' `
     'Camera policy must observe the shared motion contract instead of hard-coding input keys.'
+Assert-Contains $follow 'ResolveTargetWorldMatrix(' `
+    'Gameplay camera follow must resolve its target through one transform boundary.'
+Assert-Contains $follow 'presentationTransforms->TryGetWorldMatrix(' `
+    'Gameplay camera follow and rendering must consume the same interpolated target pose.'
 Assert-Contains $follow '!movingBackward' `
     'Automatic recentering must not chase a camera-relative backward input feedback loop.'
 Assert-NotContains $follow 'camera->SetLookAt' `

@@ -12,12 +12,14 @@ namespace HIKARI {
         AdvanceRevision();
     }
 
-    void PresentationTransformService::Remove(
+    bool PresentationTransformService::Remove(
         RuntimeObjectHandle object) noexcept {
         if (object.IsValid() &&
             entries_.erase(object.ToValue()) > 0u) {
             AdvanceRevision();
+            return true;
         }
+        return false;
     }
 
     void PresentationTransformService::Clear() noexcept {

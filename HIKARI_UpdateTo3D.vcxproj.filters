@@ -1830,6 +1830,9 @@
     <ClCompile Include="HIKARI\Physics\HIKARI_PhysicsDefinitionScale.cpp">
       <Filter>Source Files\Physics</Filter>
     </ClCompile>
+    <ClCompile Include="HIKARI\Physics\HIKARI_PhysicsPresentation.cpp">
+      <Filter>Source Files\Physics</Filter>
+    </ClCompile>
     <ClCompile Include="HIKARI\Physics\HIKARI_KinematicMotionDiagnostics.cpp">
       <Filter>Source Files\Physics</Filter>
     </ClCompile>
@@ -3329,6 +3332,9 @@
       <Filter>Header Files\Physics</Filter>
     </ClInclude>
     <ClInclude Include="HIKARI\Physics\HIKARI_PhysicsDefinitionScale.h">
+      <Filter>Header Files\Physics</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Physics\HIKARI_PhysicsPresentation.h">
       <Filter>Header Files\Physics</Filter>
     </ClInclude>
     <ClInclude Include="HIKARI\Physics\HIKARI_PhysicsBodyValidator.h">

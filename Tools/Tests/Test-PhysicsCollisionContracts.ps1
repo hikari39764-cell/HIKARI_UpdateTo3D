@@ -36,6 +36,8 @@ $validator = Read-Source 'HIKARI\Physics\HIKARI_PhysicsBodyValidator.cpp'
 $system = Read-Source 'HIKARI\Physics\HIKARI_PhysicsSystem.cpp'
 $bodyLifecycle = Read-Source 'HIKARI\Physics\HIKARI_PhysicsSystemBodyLifecycle.cpp'
 $synchronization = Read-Source 'HIKARI\Physics\HIKARI_PhysicsSystemSynchronization.cpp'
+$presentation = Read-Source 'HIKARI\Physics\HIKARI_PhysicsPresentation.cpp'
+$kinematicMotion = Read-Source 'HIKARI\Physics\HIKARI_PhysicsSystemKinematicMotion.cpp'
 $store = Read-Source 'HIKARI\Physics\HIKARI_PhysicsCollisionGeometryStore.cpp'
 $setup = Read-Source 'HIKARI\Assets\Collision\HIKARI_ModelCollisionSetup.cpp'
 $artifact = Read-Source 'HIKARI\Assets\Collision\HIKARI_ModelCollisionArtifact.cpp'
@@ -78,6 +80,18 @@ Assert-Contains $bodyLifecycle '"physics body definition recovered"' `
     'A retained body must return to Ready when its definition recovers.'
 Assert-Contains $synchronization 'PresentationTransformService' `
     'Render interpolation must stay separate from authoritative scene transforms.'
+Assert-Contains $synchronization 'interpolatesControlledKinematic' `
+    'Controller-driven kinematic bodies need fixed-step presentation interpolation.'
+Assert-Contains $synchronization 'presentationDiscontinuity' `
+    'Body rebuilds and teleports must snap instead of interpolating across discontinuities.'
+Assert-Contains $presentation 'NlerpShortest' `
+    'Physics presentation rotation must use the shortest quaternion path.'
+Assert-Contains $presentation 'std::isfinite(alpha)' `
+    'Physics presentation interpolation must sanitize invalid frame alpha values.'
+Assert-Contains $kinematicMotion 'CommitFixedState(' `
+    'Solved character motion must publish one coherent fixed-step state.'
+Assert-Contains $kinematicMotion 'teleportedState,' `
+    'Kinematic teleports must publish an explicit presentation discontinuity.'
 
 Assert-Contains $store 'GetContentRevision()' `
     'Collision hot reload must follow the asset database content revision.'

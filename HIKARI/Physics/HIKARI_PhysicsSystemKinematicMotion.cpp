@@ -52,6 +52,10 @@ namespace HIKARI::PHYSICS {
                 binding.object,
                 teleport);
             if (!hasMove && !hasTeleport) {
+                if (binding.effectiveMotionType ==
+                        PhysicsMotionType::Kinematic) {
+                    binding.kinematicPresentationActive = false;
+                }
                 continue;
             }
 
@@ -93,6 +97,21 @@ namespace HIKARI::PHYSICS {
                 }
                 binding.lastPushedPose = teleport.pose;
                 binding.hasLastPushedPose = true;
+                PhysicsBodyState teleportedState =
+                    binding.hasFixedState
+                    ? binding.currentFixedState
+                    : PhysicsBodyState{};
+                teleportedState.pose = teleport.pose;
+                teleportedState.awake = true;
+                if (teleport.clearVelocity) {
+                    teleportedState.linearVelocity = {};
+                    teleportedState.angularVelocity = {};
+                }
+                CommitFixedState(
+                    binding,
+                    teleportedState,
+                    true);
+                binding.kinematicPresentationActive = true;
                 if (binding.kinematicSolver.IsValid()) {
                     (void)service_->SetCharacterPose(
                         binding.kinematicSolver,
@@ -313,15 +332,12 @@ namespace HIKARI::PHYSICS {
 
             binding.lastPushedPose = after.pose;
             binding.hasLastPushedPose = true;
-            binding.previousFixedState = binding.hasFixedState
-                ? binding.currentFixedState
-                : bodyState;
-            binding.currentFixedState = bodyState;
-            binding.currentFixedState.pose = after.pose;
-            binding.currentFixedState.linearVelocity =
-                after.linearVelocity;
-            binding.currentFixedState.awake = true;
-            binding.hasFixedState = true;
+            PhysicsBodyState solvedState = bodyState;
+            solvedState.pose = after.pose;
+            solvedState.linearVelocity = after.linearVelocity;
+            solvedState.awake = true;
+            CommitFixedState(binding, solvedState, false);
+            binding.kinematicPresentationActive = true;
 
             kinematicMotion_->SetState(
                 binding.object,

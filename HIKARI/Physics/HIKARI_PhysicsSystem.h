@@ -62,6 +62,8 @@ namespace HIKARI::PHYSICS {
             PhysicsBodyState previousFixedState{};
             PhysicsBodyState currentFixedState{};
             bool hasFixedState = false;
+            bool kinematicPresentationActive = false;
+            bool presentationDiscontinuity = true;
             PhysicsCharacterHandle kinematicSolver{};
             uint64_t kinematicSolverSignature = 0u;
             // A jump is a multi-tick controller motion. Keep its lifecycle
@@ -95,6 +97,10 @@ namespace HIKARI::PHYSICS {
             bool& outRetainedPrevious,
             std::string& outError);
         void PullDynamicPoses(World& world);
+        void CommitFixedState(
+            BodyBinding& binding,
+            const PhysicsBodyState& state,
+            bool discontinuity) noexcept;
         void UpdatePresentationPoses(
             World& world,
             float interpolationAlpha);

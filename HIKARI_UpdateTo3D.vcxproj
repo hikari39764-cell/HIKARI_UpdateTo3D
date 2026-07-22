@@ -352,6 +352,7 @@
       <ClCompile Include="HIKARI\Physics\HIKARI_PhysicsSystem.cpp" />
       <ClCompile Include="HIKARI\Physics\HIKARI_PhysicsSystemBodyLifecycle.cpp" />
       <ClCompile Include="HIKARI\Physics\HIKARI_PhysicsDefinitionScale.cpp" />
+      <ClCompile Include="HIKARI\Physics\HIKARI_PhysicsPresentation.cpp" />
       <ClCompile Include="HIKARI\Physics\HIKARI_KinematicMotionDiagnostics.cpp" />
       <ClCompile Include="HIKARI\Physics\HIKARI_PhysicsSystemKinematicMotion.cpp" />
       <ClCompile Include="HIKARI\Physics\HIKARI_PhysicsSystemKinematicSolver.cpp" />
@@ -1335,6 +1336,7 @@
     <ClInclude Include="HIKARI\Core\IO\HIKARI_FileReplacementTransaction.h" />
     <ClInclude Include="HIKARI\Physics\HIKARI_PhysicsSceneBridge.h" />
     <ClInclude Include="HIKARI\Physics\HIKARI_PhysicsDefinitionScale.h" />
+    <ClInclude Include="HIKARI\Physics\HIKARI_PhysicsPresentation.h" />
     <ClInclude Include="HIKARI\Physics\HIKARI_PhysicsBodyValidator.h" />
     <ClInclude Include="HIKARI\Physics\HIKARI_PhysicsProjectSettings.h" />
     <ClInclude Include="HIKARI\Physics\HIKARI_PhysicsRuntimeStatusService.h" />
