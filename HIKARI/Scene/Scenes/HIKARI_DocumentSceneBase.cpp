@@ -541,6 +541,7 @@ namespace HIKARI {
         }
         sequenceAssetStore_.SetAssetDatabase(&assetDatabase_);
         sequencePlaybackService_.SetAssetStore(&sequenceAssetStore_);
+        animationStateMachineAssetStore_.SetAssetDatabase(&assetDatabase_);
         VFX::SetAssetRegistry(&assetRegistry_);
         if (!OpenStartupSceneAsset()) {
             CreateTransientEmptySceneDocument();
@@ -552,6 +553,8 @@ namespace HIKARI {
         currentCameraSequenceHandle_ = {};
         cameraRigService_.Clear();
         sequenceAssetStore_.Clear();
+        animationStateMachineAssetStore_.Clear();
+        animationStateMachineRuntimeService_.Clear();
         systemScheduler_.DetachWorld(world_);
         systemScheduler_.Clear();
         world_.Services().Clear();
@@ -2929,6 +2932,10 @@ namespace HIKARI {
         success = services.Register(cameraDirector_) && success;
         success = services.Register(cameraRigService_) && success;
         success = services.Register(animationPoseService_) && success;
+        success = services.Register(animationStateMachineAssetStore_) &&
+            success;
+        success = services.Register(animationStateMachineRuntimeService_) &&
+            success;
         success = services.Register(motionIntentService_) && success;
         success = services.Register(characterMotionStateService_) &&
             success;

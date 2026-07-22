@@ -58,6 +58,11 @@ namespace HIKARI::RENDER3D {
         const std::string& path,
         TextureResourceColorSpace colorSpace);
 
+    TextureResourceHandle FindLoadedTextureResourceWithColorSpace(
+        const std::string& name,
+        const std::string& path,
+        TextureResourceColorSpace colorSpace);
+
     std::vector<TextureResourceHandle> PreloadTextureResourcesWithColorSpace(
         const std::vector<TextureResourceLoadRequest>& requests,
         TextureResourceBatchLoadStats* outStats = nullptr);

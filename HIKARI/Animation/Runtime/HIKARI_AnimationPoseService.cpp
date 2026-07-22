@@ -33,7 +33,9 @@ namespace HIKARI::ANIMATION {
             const AnimationPoseSnapshot& lhs,
             const AnimationPoseSnapshot& rhs) {
             return lhs.primaryClip == rhs.primaryClip &&
+                lhs.secondaryClip == rhs.secondaryClip &&
                 lhs.normalizedTime == rhs.normalizedTime &&
+                lhs.motionBlendWeight == rhs.motionBlendWeight &&
                 lhs.blendWeight == rhs.blendWeight &&
                 EqualVec3(
                     lhs.rootMotion.translation,

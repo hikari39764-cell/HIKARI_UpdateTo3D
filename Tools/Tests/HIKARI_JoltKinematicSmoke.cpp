@@ -62,6 +62,122 @@ namespace {
         return shape;
     }
 
+    struct MovingJumpResult {
+        PhysicsCharacterState state{};
+        float groundedY = 0.0f;
+        float groundedX = 0.0f;
+        float groundedZ = 0.0f;
+        float highestY = 0.0f;
+        float lowestFallingSpeed = 0.0f;
+        bool leftGroundImmediately = false;
+        bool stayedAirborneWhileAscending = true;
+        bool reachedApex = false;
+        bool landedAfterJump = false;
+    };
+
+    bool RunMovingJump(
+        IPhysicsWorldBackend& backend,
+        PhysicsCharacterHandle character,
+        PhysicsBodyHandle body,
+        const PhysicsCharacterState& groundedState,
+        std::string_view name,
+        MovingJumpResult& outResult) {
+        constexpr float gravityScale = 2.7f;
+        PhysicsCharacterStepSettings step{};
+        const MATH::Vec3 jumpGravity = step.gravity * gravityScale;
+        const float jumpSpeed = std::sqrt(
+            2.0f * std::abs(jumpGravity.y) * 1.2f);
+
+        outResult = {};
+        outResult.state = groundedState;
+        outResult.groundedY = groundedState.pose.position.y;
+        outResult.groundedX = groundedState.pose.position.x;
+        outResult.groundedZ = groundedState.pose.position.z;
+        outResult.highestY = outResult.groundedY;
+        for (uint32_t jumpFrame = 0u; jumpFrame < 90u; ++jumpFrame) {
+            PhysicsBodyState bodyState{};
+            if (!backend.TryGetBodyState(body, bodyState) ||
+                !backend.SetCharacterPose(character, bodyState.pose) ||
+                !backend.RefreshCharacterContacts(character) ||
+                !backend.RefreshCharacterGroundVelocity(character) ||
+                !backend.TryGetCharacterState(
+                    character,
+                    outResult.state)) {
+                std::cerr << name
+                    << ": moving jump state update failed\n";
+                return false;
+            }
+
+            MATH::Vec3 velocity{
+                -0.67f,
+                outResult.state.linearVelocity.y,
+                3.13f
+            };
+            if (jumpFrame == 0u) {
+                velocity.y = jumpSpeed +
+                    outResult.state.groundVelocity.y;
+            } else if (outResult.state.IsGrounded() &&
+                velocity.y - outResult.state.groundVelocity.y < 0.1f) {
+                velocity.y = outResult.state.groundVelocity.y;
+            }
+            velocity = velocity + jumpGravity * kFixedDeltaSeconds;
+            PhysicsCharacterStepSettings jumpStep = step;
+            jumpStep.gravity = jumpGravity;
+            if (!backend.SetCharacterVelocity(character, velocity) ||
+                !backend.StepCharacter(
+                    character,
+                    kFixedDeltaSeconds,
+                    jumpStep) ||
+                !backend.TryGetCharacterState(
+                    character,
+                    outResult.state) ||
+                !backend.SetKinematicTarget(
+                    body,
+                    outResult.state.pose) ||
+                !backend.Step(kFixedDeltaSeconds).Succeeded()) {
+                std::cerr << name << ": moving jump step failed\n";
+                return false;
+            }
+            outResult.highestY = (std::max)(
+                outResult.highestY,
+                outResult.state.pose.position.y);
+            outResult.lowestFallingSpeed = (std::min)(
+                outResult.lowestFallingSpeed,
+                outResult.state.linearVelocity.y);
+            if (jumpFrame == 0u) {
+                outResult.leftGroundImmediately =
+                    !outResult.state.IsGrounded();
+            }
+            if (outResult.state.linearVelocity.y > 0.1f &&
+                outResult.state.IsGrounded()) {
+                outResult.stayedAirborneWhileAscending = false;
+            }
+            outResult.reachedApex = outResult.reachedApex ||
+                outResult.state.linearVelocity.y < -0.1f;
+            if (outResult.reachedApex &&
+                outResult.state.IsGrounded()) {
+                outResult.landedAfterJump = true;
+                break;
+            }
+        }
+        return true;
+    }
+
+    bool MovingJumpSucceeded(const MovingJumpResult& result) noexcept {
+        const float horizontalDistance = std::sqrt(
+            (result.state.pose.position.x - result.groundedX) *
+                (result.state.pose.position.x - result.groundedX) +
+            (result.state.pose.position.z - result.groundedZ) *
+                (result.state.pose.position.z - result.groundedZ));
+        return result.leftGroundImmediately &&
+            result.stayedAirborneWhileAscending &&
+            result.highestY > result.groundedY + 0.25f &&
+            horizontalDistance > 0.25f &&
+            result.reachedApex &&
+            result.lowestFallingSpeed < -1.0f &&
+            result.landedAfterJump;
+    }
+
     PhysicsShapeType ToRuntimeShapeType(
         ASSETS::COLLISION::CollisionGeometryShapeType type) noexcept {
         using SourceType =
@@ -255,34 +371,25 @@ namespace {
             return false;
         }
 
-        const float groundedY = state.pose.position.y;
-        MATH::Vec3 jumpVelocity = state.groundVelocity;
-        jumpVelocity.y += 5.0f;
-        if (!backend->SetCharacterVelocity(
+        MovingJumpResult movingJump{};
+        if (!RunMovingJump(
+                *backend,
                 characterResult.handle,
-                jumpVelocity) ||
-            !backend->StepCharacter(
-                characterResult.handle,
-                kFixedDeltaSeconds,
-                step) ||
-            !backend->TryGetCharacterState(
-                characterResult.handle,
-                state) ||
-            !backend->SetKinematicTarget(
                 characterBodyResult.handle,
-                state.pose) ||
-            !backend->Step(kFixedDeltaSeconds).Succeeded()) {
-            std::cerr << name << ": jump step failed\n";
+                state,
+                name,
+                movingJump)) {
             return false;
         }
-        const bool jumped = state.pose.position.y > groundedY + 0.01f &&
-            state.linearVelocity.y > 1.0f;
         std::cout << name
-            << " jump: y=" << state.pose.position.y
-            << " vy=" << state.linearVelocity.y
-            << " grounded=" << state.IsGrounded()
+            << " moving jump: y=" << movingJump.state.pose.position.y
+            << " highestY=" << movingJump.highestY
+            << " x=" << movingJump.state.pose.position.x
+            << " vy=" << movingJump.state.linearVelocity.y
+            << " minVy=" << movingJump.lowestFallingSpeed
+            << " grounded=" << movingJump.state.IsGrounded()
             << '\n';
-        return jumped;
+        return MovingJumpSucceeded(movingJump);
     }
 
     bool RunImportedSceneCase(const char* artifactPath) {
@@ -322,7 +429,7 @@ namespace {
         characterBody.body.object = Object(1u);
         characterBody.body.motionType = PhysicsMotionType::Kinematic;
         characterBody.initialPose.position = {
-            -11.6961451f, 7.71973944f, -1.54588509f
+            -11.0596380f, 3.88450956f, -1.23674965f
         };
         characterBody.shapes.push_back(MakeCharacterCapsule());
         const PhysicsBodyCreateResult bodyResult =
@@ -393,13 +500,29 @@ namespace {
             reachedGround = reachedGround || state.IsGrounded();
         }
 
-        std::cout << "imported scene: y=" << state.pose.position.y
-            << " vy=" << state.linearVelocity.y
-            << " grounded=" << state.IsGrounded()
-            << " reachedGround=" << reachedGround << '\n';
-        return reachedGround && state.IsGrounded() &&
-            state.pose.position.y > -10.0f &&
-            std::abs(state.linearVelocity.y) < 0.25f;
+        MovingJumpResult movingJump{};
+        if (!RunMovingJump(
+                *backend,
+                characterResult.handle,
+                bodyResult.handle,
+                state,
+                "imported scene",
+                movingJump)) {
+            return false;
+        }
+        const bool movingJumped = MovingJumpSucceeded(movingJump);
+
+        std::cout << "imported scene: y="
+            << movingJump.state.pose.position.y
+            << " highestY=" << movingJump.highestY
+            << " x=" << movingJump.state.pose.position.x
+            << " vy=" << movingJump.state.linearVelocity.y
+            << " minVy=" << movingJump.lowestFallingSpeed
+            << " grounded=" << movingJump.state.IsGrounded()
+            << " reachedGround=" << reachedGround
+            << " movingJumped=" << movingJumped << '\n';
+        return reachedGround && movingJumped &&
+            movingJump.state.pose.position.y > -10.0f;
     }
 }
 

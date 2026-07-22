@@ -121,6 +121,16 @@ namespace HIKARI {
                         "Sequence",
                         assetDatabase,
                         summary);
+                } else if (component.type ==
+                        "AnimationStateMachineComponent") {
+                    AddReference(
+                        component.properties.value(
+                            "stateMachineAssetGuid",
+                            std::string{}),
+                        owner,
+                        "Animation State Machine",
+                        assetDatabase,
+                        summary);
                 } else if (component.type == "ColliderComponent" &&
                     component.properties.value(
                         "fitMode",

@@ -47,6 +47,8 @@ namespace HIKARI {
             case AssetType::Particle: return "Particle";
             case AssetType::VfxEffect: return "Vfx";
             case AssetType::Sequence: return "Sequence";
+            case AssetType::AnimationStateMachine:
+                return "Animation State Machine";
             case AssetType::Unknown:
             default: return "Unknown";
             }
@@ -654,6 +656,7 @@ namespace HIKARI {
             case 5: return AssetType::Material;
             case 6: return AssetType::VfxEffect;
             case 7: return AssetType::Sequence;
+            case 8: return AssetType::AnimationStateMachine;
             default: return AssetType::Unknown;
             }
         }
@@ -912,6 +915,7 @@ namespace HIKARI {
             case AssetType::Animation: return "ANI";
             case AssetType::Particle: return "PTC";
             case AssetType::Sequence: return "SEQ";
+            case AssetType::AnimationStateMachine: return "ASM";
             case AssetType::Unknown:
             default: return "UNK";
             }
@@ -1432,6 +1436,8 @@ namespace HIKARI {
             case AssetType::Sky: return ImVec4(0.54f, 0.90f, 0.92f, 1.0f);
             case AssetType::VfxEffect: return ImVec4(1.0f, 0.62f, 0.74f, 1.0f);
             case AssetType::Sequence: return ImVec4(0.72f, 0.68f, 1.0f, 1.0f);
+            case AssetType::AnimationStateMachine:
+                return ImVec4(0.40f, 0.84f, 0.78f, 1.0f);
             default: return ImVec4(0.72f, 0.74f, 0.78f, 1.0f);
             }
         }
@@ -1495,6 +1501,7 @@ namespace HIKARI {
             std::string& lastOperationMessage,
             std::string& activatedSceneGuid,
             std::string& activatedSequenceGuid,
+            std::string& activatedAnimationStateMachineGuid,
             std::string& activatedModelCollisionGuid) {
             if (record.type == AssetType::Scene) {
                 activatedSceneGuid = record.guid.value;
@@ -1506,6 +1513,13 @@ namespace HIKARI {
                 activatedSequenceGuid = record.guid.value;
                 lastOperationMessage =
                     "Sequence open requested: " + record.displayName;
+                return;
+            }
+            if (record.type == AssetType::AnimationStateMachine) {
+                activatedAnimationStateMachineGuid = record.guid.value;
+                lastOperationMessage =
+                    "Animation State Machine workspace requested: " +
+                    record.displayName;
                 return;
             }
             if (record.type == AssetType::Model) {
@@ -1589,6 +1603,7 @@ namespace HIKARI {
             const AssetBrowserContext* context,
             std::string& activatedSceneGuid,
             std::string& activatedSequenceGuid,
+            std::string& activatedAnimationStateMachineGuid,
             std::string& activatedModelCollisionGuid,
             std::string& saveSceneAsGuid,
             std::string& refreshRuntimeAssetGuid,
@@ -1667,6 +1682,17 @@ namespace HIKARI {
                 ImGui::Separator();
             }
 
+            if (record.type == AssetType::AnimationStateMachine) {
+                if (ImGui::MenuItem("Open State Machine")) {
+                    SelectRecord(record, selection);
+                    activatedAnimationStateMachineGuid = record.guid.value;
+                    lastOperationMessage =
+                        "Animation State Machine workspace requested: " +
+                        record.displayName;
+                }
+                ImGui::Separator();
+            }
+
             if (ImGui::MenuItem("Reimport")) {
                 SelectRecord(record, selection);
                 const bool ok = assetDatabase.ImportAsset(record.guid);
@@ -1726,6 +1752,7 @@ namespace HIKARI {
             const AssetBrowserContext* context,
             std::string& activatedSceneGuid,
             std::string& activatedSequenceGuid,
+            std::string& activatedAnimationStateMachineGuid,
             std::string& activatedModelCollisionGuid,
             std::string& saveSceneAsGuid,
             std::string& refreshRuntimeAssetGuid,
@@ -1780,6 +1807,7 @@ namespace HIKARI {
                             lastOperationMessage,
                             activatedSceneGuid,
                             activatedSequenceGuid,
+                            activatedAnimationStateMachineGuid,
                             activatedModelCollisionGuid);
                     }
                 }
@@ -1798,6 +1826,7 @@ namespace HIKARI {
                         context,
                         activatedSceneGuid,
                         activatedSequenceGuid,
+                        activatedAnimationStateMachineGuid,
                         activatedModelCollisionGuid,
                         saveSceneAsGuid,
                         refreshRuntimeAssetGuid,
@@ -1834,6 +1863,7 @@ namespace HIKARI {
             const AssetBrowserContext* context,
             std::string& activatedSceneGuid,
             std::string& activatedSequenceGuid,
+            std::string& activatedAnimationStateMachineGuid,
             std::string& activatedModelCollisionGuid,
             std::string& saveSceneAsGuid,
             std::string& refreshRuntimeAssetGuid,
@@ -1887,6 +1917,7 @@ namespace HIKARI {
                             lastOperationMessage,
                             activatedSceneGuid,
                             activatedSequenceGuid,
+                            activatedAnimationStateMachineGuid,
                             activatedModelCollisionGuid);
                     }
                 }
@@ -1904,6 +1935,7 @@ namespace HIKARI {
                         context,
                         activatedSceneGuid,
                         activatedSequenceGuid,
+                        activatedAnimationStateMachineGuid,
                         activatedModelCollisionGuid,
                         saveSceneAsGuid,
                         refreshRuntimeAssetGuid,
@@ -1942,6 +1974,7 @@ namespace HIKARI {
             const AssetBrowserContext* context,
             std::string& activatedSceneGuid,
             std::string& activatedSequenceGuid,
+            std::string& activatedAnimationStateMachineGuid,
             std::string& activatedModelCollisionGuid,
             std::string& saveSceneAsGuid,
             std::string& refreshRuntimeAssetGuid,
@@ -2005,6 +2038,7 @@ namespace HIKARI {
                         lastOperationMessage,
                         activatedSceneGuid,
                         activatedSequenceGuid,
+                        activatedAnimationStateMachineGuid,
                         activatedModelCollisionGuid);
                 }
                 if (ImGui::BeginPopupContextItem()) {
@@ -2016,6 +2050,7 @@ namespace HIKARI {
                         context,
                         activatedSceneGuid,
                         activatedSequenceGuid,
+                        activatedAnimationStateMachineGuid,
                         activatedModelCollisionGuid,
                         saveSceneAsGuid,
                         refreshRuntimeAssetGuid,
@@ -2244,7 +2279,7 @@ namespace HIKARI {
             ImGui::SetNextItemWidth((std::max)(220.0f, ImGui::GetContentRegionAvail().x * 0.42f));
             ImGui::InputTextWithHint("##AssetSearch", "Search assets...", searchBuffer_.data(), searchBuffer_.size());
             ImGui::SameLine();
-            static const char* TypeFilterItems[] = { "All", "Texture", "Model", "Scene", "Sky", "Material", "VFX", "Sequence" };
+            static const char* TypeFilterItems[] = { "All", "Texture", "Model", "Scene", "Sky", "Material", "VFX", "Sequence", "Animation State Machine" };
             ImGui::TextUnformatted("Type");
             ImGui::SameLine();
             ImGui::SetNextItemWidth(120.0f);
@@ -2343,6 +2378,7 @@ namespace HIKARI {
                 context,
                 activatedSceneGuid_,
                 activatedSequenceGuid_,
+                activatedAnimationStateMachineGuid_,
                 activatedModelCollisionGuid_,
                 saveSceneAsGuid_,
                 refreshRuntimeAssetGuid_,
@@ -2360,6 +2396,7 @@ namespace HIKARI {
                 context,
                 activatedSceneGuid_,
                 activatedSequenceGuid_,
+                activatedAnimationStateMachineGuid_,
                 activatedModelCollisionGuid_,
                 saveSceneAsGuid_,
                 refreshRuntimeAssetGuid_,
@@ -2377,6 +2414,7 @@ namespace HIKARI {
                 context,
                 activatedSceneGuid_,
                 activatedSequenceGuid_,
+                activatedAnimationStateMachineGuid_,
                 activatedModelCollisionGuid_,
                 saveSceneAsGuid_,
                 refreshRuntimeAssetGuid_,
@@ -2418,6 +2456,18 @@ namespace HIKARI {
 #if defined(HIKARI_WITH_EDITOR)
         std::string value = std::move(activatedSequenceGuid_);
         activatedSequenceGuid_.clear();
+        return value;
+#else
+        return {};
+#endif
+    }
+
+    std::string
+        AssetBrowserPanel::ConsumeActivatedAnimationStateMachineGuid() const {
+#if defined(HIKARI_WITH_EDITOR)
+        std::string value =
+            std::move(activatedAnimationStateMachineGuid_);
+        activatedAnimationStateMachineGuid_.clear();
         return value;
 #else
         return {};

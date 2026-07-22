@@ -76,6 +76,7 @@ namespace HIKARI::PHYSICS {
         }
         binding.kinematicSolver = {};
         binding.kinematicSolverSignature = 0u;
+        binding.kinematicJumpActive = false;
     }
 
     bool PhysicsSystem::EnsureKinematicSolver(
@@ -142,6 +143,7 @@ namespace HIKARI::PHYSICS {
             binding.kinematicSolver;
         binding.kinematicSolver = created.handle;
         binding.kinematicSolverSignature = solverSignature;
+        binding.kinematicJumpActive = false;
         if (previous.IsValid()) {
             (void)service_->DestroyCharacter(previous);
         }

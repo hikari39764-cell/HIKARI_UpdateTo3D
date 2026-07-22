@@ -1,3 +1,4 @@
+#include <array>
 #include <filesystem>
 #include <iostream>
 #include <memory>
@@ -15,6 +16,7 @@ namespace {
     class TestInputBackend final : public IInputBackend {
     public:
         void SetSpaceDown(bool down) noexcept { spaceDown_ = down; }
+        void SetWDown(bool down) noexcept { wDown_ = down; }
 
         void SetHostWindow(void*) override {}
         void SetMouseCaptureMode(MouseCaptureMode mode) override {
@@ -24,11 +26,15 @@ namespace {
             return captureMode_;
         }
         void SetExternalMouseWheel(float) override {}
-        void Reset() override { spaceDown_ = false; }
+        void Reset() override {
+            spaceDown_ = false;
+            wDown_ = false;
+        }
         void Poll(InputDeviceState& out) override {
             out = {};
             out.keyboard[32u] = spaceDown_ ? 1u : 0u;
-            if (spaceDown_) {
+            out.keyboard[87u] = wDown_ ? 1u : 0u;
+            if (spaceDown_ || wDown_) {
                 out.lastActiveDevice = InputDeviceKind::KeyboardMouse;
             }
         }
@@ -37,15 +43,22 @@ namespace {
             InputBindingSource source,
             std::string_view control,
             uint32_t) const override {
-            return source == InputBindingSource::Keyboard &&
-                    control == "Space"
-                ? static_cast<float>(state.keyboard[32u])
-                : 0.0f;
+            if (source != InputBindingSource::Keyboard) {
+                return 0.0f;
+            }
+            if (control == "Space") {
+                return static_cast<float>(state.keyboard[32u]);
+            }
+            if (control == "W") {
+                return static_cast<float>(state.keyboard[87u]);
+            }
+            return 0.0f;
         }
         bool IsAnyControlActive(
             const InputDeviceState& state,
             float) const override {
-            return state.keyboard[32u] != 0u;
+            return state.keyboard[32u] != 0u ||
+                state.keyboard[87u] != 0u;
         }
         void EnumerateNewControls(
             const InputDeviceState&,
@@ -64,6 +77,7 @@ namespace {
 
     private:
         bool spaceDown_ = false;
+        bool wDown_ = false;
         MouseCaptureMode captureMode_ = MouseCaptureMode::Free;
     };
 }
@@ -93,12 +107,21 @@ int main(int argc, char** argv) {
         return 1;
     }
 
+    testBackend->SetWDown(true);
     testBackend->SetSpaceDown(true);
     input.Update(1.0f / 60.0f);
     const InputSnapshot& pressed = input.GetSnapshot();
     if (!pressed.IsDown("Gameplay.Jump") ||
         !pressed.IsPressed("Gameplay.Jump")) {
-        std::cerr << "Space did not produce the Gameplay.Jump press edge\n";
+        std::cerr <<
+            "W + Space did not produce the Gameplay.Jump press edge\n";
+        return 1;
+    }
+    const std::array<float, 2> moving =
+        pressed.GetAxis2D("Gameplay.Move");
+    if (moving[1] <= 0.5f) {
+        std::cerr <<
+            "W + Space did not preserve the Gameplay.Move action\n";
         return 1;
     }
 
@@ -132,6 +155,7 @@ int main(int argc, char** argv) {
         return 1;
     }
 
-    std::cout << "Space -> Gameplay.Jump -> MotionIntent latch passed\n";
+    std::cout <<
+        "W + Space -> Move + Jump -> MotionIntent latch passed\n";
     return 0;
 }

@@ -114,10 +114,6 @@ namespace HIKARI::PHYSICS::JOLT_BACKEND {
             character = record->character;
         }
 
-        character->SetLinearVelocity(
-            character->CancelVelocityTowardsSteepSlopes(
-                character->GetLinearVelocity()));
-
         JPH::CharacterVirtual::ExtendedUpdateSettings extended{};
         extended.mWalkStairsStepUp = JPH::Vec3(
             0.0f,

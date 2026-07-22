@@ -1,6 +1,6 @@
 {
   "modelAssetGuid": "316766690d9a63d68e3eff3494736c27",
-  "nextShapeId": 71,
+  "nextShapeId": 104,
   "shapes": [
     {
       "center": [
@@ -1306,37 +1306,6 @@
     },
     {
       "center": [
-        35.06950759887695,
-        0.41737908124923706,
-        4.034267425537109
-      ],
-      "enabled": true,
-      "generated": true,
-      "generationError": 0.0,
-      "generationMethod": "PrimitiveFit",
-      "geometryIndexCount": 0,
-      "geometryVertexCount": 0,
-      "height": 1.0,
-      "id": 43,
-      "name": "Auto Box",
-      "radius": 0.5,
-      "rotationEulerDegrees": [
-        -90.00575256347656,
-        -48.294132232666016,
-        0.04034626483917236
-      ],
-      "size": [
-        133.87109375,
-        76.34266662597656,
-        0.5005695819854736
-      ],
-      "sourceNodeIndices": [
-        1112
-      ],
-      "type": "Box"
-    },
-    {
-      "center": [
         -3.249217987060547,
         0.30749303102493286,
         3.0253357887268066
@@ -1740,37 +1709,6 @@
     },
     {
       "center": [
-        35.06950759887695,
-        0.41737908124923706,
-        4.034267425537109
-      ],
-      "enabled": true,
-      "generated": true,
-      "generationError": 0.0,
-      "generationMethod": "PrimitiveFit",
-      "geometryIndexCount": 0,
-      "geometryVertexCount": 0,
-      "height": 1.0,
-      "id": 57,
-      "name": "Auto Box",
-      "radius": 0.5,
-      "rotationEulerDegrees": [
-        -90.00575256347656,
-        -48.294132232666016,
-        0.04034626483917236
-      ],
-      "size": [
-        133.87109375,
-        76.34266662597656,
-        0.5005695819854736
-      ],
-      "sourceNodeIndices": [
-        1112
-      ],
-      "type": "Box"
-    },
-    {
-      "center": [
         -4.6178998947143555,
         1.102325439453125,
         -9.66622257232666
@@ -2169,6 +2107,936 @@
       ],
       "sourceNodeIndices": [
         1265
+      ],
+      "type": "Box"
+    },
+    {
+      "center": [
+        6.017638683319092,
+        4.039154529571533,
+        -33.98115158081055
+      ],
+      "enabled": true,
+      "generated": true,
+      "generationError": 0.0,
+      "generationMethod": "PrimitiveFit",
+      "geometryIndexCount": 0,
+      "geometryVertexCount": 0,
+      "height": 1.0,
+      "id": 71,
+      "name": "Auto Box",
+      "radius": 0.5,
+      "rotationEulerDegrees": [
+        127.14356994628906,
+        -0.016138028353452682,
+        -90.01410675048828
+      ],
+      "size": [
+        7.337407112121582,
+        1.9871983528137207,
+        0.7983485460281372
+      ],
+      "sourceNodeIndices": [
+        1148
+      ],
+      "type": "Box"
+    },
+    {
+      "center": [
+        -11.495540618896484,
+        1.1692825555801392,
+        -12.65915298461914
+      ],
+      "enabled": true,
+      "generated": true,
+      "generationError": 5.650520324707031e-05,
+      "generationMethod": "PrimitiveFit",
+      "geometryIndexCount": 0,
+      "geometryVertexCount": 0,
+      "height": 1.0,
+      "id": 72,
+      "name": "Auto Box",
+      "radius": 0.5,
+      "rotationEulerDegrees": [
+        -30.009855270385742,
+        -0.07587658613920212,
+        89.86853790283203
+      ],
+      "size": [
+        1.6199889183044434,
+        0.15935607254505157,
+        0.15935581922531128
+      ],
+      "sourceNodeIndices": [
+        1216
+      ],
+      "type": "Box"
+    },
+    {
+      "center": [
+        -9.082916259765625,
+        1.1692827939987183,
+        -15.526717185974121
+      ],
+      "enabled": true,
+      "generated": true,
+      "generationError": 5.042552947998047e-05,
+      "generationMethod": "PrimitiveFit",
+      "geometryIndexCount": 0,
+      "geometryVertexCount": 0,
+      "height": 1.0,
+      "id": 73,
+      "name": "Auto Box",
+      "radius": 0.5,
+      "rotationEulerDegrees": [
+        -30.00958824157715,
+        -0.07587061077356339,
+        89.86853790283203
+      ],
+      "size": [
+        1.6199889183044434,
+        0.15935608744621277,
+        0.1593557894229889
+      ],
+      "sourceNodeIndices": [
+        1217
+      ],
+      "type": "Box"
+    },
+    {
+      "center": [
+        -6.63916540145874,
+        1.1692827939987183,
+        -18.553531646728516
+      ],
+      "enabled": true,
+      "generated": true,
+      "generationError": 4.124641418457031e-05,
+      "generationMethod": "PrimitiveFit",
+      "geometryIndexCount": 0,
+      "geometryVertexCount": 0,
+      "height": 1.0,
+      "id": 74,
+      "name": "Auto Box",
+      "radius": 0.5,
+      "rotationEulerDegrees": [
+        -30.010507583618164,
+        -0.07588683068752289,
+        89.8685302734375
+      ],
+      "size": [
+        1.6199889183044434,
+        0.15935565531253815,
+        0.15935522317886353
+      ],
+      "sourceNodeIndices": [
+        1218
+      ],
+      "type": "Box"
+    },
+    {
+      "center": [
+        -3.752664804458618,
+        1.1692830324172974,
+        -21.862594604492188
+      ],
+      "enabled": true,
+      "generated": true,
+      "generationError": 6.198883056640625e-05,
+      "generationMethod": "PrimitiveFit",
+      "geometryIndexCount": 0,
+      "geometryVertexCount": 0,
+      "height": 1.0,
+      "id": 75,
+      "name": "Auto Box",
+      "radius": 0.5,
+      "rotationEulerDegrees": [
+        -30.008861541748047,
+        -0.0758817121386528,
+        89.8685302734375
+      ],
+      "size": [
+        1.6199889183044434,
+        0.15935565531253815,
+        0.15935663878917694
+      ],
+      "sourceNodeIndices": [
+        1219
+      ],
+      "type": "Box"
+    },
+    {
+      "center": [
+        -0.8181654810905457,
+        1.1692830324172974,
+        -25.181032180786133
+      ],
+      "enabled": true,
+      "generated": true,
+      "generationError": 6.389617919921875e-05,
+      "generationMethod": "PrimitiveFit",
+      "geometryIndexCount": 0,
+      "geometryVertexCount": 0,
+      "height": 1.0,
+      "id": 76,
+      "name": "Auto Box",
+      "radius": 0.5,
+      "rotationEulerDegrees": [
+        -30.009811401367188,
+        -0.07586719840765,
+        89.86854553222656
+      ],
+      "size": [
+        1.6199889183044434,
+        0.15935580432415009,
+        0.1593567132949829
+      ],
+      "sourceNodeIndices": [
+        1221
+      ],
+      "type": "Box"
+    },
+    {
+      "center": [
+        2.087397336959839,
+        1.1692832708358765,
+        -28.63434600830078
+      ],
+      "enabled": true,
+      "generated": true,
+      "generationError": 6.568431854248047e-05,
+      "generationMethod": "PrimitiveFit",
+      "geometryIndexCount": 0,
+      "geometryVertexCount": 0,
+      "height": 1.0,
+      "id": 77,
+      "name": "Auto Box",
+      "radius": 0.5,
+      "rotationEulerDegrees": [
+        -30.00912094116211,
+        -0.07586890459060669,
+        89.86853790283203
+      ],
+      "size": [
+        1.619989037513733,
+        0.15935587882995605,
+        0.1593567430973053
+      ],
+      "sourceNodeIndices": [
+        1223
+      ],
+      "type": "Box"
+    },
+    {
+      "center": [
+        4.920020580291748,
+        1.1692835092544556,
+        -32.07128143310547
+      ],
+      "enabled": true,
+      "generated": true,
+      "generationError": 4.553794860839844e-05,
+      "generationMethod": "PrimitiveFit",
+      "geometryIndexCount": 0,
+      "geometryVertexCount": 0,
+      "height": 1.0,
+      "id": 78,
+      "name": "Auto Box",
+      "radius": 0.5,
+      "rotationEulerDegrees": [
+        -30.00897789001465,
+        -0.07586890459060669,
+        89.86854553222656
+      ],
+      "size": [
+        1.6199889183044434,
+        0.15935660898685455,
+        0.15935496985912323
+      ],
+      "sourceNodeIndices": [
+        1226
+      ],
+      "type": "Box"
+    },
+    {
+      "center": [
+        7.559460163116455,
+        1.1692835092544556,
+        -36.062225341796875
+      ],
+      "enabled": true,
+      "generated": true,
+      "generationError": 3.540515899658203e-05,
+      "generationMethod": "PrimitiveFit",
+      "geometryIndexCount": 0,
+      "geometryVertexCount": 0,
+      "height": 1.0,
+      "id": 79,
+      "name": "Auto Box",
+      "radius": 0.5,
+      "rotationEulerDegrees": [
+        -30.01207160949707,
+        -0.07587317377328873,
+        89.86854553222656
+      ],
+      "size": [
+        1.6199889183044434,
+        0.15935662388801575,
+        0.15935522317886353
+      ],
+      "sourceNodeIndices": [
+        1228
+      ],
+      "type": "Box"
+    },
+    {
+      "center": [
+        9.873209953308105,
+        1.1692837476730347,
+        -39.83985137939453
+      ],
+      "enabled": true,
+      "generated": true,
+      "generationError": 2.8252601623535156e-05,
+      "generationMethod": "PrimitiveFit",
+      "geometryIndexCount": 0,
+      "geometryVertexCount": 0,
+      "height": 1.0,
+      "id": 80,
+      "name": "Auto Box",
+      "radius": 0.5,
+      "rotationEulerDegrees": [
+        -30.011329650878906,
+        -0.07587061077356339,
+        89.8685302734375
+      ],
+      "size": [
+        1.619989037513733,
+        0.15935620665550232,
+        0.15935498476028442
+      ],
+      "sourceNodeIndices": [
+        1230
+      ],
+      "type": "Box"
+    },
+    {
+      "center": [
+        12.134960174560547,
+        1.1692839860916138,
+        -43.7452278137207
+      ],
+      "enabled": true,
+      "generated": true,
+      "generationError": 5.519390106201172e-05,
+      "generationMethod": "PrimitiveFit",
+      "geometryIndexCount": 0,
+      "geometryVertexCount": 0,
+      "height": 1.0,
+      "id": 81,
+      "name": "Auto Box",
+      "radius": 0.5,
+      "rotationEulerDegrees": [
+        -30.009958267211914,
+        -0.07587744295597076,
+        89.86853790283203
+      ],
+      "size": [
+        1.6199889183044434,
+        0.15935620665550232,
+        0.15935546159744263
+      ],
+      "sourceNodeIndices": [
+        1232
+      ],
+      "type": "Box"
+    },
+    {
+      "center": [
+        14.327710151672363,
+        1.1692841053009033,
+        -47.621665954589844
+      ],
+      "enabled": true,
+      "generated": true,
+      "generationError": 2.8133392333984375e-05,
+      "generationMethod": "PrimitiveFit",
+      "geometryIndexCount": 0,
+      "geometryVertexCount": 0,
+      "height": 1.0,
+      "id": 82,
+      "name": "Auto Box",
+      "radius": 0.5,
+      "rotationEulerDegrees": [
+        -30.01153564453125,
+        -0.07588853687047958,
+        89.8685302734375
+      ],
+      "size": [
+        1.6199887990951538,
+        0.15935619175434113,
+        0.15935498476028442
+      ],
+      "sourceNodeIndices": [
+        1234
+      ],
+      "type": "Box"
+    },
+    {
+      "center": [
+        16.7122745513916,
+        1.1692842245101929,
+        -51.640541076660156
+      ],
+      "enabled": true,
+      "generated": true,
+      "generationError": 3.063678741455078e-05,
+      "generationMethod": "PrimitiveFit",
+      "geometryIndexCount": 0,
+      "geometryVertexCount": 0,
+      "height": 1.0,
+      "id": 83,
+      "name": "Auto Box",
+      "radius": 0.5,
+      "rotationEulerDegrees": [
+        -30.006879806518555,
+        -0.07590647041797638,
+        89.86853790283203
+      ],
+      "size": [
+        1.6199889183044434,
+        0.15935371816158295,
+        0.15935498476028442
+      ],
+      "sourceNodeIndices": [
+        1237
+      ],
+      "type": "Box"
+    },
+    {
+      "center": [
+        2.93239688873291,
+        1.1692827939987183,
+        -19.355093002319336
+      ],
+      "enabled": true,
+      "generated": true,
+      "generationError": 6.389617919921875e-05,
+      "generationMethod": "PrimitiveFit",
+      "geometryIndexCount": 0,
+      "geometryVertexCount": 0,
+      "height": 1.0,
+      "id": 87,
+      "name": "Auto Box",
+      "radius": 0.5,
+      "rotationEulerDegrees": [
+        -30.00971221923828,
+        -0.07586975395679474,
+        89.86853790283203
+      ],
+      "size": [
+        1.6199889183044434,
+        0.15935584902763367,
+        0.1593567430973053
+      ],
+      "sourceNodeIndices": [
+        1220
+      ],
+      "type": "Box"
+    },
+    {
+      "center": [
+        5.870335102081299,
+        1.1692830324172974,
+        -22.6783447265625
+      ],
+      "enabled": true,
+      "generated": true,
+      "generationError": 6.330013275146484e-05,
+      "generationMethod": "PrimitiveFit",
+      "geometryIndexCount": 0,
+      "geometryVertexCount": 0,
+      "height": 1.0,
+      "id": 88,
+      "name": "Auto Box",
+      "radius": 0.5,
+      "rotationEulerDegrees": [
+        -30.008947372436523,
+        -0.07588085532188416,
+        89.86853790283203
+      ],
+      "size": [
+        1.6199887990951538,
+        0.15935565531253815,
+        0.15935686230659485
+      ],
+      "sourceNodeIndices": [
+        1222
+      ],
+      "type": "Box"
+    },
+    {
+      "center": [
+        8.78596019744873,
+        1.1692832708358765,
+        -26.0092830657959
+      ],
+      "enabled": true,
+      "generated": true,
+      "generationError": 5.650520324707031e-05,
+      "generationMethod": "PrimitiveFit",
+      "geometryIndexCount": 0,
+      "geometryVertexCount": 0,
+      "height": 1.0,
+      "id": 89,
+      "name": "Auto Box",
+      "radius": 0.5,
+      "rotationEulerDegrees": [
+        -30.008779525756836,
+        -0.0758817121386528,
+        89.8685302734375
+      ],
+      "size": [
+        1.6199889183044434,
+        0.1593552529811859,
+        0.15935665369033813
+      ],
+      "sourceNodeIndices": [
+        1225
+      ],
+      "type": "Box"
+    },
+    {
+      "center": [
+        11.430584907531738,
+        1.169283390045166,
+        -29.45647430419922
+      ],
+      "enabled": true,
+      "generated": true,
+      "generationError": 2.276897430419922e-05,
+      "generationMethod": "PrimitiveFit",
+      "geometryIndexCount": 0,
+      "geometryVertexCount": 0,
+      "height": 1.0,
+      "id": 90,
+      "name": "Auto Box",
+      "radius": 0.5,
+      "rotationEulerDegrees": [
+        -30.011259078979492,
+        -0.07587487995624542,
+        89.86853790283203
+      ],
+      "size": [
+        1.6199889183044434,
+        0.15935607254505157,
+        0.1593533158302307
+      ],
+      "sourceNodeIndices": [
+        1227
+      ],
+      "type": "Box"
+    },
+    {
+      "center": [
+        14.165148735046387,
+        1.1692835092544556,
+        -33.670597076416016
+      ],
+      "enabled": true,
+      "generated": true,
+      "generationError": 4.315376281738281e-05,
+      "generationMethod": "PrimitiveFit",
+      "geometryIndexCount": 0,
+      "geometryVertexCount": 0,
+      "height": 1.0,
+      "id": 91,
+      "name": "Auto Box",
+      "radius": 0.5,
+      "rotationEulerDegrees": [
+        -30.008413314819336,
+        -0.07588256150484085,
+        89.8685302734375
+      ],
+      "size": [
+        1.6199889183044434,
+        0.1593542993068695,
+        0.15935546159744263
+      ],
+      "sourceNodeIndices": [
+        1229
+      ],
+      "type": "Box"
+    },
+    {
+      "center": [
+        16.498456954956055,
+        1.1692837476730347,
+        -37.39040756225586
+      ],
+      "enabled": true,
+      "generated": true,
+      "generationError": 6.759166717529297e-05,
+      "generationMethod": "PrimitiveFit",
+      "geometryIndexCount": 0,
+      "geometryVertexCount": 0,
+      "height": 1.0,
+      "id": 92,
+      "name": "Auto Box",
+      "radius": 0.5,
+      "rotationEulerDegrees": [
+        -30.00965118408203,
+        -0.07588512450456619,
+        89.86853790283203
+      ],
+      "size": [
+        1.6199889183044434,
+        0.15935677289962769,
+        0.15935593843460083
+      ],
+      "sourceNodeIndices": [
+        1231
+      ],
+      "type": "Box"
+    },
+    {
+      "center": [
+        18.791336059570313,
+        1.1692837476730347,
+        -41.17722702026367
+      ],
+      "enabled": true,
+      "generated": true,
+      "generationError": 5.900859832763672e-05,
+      "generationMethod": "PrimitiveFit",
+      "geometryIndexCount": 0,
+      "geometryVertexCount": 0,
+      "height": 1.0,
+      "id": 93,
+      "name": "Auto Box",
+      "radius": 0.5,
+      "rotationEulerDegrees": [
+        -30.009830474853516,
+        -0.07587402313947678,
+        89.86853790283203
+      ],
+      "size": [
+        1.6199889183044434,
+        0.15935537219047546,
+        0.15935593843460083
+      ],
+      "sourceNodeIndices": [
+        1233
+      ],
+      "type": "Box"
+    },
+    {
+      "center": [
+        21.07889747619629,
+        1.1692839860916138,
+        -45.16066360473633
+      ],
+      "enabled": true,
+      "generated": true,
+      "generationError": 1.8477439880371094e-05,
+      "generationMethod": "PrimitiveFit",
+      "geometryIndexCount": 0,
+      "geometryVertexCount": 0,
+      "height": 1.0,
+      "id": 94,
+      "name": "Auto Box",
+      "radius": 0.5,
+      "rotationEulerDegrees": [
+        -30.006244659423828,
+        -0.07588683068752289,
+        89.86854553222656
+      ],
+      "size": [
+        1.6199887990951538,
+        0.15935181081295013,
+        0.15935498476028442
+      ],
+      "sourceNodeIndices": [
+        1236
+      ],
+      "type": "Box"
+    },
+    {
+      "center": [
+        23.39277458190918,
+        1.1692842245101929,
+        -48.938167572021484
+      ],
+      "enabled": true,
+      "generated": true,
+      "generationError": 1.8477439880371094e-05,
+      "generationMethod": "PrimitiveFit",
+      "geometryIndexCount": 0,
+      "geometryVertexCount": 0,
+      "height": 1.0,
+      "id": 95,
+      "name": "Auto Box",
+      "radius": 0.5,
+      "rotationEulerDegrees": [
+        -30.007211685180664,
+        -0.0758817121386528,
+        89.8685531616211
+      ],
+      "size": [
+        1.6199889183044434,
+        0.15935181081295013,
+        0.15935496985912323
+      ],
+      "sourceNodeIndices": [
+        1238
+      ],
+      "type": "Box"
+    },
+    {
+      "center": [
+        18.935523986816406,
+        1.169284462928772,
+        -55.49641418457031
+      ],
+      "enabled": true,
+      "generated": true,
+      "generationError": 2.8967857360839844e-05,
+      "generationMethod": "PrimitiveFit",
+      "geometryIndexCount": 0,
+      "geometryVertexCount": 0,
+      "height": 1.0,
+      "id": 96,
+      "name": "Auto Box",
+      "radius": 0.5,
+      "rotationEulerDegrees": [
+        -30.010257720947266,
+        -0.07588939368724823,
+        89.86854553222656
+      ],
+      "size": [
+        1.6199889183044434,
+        0.15935537219047546,
+        0.15935498476028442
+      ],
+      "sourceNodeIndices": [
+        1239
+      ],
+      "type": "Box"
+    },
+    {
+      "center": [
+        25.552461624145508,
+        1.1692843437194824,
+        -52.76835250854492
+      ],
+      "enabled": true,
+      "generated": true,
+      "generationError": 4.088878631591797e-05,
+      "generationMethod": "PrimitiveFit",
+      "geometryIndexCount": 0,
+      "geometryVertexCount": 0,
+      "height": 1.0,
+      "id": 97,
+      "name": "Auto Box",
+      "radius": 0.5,
+      "rotationEulerDegrees": [
+        -30.007829666137695,
+        -0.0758817121386528,
+        89.86856079101563
+      ],
+      "size": [
+        1.6199887990951538,
+        0.15935346484184265,
+        0.15935498476028442
+      ],
+      "sourceNodeIndices": [
+        1240
+      ],
+      "type": "Box"
+    },
+    {
+      "center": [
+        20.2596492767334,
+        1.1692848205566406,
+        -59.49491882324219
+      ],
+      "enabled": true,
+      "generated": true,
+      "generationError": 5.2928924560546875e-05,
+      "generationMethod": "PrimitiveFit",
+      "geometryIndexCount": 0,
+      "geometryVertexCount": 0,
+      "height": 1.0,
+      "id": 98,
+      "name": "Auto Box",
+      "radius": 0.5,
+      "rotationEulerDegrees": [
+        -30.0084171295166,
+        -0.07590220123529434,
+        89.86853790283203
+      ],
+      "size": [
+        1.6199889183044434,
+        0.15935537219047546,
+        0.15935498476028442
+      ],
+      "sourceNodeIndices": [
+        1241
+      ],
+      "type": "Box"
+    },
+    {
+      "center": [
+        27.15721321105957,
+        1.169284462928772,
+        -56.41554260253906
+      ],
+      "enabled": true,
+      "generated": true,
+      "generationError": 7.37905502319336e-05,
+      "generationMethod": "PrimitiveFit",
+      "geometryIndexCount": 0,
+      "geometryVertexCount": 0,
+      "height": 1.0,
+      "id": 99,
+      "name": "Auto Box",
+      "radius": 0.5,
+      "rotationEulerDegrees": [
+        -30.00950050354004,
+        -0.07591330260038376,
+        89.86852264404297
+      ],
+      "size": [
+        1.6199889183044434,
+        0.1593586802482605,
+        0.15935498476028442
+      ],
+      "sourceNodeIndices": [
+        1242
+      ],
+      "type": "Box"
+    },
+    {
+      "center": [
+        27.457212448120117,
+        1.169284701347351,
+        -60.54042434692383
+      ],
+      "enabled": true,
+      "generated": true,
+      "generationError": 7.200241088867188e-05,
+      "generationMethod": "PrimitiveFit",
+      "geometryIndexCount": 0,
+      "geometryVertexCount": 0,
+      "height": 1.0,
+      "id": 100,
+      "name": "Auto Box",
+      "radius": 0.5,
+      "rotationEulerDegrees": [
+        -30.009103775024414,
+        -0.075863778591156,
+        89.86854553222656
+      ],
+      "size": [
+        1.6199889183044434,
+        0.1593570113182068,
+        0.15935829281806946
+      ],
+      "sourceNodeIndices": [
+        1243
+      ],
+      "type": "Box"
+    },
+    {
+      "center": [
+        26.060087203979492,
+        1.169284701347351,
+        -64.22404479980469
+      ],
+      "enabled": true,
+      "generated": true,
+      "generationError": 2.7418136596679688e-05,
+      "generationMethod": "PrimitiveFit",
+      "geometryIndexCount": 0,
+      "geometryVertexCount": 0,
+      "height": 1.0,
+      "id": 101,
+      "name": "Auto Box",
+      "radius": 0.5,
+      "rotationEulerDegrees": [
+        -30.004934310913086,
+        -0.07587231695652008,
+        89.86854553222656
+      ],
+      "size": [
+        1.6199889183044434,
+        0.15935371816158295,
+        0.15935829281806946
+      ],
+      "sourceNodeIndices": [
+        1244
+      ],
+      "type": "Box"
+    },
+    {
+      "center": [
+        22.6656494140625,
+        1.1692850589752197,
+        -67.28848266601563
+      ],
+      "enabled": true,
+      "generated": true,
+      "generationError": 5.5909156799316406e-05,
+      "generationMethod": "PrimitiveFit",
+      "geometryIndexCount": 0,
+      "geometryVertexCount": 0,
+      "height": 1.0,
+      "id": 102,
+      "name": "Auto Box",
+      "radius": 0.5,
+      "rotationEulerDegrees": [
+        -30.005603790283203,
+        -0.07583645731210709,
+        89.86854553222656
+      ],
+      "size": [
+        1.6199887990951538,
+        0.15935537219047546,
+        0.1593516618013382
+      ],
+      "sourceNodeIndices": [
+        1245
+      ],
+      "type": "Box"
+    },
+    {
+      "center": [
+        17.084585189819336,
+        1.169284701347351,
+        -62.48392105102539
+      ],
+      "enabled": true,
+      "generated": true,
+      "generationError": 5.2928924560546875e-05,
+      "generationMethod": "PrimitiveFit",
+      "geometryIndexCount": 0,
+      "geometryVertexCount": 0,
+      "height": 1.0,
+      "id": 103,
+      "name": "Auto Box",
+      "radius": 0.5,
+      "rotationEulerDegrees": [
+        -30.00664520263672,
+        -0.07586634159088135,
+        89.86853790283203
+      ],
+      "size": [
+        1.6199889183044434,
+        0.15935537219047546,
+        0.15935496985912323
+      ],
+      "sourceNodeIndices": [
+        1247
       ],
       "type": "Box"
     }

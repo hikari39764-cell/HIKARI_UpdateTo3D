@@ -58,6 +58,7 @@ $intentService = Read-Source 'HIKARI\Gameplay\Motion\HIKARI_MotionIntentService.
 $motionTypes = Read-Source 'HIKARI\Physics\HIKARI_KinematicMotionTypes.h'
 $motionService = Read-Source 'HIKARI\Physics\HIKARI_KinematicMotionService.cpp'
 $backend = Read-Source 'HIKARI\Physics\HIKARI_IPhysicsWorldBackend.h'
+$physicsSystemHeader = Read-Source 'HIKARI\Physics\HIKARI_PhysicsSystem.h'
 $physicsSystem = Read-Source 'HIKARI\Physics\HIKARI_PhysicsSystem.cpp'
 $kinematicSystem = Read-Source 'HIKARI\Physics\HIKARI_PhysicsSystemKinematicMotion.cpp'
 $kinematicSolver = Read-Source 'HIKARI\Physics\HIKARI_PhysicsSystemKinematicSolver.cpp'
@@ -115,7 +116,6 @@ Assert-NotContains $joltCharacterSimulation 'CharacterShapeFilter' `
     'Character shape filtering must not reject intermediate compound hierarchy nodes.'
 Assert-Contains $joltCharacterSimulation 'CharacterContactListener validates the final leaf' `
     'Per-Collider masks must be validated only after Jolt resolves the final leaf.'
-
 Assert-Contains $feature 'locomotion.requiredComponents = {' `
     'Character Locomotion must declare its standard physics dependency.'
 Assert-Contains $feature '"PhysicsBodyComponent"' `
@@ -181,6 +181,16 @@ Assert-Contains $kinematicSystem 'const bool canApplyJump = onGround ||' `
     'Physics must use its current contact state for ordinary jump requests.'
 Assert-Contains $kinematicSystem 'request.allowJumpWithoutGroundContact' `
     'Physics must accept explicit ground-grace authorization.'
+Assert-Contains $kinematicSystem 'const bool ascendingAwayFromGround = jumpApplied ||' `
+    'Accepted jumps and upward impulses must explicitly detach from ground traversal helpers.'
+Assert-Contains $physicsSystemHeader 'bool kinematicJumpActive = false;' `
+    'Physics integration must retain the jump lifecycle across fixed ticks.'
+Assert-Contains $kinematicSystem '!binding.kinematicJumpActive &&' `
+    'Transient ground contacts must not reset vertical motion during an active jump.'
+Assert-Contains $kinematicSystem 'const bool allowGroundTraversal = onGround &&' `
+    'Step-up and floor snap must require a stable grounded traversal state.'
+Assert-Contains $kinematicSystem 'after.IsGrounded() &&' `
+    'The jump lifecycle must close only after the solver reports a landing.'
 Assert-Contains $kinematicSolver 'const PhysicsCharacterHandle previous' `
     'Solver settings hot reload must replace only after candidate creation.'
 

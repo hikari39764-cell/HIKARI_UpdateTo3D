@@ -58,6 +58,10 @@ namespace HIKARI {
 
             static int LoadTexture(const std::string& name, const std::string& path);
             static int LoadTextureWithColorSpace(const std::string& name, const std::string& path, TextureColorSpace colorSpace);
+            static int FindLoadedTextureWithColorSpace(
+                const std::string& name,
+                const std::string& path,
+                TextureColorSpace colorSpace);
             static std::vector<TextureLoadResult> LoadTexturesWithColorSpaceBatch(
                 const std::vector<TextureLoadRequest>& requests,
                 TextureBatchLoadStats* outStats = nullptr);

@@ -177,6 +177,8 @@ namespace HIKARI::EDITOR {
             case AssetType::Scene: return EditorIconKind::Scene;
             case AssetType::VfxEffect: return EditorIconKind::Vfx;
             case AssetType::Sequence: return EditorIconKind::Sequence;
+            case AssetType::AnimationStateMachine:
+                return EditorIconKind::Sequence;
             case AssetType::Unknown:
             default: return EditorIconKind::Unknown;
             }

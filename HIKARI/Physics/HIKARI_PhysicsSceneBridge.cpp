@@ -9,6 +9,7 @@
 #include "Scene/HIKARI_GameObject.h"
 #include "Physics/HIKARI_PhysicsBodyValidator.h"
 #include "Physics/HIKARI_PhysicsCollisionGeometryStore.h"
+#include "Physics/HIKARI_PhysicsDefinitionScale.h"
 
 namespace HIKARI::PHYSICS {
     namespace {
@@ -148,7 +149,8 @@ namespace HIKARI::PHYSICS {
         const GameObject& object,
         PhysicsBodyCreateInfo& outCreateInfo,
         MATH::Vec3& outWorldScale,
-        PhysicsCollisionGeometryStore* collisionGeometryStore) {
+        PhysicsCollisionGeometryStore* collisionGeometryStore,
+        const MATH::Vec3* retainedDefinitionScale) {
         PhysicsBodyBuildResult result{};
         PhysicsPose pose{};
         if (!TryGetPhysicsWorldPoseAndScale(
@@ -171,6 +173,9 @@ namespace HIKARI::PHYSICS {
                 "physics requires positive world scale; bake mirrored scale into the model before adding collision";
             return result;
         }
+        outWorldScale = ResolvePhysicsDefinitionScale(
+            outWorldScale,
+            retainedDefinitionScale);
 
         outCreateInfo = {};
         outCreateInfo.initialPose = pose;

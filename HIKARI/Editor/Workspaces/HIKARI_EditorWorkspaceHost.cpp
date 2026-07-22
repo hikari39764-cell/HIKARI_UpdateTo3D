@@ -63,6 +63,8 @@ namespace HIKARI::EDITOR {
         activation.targetCameraObjectId = request.targetCameraObjectId;
         activation.sequenceAssetGuid = request.sequenceAssetGuid;
         activation.modelAssetGuid = request.modelAssetGuid;
+        activation.animationStateMachineAssetGuid =
+            request.animationStateMachineAssetGuid;
         activeWorkspace_ = request.workspaceId;
 
         return activation;
@@ -79,6 +81,9 @@ namespace HIKARI::EDITOR {
     void EditorWorkspaceHost::RequestResetActiveLayout() noexcept {
         if (activeWorkspace_ == EditorWorkspaceId::ModelCollision) {
             resetModelCollisionLayoutRequested_ = true;
+        } else if (activeWorkspace_ ==
+                EditorWorkspaceId::AnimationStateMachine) {
+            resetAnimationStateMachineLayoutRequested_ = true;
         } else if (activeWorkspace_ == EditorWorkspaceId::Cinematics) {
             resetCinematicsLayoutRequested_ = true;
         } else {
@@ -92,6 +97,9 @@ namespace HIKARI::EDITOR {
             requested = &resetCinematicsLayoutRequested_;
         } else if (workspaceId == EditorWorkspaceId::ModelCollision) {
             requested = &resetModelCollisionLayoutRequested_;
+        } else if (workspaceId ==
+                EditorWorkspaceId::AnimationStateMachine) {
+            requested = &resetAnimationStateMachineLayoutRequested_;
         }
         const bool result = *requested;
         *requested = false;

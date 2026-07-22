@@ -24,6 +24,11 @@ namespace HIKARI {
             ANIMATION::AnimationClipReference clip,
             bool loop = true,
             bool restart = true);
+        void PlayMotion(
+            ANIMATION::AnimationMotionSample motion,
+            float speed = 1.0f,
+            bool loop = true,
+            bool restart = true);
         void CrossFade(
             std::string clip,
             float durationSeconds,
@@ -34,6 +39,15 @@ namespace HIKARI {
             float durationSeconds,
             bool loop = true,
             bool restart = true);
+        void CrossFadeMotion(
+            ANIMATION::AnimationMotionSample motion,
+            float durationSeconds,
+            float speed = 1.0f,
+            bool loop = true,
+            bool restart = true);
+        void UpdateMotion(
+            ANIMATION::AnimationMotionSample motion,
+            const ModelAsset& model);
         void PlayCurrent(bool restart = true);
         void PlayOnce(std::string clip, bool restart = true);
         void Pause();
@@ -46,6 +60,7 @@ namespace HIKARI {
         void SetClip(ANIMATION::AnimationClipReference clip);
         const std::string& GetClip() const;
         const ANIMATION::AnimationClipReference& GetClipReference() const;
+        ANIMATION::AnimationMotionSample GetMotionSample() const noexcept;
         void BindClipToModel(const ModelAsset& model);
 
         void SetTime(float timeSec);
@@ -72,13 +87,18 @@ namespace HIKARI {
         float GetTransitionWeight() const noexcept;
         const ANIMATION::AnimationClipReference&
             GetTransitionSourceClip() const noexcept;
+        ANIMATION::AnimationMotionSample
+            GetTransitionSourceMotion() const noexcept;
         float GetTransitionSourceTime() const noexcept;
+        float GetTransitionSourceSpeed() const noexcept;
         bool GetTransitionSourceLoop() const noexcept;
 
     private:
         void ClearTransition() noexcept;
 
         ANIMATION::AnimationClipReference clip_{};
+        ANIMATION::AnimationClipReference secondaryClip_{};
+        float secondaryWeight_ = 0.0f;
         float timeSec_ = 0.0f;
         float speed_ = 1.0f;
         float defaultBlendDurationSec_ = 0.2f;
@@ -88,7 +108,10 @@ namespace HIKARI {
         bool finished_ = false;
 
         ANIMATION::AnimationClipReference transitionSourceClip_{};
+        ANIMATION::AnimationClipReference transitionSourceSecondaryClip_{};
+        float transitionSourceSecondaryWeight_ = 0.0f;
         float transitionSourceTimeSec_ = 0.0f;
+        float transitionSourceSpeed_ = 1.0f;
         float transitionDurationSec_ = 0.0f;
         float transitionElapsedSec_ = 0.0f;
         bool transitionSourceLoop_ = true;

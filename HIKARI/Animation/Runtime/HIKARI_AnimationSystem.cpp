@@ -3,6 +3,8 @@
 #include <utility>
 #include <unordered_set>
 
+#include <algorithm>
+
 #include "Animation/Runtime/HIKARI_AnimationClipSampler.h"
 #include "Animation/Runtime/HIKARI_AnimationPoseService.h"
 #include "Core/HIKARI_FrameContext.h"
@@ -21,6 +23,54 @@ namespace HIKARI {
                 *model,
                 reference);
             return clip != nullptr ? clip->durationSec : -1.0f;
+        }
+
+        bool SampleMotion(
+            const ModelAsset& model,
+            const ANIMATION::AnimationMotionSample& motion,
+            float primaryTimeSec,
+            bool loop,
+            ANIMATION::AnimationLocalPose& outPose,
+            float* outNormalizedTime = nullptr) {
+            float normalizedTime = 0.0f;
+            if (!ANIMATION::SampleAnimationClip(
+                    model,
+                    motion.primaryClip,
+                    primaryTimeSec,
+                    loop,
+                    outPose,
+                    &normalizedTime)) {
+                return false;
+            }
+            if (outNormalizedTime != nullptr) {
+                *outNormalizedTime = normalizedTime;
+            }
+            if (motion.secondaryClip.IsEmpty() ||
+                motion.secondaryWeight <= 0.0f) {
+                return true;
+            }
+
+            const float secondaryDuration = ResolveClipDuration(
+                &model, motion.secondaryClip);
+            ANIMATION::AnimationLocalPose secondaryPose{};
+            if (secondaryDuration <= 0.0f ||
+                !ANIMATION::SampleAnimationClip(
+                    model,
+                    motion.secondaryClip,
+                    normalizedTime * secondaryDuration,
+                    loop,
+                    secondaryPose)) {
+                return true;
+            }
+            ANIMATION::AnimationLocalPose blended{};
+            if (ANIMATION::BlendAnimationPoses(
+                    outPose,
+                    secondaryPose,
+                    std::clamp(motion.secondaryWeight, 0.0f, 1.0f),
+                    blended)) {
+                outPose = std::move(blended);
+            }
+            return true;
         }
     }
 
@@ -68,10 +118,14 @@ namespace HIKARI {
                         animator.GetClipReference()));
 
                 ANIMATION::AnimationPoseSnapshot snapshot{};
-                snapshot.primaryClip = animator.GetClipReference();
-                snapshot.valid = ANIMATION::SampleAnimationClip(
+                const ANIMATION::AnimationMotionSample motion =
+                    animator.GetMotionSample();
+                snapshot.primaryClip = motion.primaryClip;
+                snapshot.secondaryClip = motion.secondaryClip;
+                snapshot.motionBlendWeight = motion.secondaryWeight;
+                snapshot.valid = SampleMotion(
                     *modelAsset,
-                    animator.GetClipReference(),
+                    motion,
                     animator.GetTime(),
                     animator.GetLoop(),
                     snapshot.localPose,
@@ -81,10 +135,9 @@ namespace HIKARI {
 
                 if (snapshot.valid && snapshot.transitioning) {
                     ANIMATION::AnimationLocalPose sourcePose{};
-                    const bool sourceValid =
-                        ANIMATION::SampleAnimationClip(
+                    const bool sourceValid = SampleMotion(
                             *modelAsset,
-                            animator.GetTransitionSourceClip(),
+                            animator.GetTransitionSourceMotion(),
                             animator.GetTransitionSourceTime(),
                             animator.GetTransitionSourceLoop(),
                             sourcePose);

@@ -190,6 +190,27 @@ namespace HIKARI::RENDER3D {
             RenderResourceLifetime::ImportedAsset);
     }
 
+    TextureResourceHandle FindLoadedTextureResourceWithColorSpace(
+        const std::string& name,
+        const std::string& path,
+        TextureResourceColorSpace colorSpace) {
+
+        const int backendHandle =
+            DXTEX::DxTextureManager::FindLoadedTextureWithColorSpace(
+                name,
+                path,
+                ToBackendColorSpace(colorSpace));
+        if (backendHandle < 0) {
+            return {};
+        }
+
+        return RegisterLoadedTexture(
+            backendHandle,
+            name,
+            BuildSourceKey(name, path),
+            RenderResourceLifetime::ImportedAsset);
+    }
+
     std::vector<TextureResourceHandle> PreloadTextureResourcesWithColorSpace(
         const std::vector<TextureResourceLoadRequest>& requests,
         TextureResourceBatchLoadStats* outStats) {

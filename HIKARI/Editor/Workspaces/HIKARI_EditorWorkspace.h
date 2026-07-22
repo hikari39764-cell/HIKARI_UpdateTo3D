@@ -12,6 +12,7 @@ namespace HIKARI::EDITOR {
         Scene,
         Cinematics,
         ModelCollision,
+        AnimationStateMachine,
     };
 
     struct EditorWorkspaceOpenRequest {
@@ -19,6 +20,7 @@ namespace HIKARI::EDITOR {
         std::optional<SceneObjectId> targetCameraObjectId{};
         std::optional<AssetGuid> sequenceAssetGuid{};
         std::optional<AssetGuid> modelAssetGuid{};
+        std::optional<AssetGuid> animationStateMachineAssetGuid{};
     };
 
     struct EditorWorkspaceActivation {
@@ -27,6 +29,7 @@ namespace HIKARI::EDITOR {
         std::optional<SceneObjectId> targetCameraObjectId{};
         std::optional<AssetGuid> sequenceAssetGuid{};
         std::optional<AssetGuid> modelAssetGuid{};
+        std::optional<AssetGuid> animationStateMachineAssetGuid{};
     };
 
 } // namespace HIKARI::EDITOR

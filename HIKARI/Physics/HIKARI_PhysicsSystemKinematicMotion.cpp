@@ -6,6 +6,7 @@
 #include <utility>
 
 #include "Core/HIKARI_FrameContext.h"
+#include "Physics/HIKARI_KinematicMotionDiagnostics.h"
 #include "Physics/HIKARI_KinematicMotionService.h"
 #include "Physics/HIKARI_PhysicsSceneBridge.h"
 #include "Physics/HIKARI_PhysicsWorldService.h"
@@ -107,6 +108,13 @@ namespace HIKARI::PHYSICS {
                 continue;
             }
 
+            const bool jumpActiveAtEntry =
+                binding.kinematicJumpActive;
+            const PhysicsCharacterHandle solverBeforeEnsure =
+                binding.kinematicSolver;
+            const uint64_t solverSignatureBeforeEnsure =
+                binding.kinematicSolverSignature;
+
             PhysicsBodyState bodyState{};
             if (!service_->TryGetBodyState(binding.body, bodyState)) {
                 setError("unable to read the kinematic physics body");
@@ -132,6 +140,14 @@ namespace HIKARI::PHYSICS {
                 continue;
             }
 
+            PhysicsCharacterState solverStateBeforeSync{};
+            const bool shouldTraceJump = request.jumpRequested ||
+                jumpActiveAtEntry || binding.kinematicJumpActive;
+            const bool hasSolverStateBeforeSync = shouldTraceJump &&
+                service_->TryGetCharacterState(
+                    binding.kinematicSolver,
+                    solverStateBeforeSync);
+
             if (!service_->SetCharacterPose(
                     binding.kinematicSolver,
                     bodyState.pose)) {
@@ -142,6 +158,7 @@ namespace HIKARI::PHYSICS {
                 (void)service_->SetCharacterVelocity(
                     binding.kinematicSolver,
                     {});
+                binding.kinematicJumpActive = false;
             }
             (void)service_->RefreshCharacterContacts(
                 binding.kinematicSolver);
@@ -170,11 +187,15 @@ namespace HIKARI::PHYSICS {
 
             const MATH::Vec3 gravity = settings_.gravity *
                 binding.bodyDesc.gravityScale;
+            const bool jumpActiveBeforeStep =
+                binding.kinematicJumpActive;
             const bool onGround = before.IsGrounded();
+            constexpr float kGroundDetachSpeed = 0.1f;
             const float relativeVertical =
                 before.linearVelocity.y - before.groundVelocity.y;
             MATH::Vec3 velocity{};
-            if (onGround && relativeVertical < 0.1f) {
+            if (onGround && !binding.kinematicJumpActive &&
+                relativeVertical < kGroundDetachSpeed) {
                 velocity = before.groundVelocity +
                     request.horizontalVelocity;
             } else {
@@ -183,10 +204,13 @@ namespace HIKARI::PHYSICS {
             }
             const bool canApplyJump = onGround ||
                 request.allowJumpWithoutGroundContact;
+            bool jumpApplied = false;
             if (request.jumpRequested && canApplyJump &&
                 request.jumpSpeed > 0.0f) {
                 velocity.y = request.jumpSpeed +
                     (onGround ? before.groundVelocity.y : 0.0f);
+                jumpApplied = true;
+                binding.kinematicJumpActive = true;
             }
             velocity = velocity + gravity * frame.fixedDt;
             if (request.maximumFallSpeed > 0.0f) {
@@ -198,6 +222,13 @@ namespace HIKARI::PHYSICS {
                 kinematicMotion_->ConsumeExternalVelocity(
                     binding.object);
 
+            const float supportVerticalVelocity = onGround
+                ? before.groundVelocity.y
+                : 0.0f;
+            const bool ascendingAwayFromGround = jumpApplied ||
+                velocity.y - supportVerticalVelocity >
+                    kGroundDetachSpeed;
+
             if (!service_->SetCharacterVelocity(
                     binding.kinematicSolver,
                     velocity)) {
@@ -206,11 +237,19 @@ namespace HIKARI::PHYSICS {
             }
             PhysicsCharacterStepSettings step{};
             step.gravity = gravity;
-            step.stepUpHeight = request.controller.stepUpHeight;
-            step.stickToFloorDistance =
-                request.controller.stickToFloorDistance;
-            step.stepForwardTestDistance =
-                request.controller.stepForwardTestDistance;
+            // Step and floor-snap helpers are ground traversal policies. A
+            // jump keeps them disabled for its complete airborne lifecycle,
+            // including descent, until the solver confirms a real landing.
+            const bool allowGroundTraversal = onGround &&
+                !binding.kinematicJumpActive &&
+                !ascendingAwayFromGround;
+            if (allowGroundTraversal) {
+                step.stepUpHeight = request.controller.stepUpHeight;
+                step.stickToFloorDistance =
+                    request.controller.stickToFloorDistance;
+                step.stepForwardTestDistance =
+                    request.controller.stepForwardTestDistance;
+            }
             if (!service_->StepCharacter(
                     binding.kinematicSolver,
                     frame.fixedDt,
@@ -226,6 +265,44 @@ namespace HIKARI::PHYSICS {
                 setError("unable to read the kinematic motion result");
                 continue;
             }
+            if (binding.kinematicJumpActive && after.hitCeiling &&
+                after.linearVelocity.y > 0.0f) {
+                after.linearVelocity.y = 0.0f;
+                (void)service_->SetCharacterVelocity(
+                    binding.kinematicSolver,
+                    after.linearVelocity);
+            }
+            const float landingRelativeVertical =
+                after.linearVelocity.y - after.groundVelocity.y;
+            if (binding.kinematicJumpActive && !jumpApplied &&
+                after.IsGrounded() &&
+                landingRelativeVertical < kGroundDetachSpeed) {
+                binding.kinematicJumpActive = false;
+            }
+            TraceKinematicMotionStep({
+                object->GetName(),
+                binding.object,
+                binding.body,
+                solverBeforeEnsure,
+                binding.kinematicSolver,
+                solverSignatureBeforeEnsure,
+                binding.kinematicSolverSignature,
+                frame,
+                bodyState,
+                solverStateBeforeSync,
+                before,
+                after,
+                request,
+                gravity,
+                velocity,
+                hasSolverStateBeforeSync,
+                retainedPreviousSolver,
+                jumpActiveAtEntry,
+                jumpActiveBeforeStep,
+                jumpApplied,
+                binding.kinematicJumpActive,
+                allowGroundTraversal
+            });
             if (!service_->SetKinematicTarget(
                     binding.body,
                     after.pose) ||

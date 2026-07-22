@@ -19,6 +19,7 @@
 #include "Core/HIKARI_Logger.h"
 #include "Importers/HIKARI_MaterialImporter.h"
 #include "Importers/HIKARI_ModelImporter.h"
+#include "Importers/HIKARI_AnimationStateMachineAssetImporter.h"
 #include "Importers/HIKARI_SceneAssetImporter.h"
 #include "Importers/HIKARI_SequenceAssetImporter.h"
 #include "Importers/HIKARI_SkyCubemapImporter.h"
@@ -134,6 +135,8 @@ namespace HIKARI {
             case AssetType::Particle: return "Particle";
             case AssetType::VfxEffect: return "VfxEffect";
             case AssetType::Sequence: return "Sequence";
+            case AssetType::AnimationStateMachine:
+                return "AnimationStateMachine";
             case AssetType::Unknown:
             default: return "Unknown";
             }
@@ -149,6 +152,9 @@ namespace HIKARI {
             if (text == "Particle") return AssetType::Particle;
             if (text == "VfxEffect" || text == "Vfx") return AssetType::VfxEffect;
             if (text == "Sequence") return AssetType::Sequence;
+            if (text == "AnimationStateMachine") {
+                return AssetType::AnimationStateMachine;
+            }
             return AssetType::Unknown;
         }
 
@@ -305,6 +311,7 @@ namespace HIKARI {
             case AssetType::Scene:
                 return 5;
             case AssetType::Sequence:
+            case AssetType::AnimationStateMachine:
                 return 5;
             default:
                 return 6;
@@ -1266,6 +1273,9 @@ namespace HIKARI {
         if (ext == ".hsequence") {
             return AssetType::Sequence;
         }
+        if (ext == ".hanimsm") {
+            return AssetType::AnimationStateMachine;
+        }
         if (ext == ".hmat" || EndsWith(generic, ".material.json")) {
             return AssetType::Material;
         }
@@ -1291,6 +1301,9 @@ namespace HIKARI {
         if (type == AssetType::Sequence) {
             return "SequenceAssetImporter";
         }
+        if (type == AssetType::AnimationStateMachine) {
+            return "AnimationStateMachineAssetImporter";
+        }
         if (type == AssetType::Material) {
             return "MaterialImporter";
         }
@@ -1312,6 +1325,8 @@ namespace HIKARI {
         importerRegistry_.Register(std::make_unique<ModelImporter>());
         importerRegistry_.Register(std::make_unique<SceneAssetImporter>());
         importerRegistry_.Register(std::make_unique<SequenceAssetImporter>());
+        importerRegistry_.Register(
+            std::make_unique<AnimationStateMachineAssetImporter>());
         importerRegistry_.Register(std::make_unique<MaterialImporter>());
         importerRegistry_.Register(std::make_unique<VfxAssetImporter>());
     }
@@ -1328,6 +1343,7 @@ namespace HIKARI {
             assetsRoot_ / "Vfx",
             assetsRoot_ / "Shaders",
             assetsRoot_ / "Scenes",
+            assetsRoot_ / "AnimationStateMachines",
             assetsRoot_ / "Sequences",
             libraryRoot_,
             libraryRoot_ / "Imported",

@@ -31,6 +31,9 @@
     <Filter Include="Header Files\Assets\Sequence">
       <UniqueIdentifier>{35791952-5E4C-4A9E-A795-8A94363BE84F}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Header Files\Assets\Animation">
+      <UniqueIdentifier>{DA8E0D2D-18C9-4E0C-83A3-C9B5B47CBA51}</UniqueIdentifier>
+    </Filter>
     <Filter Include="Header Files\Audio">
       <UniqueIdentifier>{7316CE12-9406-53C4-B4D6-FA6C72F69C2A}</UniqueIdentifier>
     </Filter>
@@ -208,6 +211,9 @@
     <Filter Include="Header Files\Animation\Runtime">
       <UniqueIdentifier>{BFE3BE7E-1DBF-4A0C-8F84-6AA276230D3C}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Header Files\Animation\StateMachine">
+      <UniqueIdentifier>{7C65B299-ACAA-4C7A-93BA-8F08E1356E7D}</UniqueIdentifier>
+    </Filter>
     <Filter Include="Header Files\Gameplay">
       <UniqueIdentifier>{0316D94F-9A97-4C1D-873E-282C9CF14F4D}</UniqueIdentifier>
     </Filter>
@@ -382,6 +388,9 @@
     <Filter Include="Source Files\Assets\Sequence">
       <UniqueIdentifier>{A6CF16EE-1C1F-4754-87D4-57079616B706}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Source Files\Assets\Animation">
+      <UniqueIdentifier>{3B8FA2F0-7D79-46D6-BF3E-A9FC44489405}</UniqueIdentifier>
+    </Filter>
     <Filter Include="Source Files\Audio">
       <UniqueIdentifier>{6342A581-ED5F-55FD-923E-8CB34D3C22EC}</UniqueIdentifier>
     </Filter>
@@ -549,6 +558,9 @@
     </Filter>
     <Filter Include="Source Files\Animation\Runtime">
       <UniqueIdentifier>{7D8C9049-940D-4A05-B673-6E138689C53A}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Animation\StateMachine">
+      <UniqueIdentifier>{AA1F55B7-B019-44B2-BEA1-D68D4E22DFEA}</UniqueIdentifier>
     </Filter>
     <Filter Include="Source Files\Gameplay">
       <UniqueIdentifier>{F6FC7D6F-BB05-4DD5-96E1-5409FD2202E7}</UniqueIdentifier>
@@ -987,6 +999,30 @@
     <ClCompile Include="HIKARI\Editor\Workspaces\HIKARI_ModelCollisionWorkspaceWindows.cpp">
       <Filter>Source Files\Editor\Workspaces</Filter>
     </ClCompile>
+    <ClCompile Include="HIKARI\Editor\Workspaces\HIKARI_AnimationStateMachineWorkspaceController.cpp">
+      <Filter>Source Files\Editor\Workspaces</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Editor\Workspaces\HIKARI_AnimationStateMachineDocumentWorkflow.cpp">
+      <Filter>Source Files\Editor\Workspaces</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Editor\Workspaces\HIKARI_AnimationStateMachineWorkspaceWindows.cpp">
+      <Filter>Source Files\Editor\Workspaces</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Editor\Workspaces\HIKARI_AnimationStateMachineDetailsPanel.cpp">
+      <Filter>Source Files\Editor\Workspaces</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Editor\Workspaces\HIKARI_AnimationStateMachineMotionEditor.cpp">
+      <Filter>Source Files\Editor\Workspaces</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Editor\Workspaces\HIKARI_AnimationStateMachineRuntimeDebug.cpp">
+      <Filter>Source Files\Editor\Workspaces</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Editor\Workspaces\HIKARI_AnimationStateMachineGraphPanel.cpp">
+      <Filter>Source Files\Editor\Workspaces</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Editor\Workspaces\HIKARI_AnimationStateMachineGraphMenu.cpp">
+      <Filter>Source Files\Editor\Workspaces</Filter>
+    </ClCompile>
     <ClCompile Include="HIKARI\Editor\Export\HIKARI_GameExporter.cpp">
       <Filter>Source Files\Editor\Export</Filter>
     </ClCompile>
@@ -1029,7 +1065,13 @@
     <ClCompile Include="HIKARI\Editor\Authoring\HIKARI_SequenceAssetAuthoringService.cpp">
       <Filter>Source Files\Editor\Authoring</Filter>
     </ClCompile>
+    <ClCompile Include="HIKARI\Editor\Authoring\HIKARI_AnimationStateMachineAssetAuthoringService.cpp">
+      <Filter>Source Files\Editor\Authoring</Filter>
+    </ClCompile>
     <ClCompile Include="HIKARI\Editor\Documents\HIKARI_SequenceEditorDocument.cpp">
+      <Filter>Source Files\Editor\Documents</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Editor\Documents\HIKARI_AnimationStateMachineEditorDocument.cpp">
       <Filter>Source Files\Editor\Documents</Filter>
     </ClCompile>
     <ClCompile Include="HIKARI\Editor\Documents\HIKARI_SequenceEditorDocumentController.cpp">
@@ -1194,11 +1236,20 @@
     <ClCompile Include="HIKARI\Assets\Importers\HIKARI_SequenceAssetImporter.cpp">
       <Filter>Source Files\Assets\Importers</Filter>
     </ClCompile>
+    <ClCompile Include="HIKARI\Assets\Importers\HIKARI_AnimationStateMachineAssetImporter.cpp">
+      <Filter>Source Files\Assets\Importers</Filter>
+    </ClCompile>
     <ClCompile Include="HIKARI\Assets\Sequence\HIKARI_SequenceAsset.cpp">
       <Filter>Source Files\Assets\Sequence</Filter>
     </ClCompile>
     <ClCompile Include="HIKARI\Assets\Sequence\HIKARI_SequenceAssetStore.cpp">
       <Filter>Source Files\Assets\Sequence</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Assets\Animation\HIKARI_AnimationStateMachineAsset.cpp">
+      <Filter>Source Files\Assets\Animation</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Assets\Animation\HIKARI_AnimationStateMachineAssetStore.cpp">
+      <Filter>Source Files\Assets\Animation</Filter>
     </ClCompile>
     <ClCompile Include="HIKARI\Assets\Importers\HIKARI_SkyCubemapImporter.cpp">
       <Filter>Source Files\Assets\Importers</Filter>
@@ -1653,6 +1704,27 @@
     <ClCompile Include="HIKARI\Animation\Runtime\HIKARI_AnimationSystem.cpp">
       <Filter>Source Files\Animation\Runtime</Filter>
     </ClCompile>
+    <ClCompile Include="HIKARI\Animation\StateMachine\HIKARI_AnimationStateMachine.cpp">
+      <Filter>Source Files\Animation\StateMachine</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Animation\StateMachine\HIKARI_AnimationStateMotionEvaluator.cpp">
+      <Filter>Source Files\Animation\StateMachine</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Animation\StateMachine\HIKARI_AnimationStateMachineJson.cpp">
+      <Filter>Source Files\Animation\StateMachine</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Animation\StateMachine\HIKARI_AnimationStateMachineInstance.cpp">
+      <Filter>Source Files\Animation\StateMachine</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Animation\StateMachine\HIKARI_AnimationStateMachineRuntimeService.cpp">
+      <Filter>Source Files\Animation\StateMachine</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Animation\StateMachine\HIKARI_CharacterMotionAnimationBridge.cpp">
+      <Filter>Source Files\Animation\StateMachine</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Animation\StateMachine\HIKARI_AnimationStateMachineSystem.cpp">
+      <Filter>Source Files\Animation\StateMachine</Filter>
+    </ClCompile>
     <ClCompile Include="HIKARI\Scene\HIKARI_CharacterMotionStateSystem.cpp">
       <Filter>Source Files\Scene\Systems</Filter>
     </ClCompile>
@@ -1746,10 +1818,19 @@
     <ClCompile Include="HIKARI\Scene\Components\HIKARI_AnimatorComponent.cpp">
       <Filter>Source Files\Scene\Components</Filter>
     </ClCompile>
+    <ClCompile Include="HIKARI\Scene\Components\HIKARI_AnimationStateMachineComponent.cpp">
+      <Filter>Source Files\Scene\Components</Filter>
+    </ClCompile>
     <ClCompile Include="HIKARI\Physics\HIKARI_PhysicsSystem.cpp">
       <Filter>Source Files\Physics</Filter>
     </ClCompile>
     <ClCompile Include="HIKARI\Physics\HIKARI_PhysicsSystemBodyLifecycle.cpp">
+      <Filter>Source Files\Physics</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Physics\HIKARI_PhysicsDefinitionScale.cpp">
+      <Filter>Source Files\Physics</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Physics\HIKARI_KinematicMotionDiagnostics.cpp">
       <Filter>Source Files\Physics</Filter>
     </ClCompile>
     <ClCompile Include="HIKARI\Physics\HIKARI_PhysicsSystemKinematicMotion.cpp">
@@ -2497,6 +2578,9 @@
     <ClInclude Include="HIKARI\Editor\Workspaces\HIKARI_ModelCollisionWorkspaceController.h">
       <Filter>Header Files\Editor\Workspaces</Filter>
     </ClInclude>
+    <ClInclude Include="HIKARI\Editor\Workspaces\HIKARI_AnimationStateMachineWorkspaceController.h">
+      <Filter>Header Files\Editor\Workspaces</Filter>
+    </ClInclude>
     <ClInclude Include="HIKARI\Editor\HIKARI_EditorStyle.h">
       <Filter>Header Files\Editor</Filter>
     </ClInclude>
@@ -2530,7 +2614,13 @@
     <ClInclude Include="HIKARI\Editor\Authoring\HIKARI_SequenceAssetAuthoringService.h">
       <Filter>Header Files\Editor\Authoring</Filter>
     </ClInclude>
+    <ClInclude Include="HIKARI\Editor\Authoring\HIKARI_AnimationStateMachineAssetAuthoringService.h">
+      <Filter>Header Files\Editor\Authoring</Filter>
+    </ClInclude>
     <ClInclude Include="HIKARI\Editor\Documents\HIKARI_SequenceEditorDocument.h">
+      <Filter>Header Files\Editor\Documents</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Editor\Documents\HIKARI_AnimationStateMachineEditorDocument.h">
       <Filter>Header Files\Editor\Documents</Filter>
     </ClInclude>
     <ClInclude Include="HIKARI\Editor\Documents\HIKARI_SequenceEditorDocumentController.h">
@@ -2794,11 +2884,20 @@
     <ClInclude Include="HIKARI\Assets\Importers\HIKARI_SequenceAssetImporter.h">
       <Filter>Header Files\Assets\Importers</Filter>
     </ClInclude>
+    <ClInclude Include="HIKARI\Assets\Importers\HIKARI_AnimationStateMachineAssetImporter.h">
+      <Filter>Header Files\Assets\Importers</Filter>
+    </ClInclude>
     <ClInclude Include="HIKARI\Assets\Sequence\HIKARI_SequenceAsset.h">
       <Filter>Header Files\Assets\Sequence</Filter>
     </ClInclude>
     <ClInclude Include="HIKARI\Assets\Sequence\HIKARI_SequenceAssetStore.h">
       <Filter>Header Files\Assets\Sequence</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Assets\Animation\HIKARI_AnimationStateMachineAsset.h">
+      <Filter>Header Files\Assets\Animation</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Assets\Animation\HIKARI_AnimationStateMachineAssetStore.h">
+      <Filter>Header Files\Assets\Animation</Filter>
     </ClInclude>
     <ClInclude Include="HIKARI\Assets\Importers\HIKARI_SkyCubemapImporter.h">
       <Filter>Header Files\Assets\Importers</Filter>
@@ -3082,6 +3181,27 @@
     <ClInclude Include="HIKARI\Animation\Runtime\HIKARI_AnimationSystem.h">
       <Filter>Header Files\Animation\Runtime</Filter>
     </ClInclude>
+    <ClInclude Include="HIKARI\Animation\StateMachine\HIKARI_AnimationStateMachine.h">
+      <Filter>Header Files\Animation\StateMachine</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Animation\StateMachine\HIKARI_AnimationStateMotionEvaluator.h">
+      <Filter>Header Files\Animation\StateMachine</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Animation\StateMachine\HIKARI_AnimationStateMachineJson.h">
+      <Filter>Header Files\Animation\StateMachine</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Animation\StateMachine\HIKARI_AnimationStateMachineInstance.h">
+      <Filter>Header Files\Animation\StateMachine</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Animation\StateMachine\HIKARI_AnimationStateMachineRuntimeService.h">
+      <Filter>Header Files\Animation\StateMachine</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Animation\StateMachine\HIKARI_CharacterMotionAnimationBridge.h">
+      <Filter>Header Files\Animation\StateMachine</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Animation\StateMachine\HIKARI_AnimationStateMachineSystem.h">
+      <Filter>Header Files\Animation\StateMachine</Filter>
+    </ClInclude>
     <ClInclude Include="HIKARI\Scene\HIKARI_CharacterMotionStateSystem.h">
       <Filter>Header Files\Scene\Systems</Filter>
     </ClInclude>
@@ -3196,6 +3316,9 @@
     <ClInclude Include="HIKARI\Scene\Components\HIKARI_AnimatorComponent.h">
       <Filter>Header Files\Scene\Components</Filter>
     </ClInclude>
+    <ClInclude Include="HIKARI\Scene\Components\HIKARI_AnimationStateMachineComponent.h">
+      <Filter>Header Files\Scene\Components</Filter>
+    </ClInclude>
     <ClInclude Include="HIKARI\Physics\HIKARI_IPhysicsWorldBackend.h">
       <Filter>Header Files\Physics</Filter>
     </ClInclude>
@@ -3203,6 +3326,9 @@
       <Filter>Header Files\Core</Filter>
     </ClInclude>
     <ClInclude Include="HIKARI\Physics\HIKARI_PhysicsSceneBridge.h">
+      <Filter>Header Files\Physics</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Physics\HIKARI_PhysicsDefinitionScale.h">
       <Filter>Header Files\Physics</Filter>
     </ClInclude>
     <ClInclude Include="HIKARI\Physics\HIKARI_PhysicsBodyValidator.h">
@@ -3218,6 +3344,9 @@
       <Filter>Header Files\Physics</Filter>
     </ClInclude>
     <ClInclude Include="HIKARI\Physics\HIKARI_KinematicMotionTypes.h">
+      <Filter>Header Files\Physics</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Physics\HIKARI_KinematicMotionDiagnostics.h">
       <Filter>Header Files\Physics</Filter>
     </ClInclude>
     <ClInclude Include="HIKARI\Physics\HIKARI_PhysicsSystem.h">

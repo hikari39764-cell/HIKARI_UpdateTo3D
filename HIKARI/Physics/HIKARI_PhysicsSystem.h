@@ -56,6 +56,7 @@ namespace HIKARI::PHYSICS {
                 PhysicsMotionType::Static;
             uint64_t definitionSignature = 0;
             uint64_t sourceRevision = 0;
+            MATH::Vec3 definitionWorldScale{ 1.0f, 1.0f, 1.0f };
             PhysicsPose lastPushedPose{};
             bool hasLastPushedPose = false;
             PhysicsBodyState previousFixedState{};
@@ -63,6 +64,10 @@ namespace HIKARI::PHYSICS {
             bool hasFixedState = false;
             PhysicsCharacterHandle kinematicSolver{};
             uint64_t kinematicSolverSignature = 0u;
+            // A jump is a multi-tick controller motion. Keep its lifecycle
+            // in the physics integration so transient contact changes cannot
+            // re-enable ground traversal before a real landing.
+            bool kinematicJumpActive = false;
         };
 
         struct ReconcileFailure {

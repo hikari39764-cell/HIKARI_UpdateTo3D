@@ -44,6 +44,10 @@ namespace HIKARI::PHYSICS {
             const RuntimeObjectHandle objectHandle =
                 object.GetRuntimeHandle();
             const uint64_t objectKey = objectHandle.ToValue();
+            auto retained = bindings_.find(objectKey);
+            BodyBinding* retainedBinding = retained != bindings_.end()
+                ? &retained->second
+                : nullptr;
             PhysicsBodyCreateInfo createInfo{};
             MATH::Vec3 worldScale{};
             PhysicsBodyBuildResult build =
@@ -51,7 +55,10 @@ namespace HIKARI::PHYSICS {
                     object,
                     createInfo,
                     worldScale,
-                    collisionGeometryStore_);
+                    collisionGeometryStore_,
+                    retainedBinding != nullptr
+                        ? &retainedBinding->definitionWorldScale
+                        : nullptr);
             if (!build.hasDefinition) {
                 auto stale = bindings_.find(objectKey);
                 if (stale != bindings_.end()) {
@@ -73,10 +80,6 @@ namespace HIKARI::PHYSICS {
             }
 
             liveObjects.insert(objectKey);
-            auto retained = bindings_.find(objectKey);
-            BodyBinding* retainedBinding = retained != bindings_.end()
-                ? &retained->second
-                : nullptr;
             if (!build.success) {
                 ReportFailure(
                     objectHandle,
@@ -183,6 +186,7 @@ namespace HIKARI::PHYSICS {
             binding.effectiveMotionType = created.effectiveMotionType;
             binding.definitionSignature = signature;
             binding.sourceRevision = build.sourceRevision;
+            binding.definitionWorldScale = worldScale;
             binding.lastPushedPose = createInfo.initialPose;
             binding.hasLastPushedPose = true;
             binding.currentFixedState = hasPreservedState

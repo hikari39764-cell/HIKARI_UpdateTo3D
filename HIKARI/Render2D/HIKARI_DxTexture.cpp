@@ -414,6 +414,24 @@ namespace HIKARI {
             return handle;
         }
 
+        int DxTextureManager::FindLoadedTextureWithColorSpace(
+            const std::string& name,
+            const std::string& path,
+            TextureColorSpace colorSpace)
+        {
+            EnsureInit();
+            const TextureColorSpace resolvedColorSpace =
+                ResolveTextureLoadColorSpace(name, path, colorSpace);
+            const std::string cacheKey =
+                MakeTextureCacheKey(name, path, resolvedColorSpace);
+            const auto found = nameToHandle_.find(cacheKey);
+            if (found == nameToHandle_.end() ||
+                !IsTextureHandleValid(found->second)) {
+                return -1;
+            }
+            return found->second;
+        }
+
         std::vector<TextureLoadResult> DxTextureManager::LoadTexturesWithColorSpaceBatch(
             const std::vector<TextureLoadRequest>& requests,
             TextureBatchLoadStats* outStats)

@@ -35,6 +35,29 @@ namespace HIKARI::MESHRENDERER {
                 texturePath,
                 colorSpace);
         }
+
+        bool TryResolveLoadedMaterialTexture(
+            std::unordered_map<std::string, RENDER3D::TextureResourceHandle>& cache,
+            const std::string& cacheKey,
+            const std::string& debugNamePrefix,
+            const std::string& texturePath,
+            RENDER3D::TextureResourceColorSpace colorSpace,
+            int fallbackHandle,
+            int& outBackendHandle) {
+
+            const RENDER3D::TextureResourceHandle resource =
+                RENDER3D::FindLoadedTextureResourceWithColorSpace(
+                    debugNamePrefix + texturePath,
+                    texturePath,
+                    colorSpace);
+            if (!resource) {
+                return false;
+            }
+
+            cache[cacheKey] = resource;
+            outBackendHandle = BackendOrFallback(resource, fallbackHandle);
+            return true;
+        }
     }
 
     void MeshMaterialResolver::SetFallbacks(const MeshMaterialResolverFallbacks& fallbacks) {
@@ -121,6 +144,21 @@ namespace HIKARI::MESHRENDERER {
             return BackendOrFallback(found->second, fallbacks_.whiteTexture);
         }
 
+        int loadedHandle = fallbacks_.whiteTexture;
+        if (TryResolveLoadedMaterialTexture(
+                materialTextureCache_,
+                texturePath,
+                "model_material/baseColor/",
+                texturePath,
+                RENDER3D::TextureResourceColorSpace::Srgb,
+                fallbacks_.whiteTexture,
+                loadedHandle)) {
+            if (stats != nullptr) {
+                ++stats->materialTextureCacheHitCount;
+            }
+            return loadedHandle;
+        }
+
         if (!TryAcquireTextureLoadBudget(stats)) {
             return fallbacks_.whiteTexture;
         }
@@ -169,6 +207,21 @@ namespace HIKARI::MESHRENDERER {
             return BackendOrFallback(found->second, fallbacks_.normalTexture);
         }
 
+        int loadedHandle = fallbacks_.normalTexture;
+        if (TryResolveLoadedMaterialTexture(
+                materialTextureCache_,
+                cacheKey,
+                "model_material/normal/",
+                texturePath,
+                RENDER3D::TextureResourceColorSpace::Linear,
+                fallbacks_.normalTexture,
+                loadedHandle)) {
+            if (stats != nullptr) {
+                ++stats->normalTextureCacheHitCount;
+            }
+            return loadedHandle;
+        }
+
         if (!TryAcquireTextureLoadBudget(stats)) {
             return fallbacks_.normalTexture;
         }
@@ -215,6 +268,21 @@ namespace HIKARI::MESHRENDERER {
                 ++stats->emissiveTextureCacheHitCount;
             }
             return BackendOrFallback(found->second, fallbacks_.blackTexture);
+        }
+
+        int loadedHandle = fallbacks_.blackTexture;
+        if (TryResolveLoadedMaterialTexture(
+                materialTextureCache_,
+                cacheKey,
+                "model_material/emissive/",
+                texturePath,
+                RENDER3D::TextureResourceColorSpace::Srgb,
+                fallbacks_.blackTexture,
+                loadedHandle)) {
+            if (stats != nullptr) {
+                ++stats->emissiveTextureCacheHitCount;
+            }
+            return loadedHandle;
         }
 
         if (!TryAcquireTextureLoadBudget(stats)) {
@@ -266,6 +334,21 @@ namespace HIKARI::MESHRENDERER {
                 ++stats->metallicRoughnessTextureCacheHitCount;
             }
             return BackendOrFallback(found->second, fallbacks_.whiteTexture);
+        }
+
+        int loadedHandle = fallbacks_.whiteTexture;
+        if (TryResolveLoadedMaterialTexture(
+                materialTextureCache_,
+                cacheKey,
+                "model_material/metallic_roughness/",
+                texturePath,
+                RENDER3D::TextureResourceColorSpace::Linear,
+                fallbacks_.whiteTexture,
+                loadedHandle)) {
+            if (stats != nullptr) {
+                ++stats->metallicRoughnessTextureCacheHitCount;
+            }
+            return loadedHandle;
         }
 
         if (!TryAcquireTextureLoadBudget(stats)) {
@@ -324,6 +407,21 @@ namespace HIKARI::MESHRENDERER {
             return BackendOrFallback(found->second, fallbacks_.whiteTexture);
         }
 
+        int loadedHandle = fallbacks_.whiteTexture;
+        if (TryResolveLoadedMaterialTexture(
+                materialTextureCache_,
+                cacheKey,
+                "model_material/occlusion/",
+                texturePath,
+                RENDER3D::TextureResourceColorSpace::Linear,
+                fallbacks_.whiteTexture,
+                loadedHandle)) {
+            if (stats != nullptr) {
+                ++stats->occlusionTextureCacheHitCount;
+            }
+            return loadedHandle;
+        }
+
         if (!TryAcquireTextureLoadBudget(stats)) {
             return fallbacks_.whiteTexture;
         }
@@ -371,6 +469,21 @@ namespace HIKARI::MESHRENDERER {
             return BackendOrFallback(found->second, fallbacks_.whiteTexture);
         }
 
+        int loadedHandle = fallbacks_.whiteTexture;
+        if (TryResolveLoadedMaterialTexture(
+                materialTextureCache_,
+                cacheKey,
+                "model_material/specular/",
+                texturePath,
+                RENDER3D::TextureResourceColorSpace::Linear,
+                fallbacks_.whiteTexture,
+                loadedHandle)) {
+            if (stats != nullptr) {
+                ++stats->materialTextureCacheHitCount;
+            }
+            return loadedHandle;
+        }
+
         if (!TryAcquireTextureLoadBudget(stats)) {
             return fallbacks_.whiteTexture;
         }
@@ -411,6 +524,21 @@ namespace HIKARI::MESHRENDERER {
                 ++stats->materialTextureCacheHitCount;
             }
             return BackendOrFallback(found->second, fallbacks_.whiteTexture);
+        }
+
+        int loadedHandle = fallbacks_.whiteTexture;
+        if (TryResolveLoadedMaterialTexture(
+                materialTextureCache_,
+                cacheKey,
+                "model_material/specular_color/",
+                texturePath,
+                RENDER3D::TextureResourceColorSpace::Srgb,
+                fallbacks_.whiteTexture,
+                loadedHandle)) {
+            if (stats != nullptr) {
+                ++stats->materialTextureCacheHitCount;
+            }
+            return loadedHandle;
         }
 
         if (!TryAcquireTextureLoadBudget(stats)) {

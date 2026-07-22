@@ -446,26 +446,6 @@
       "components": [
         {
           "properties": {
-            "assetId": "316766690d9a63d68e3eff3494736c27",
-            "castShadow": true,
-            "debugRenderMode": "Normal",
-            "materialFxProfileId": "",
-            "materialFxValuesInitialized": false,
-            "materialOverrides": [],
-            "maxWireLines": 20000,
-            "postGroupMask": 0,
-            "receiveShadow": true,
-            "renderStatic": true,
-            "showSkeletonDebug": false,
-            "skeletonDebugXRay": false,
-            "visible": true,
-            "wireColor": 16755455,
-            "wirePerPrimitiveColor": true
-          },
-          "type": "ModelComponent"
-        },
-        {
-          "properties": {
             "center": [
               -8.5,
               -2.5999999046325684,
@@ -499,6 +479,26 @@
             "trigger": false
           },
           "type": "ColliderComponent"
+        },
+        {
+          "properties": {
+            "assetId": "316766690d9a63d68e3eff3494736c27",
+            "castShadow": true,
+            "debugRenderMode": "Normal",
+            "materialFxProfileId": "",
+            "materialFxValuesInitialized": false,
+            "materialOverrides": [],
+            "maxWireLines": 20000,
+            "postGroupMask": 0,
+            "receiveShadow": true,
+            "renderStatic": false,
+            "showSkeletonDebug": false,
+            "skeletonDebugXRay": false,
+            "visible": true,
+            "wireColor": 16755455,
+            "wirePerPrimitiveColor": true
+          },
+          "type": "ModelComponent"
         }
       ],
       "editorVisible": true,
@@ -615,7 +615,7 @@
             "angularDamping": 0.05000000074505806,
             "continuousCollision": true,
             "enabled": true,
-            "gravityScale": 1.0,
+            "gravityScale": 1.399999976158142,
             "initialAngularVelocity": [
               0.0,
               0.0,
@@ -637,14 +637,14 @@
               0.0,
               0.0
             ],
-            "mass": 70.0,
+            "mass": 68.0,
             "motionType": "Kinematic"
           },
           "type": "PhysicsBodyComponent"
         },
         {
           "properties": {
-            "acceleration": 30.0,
+            "acceleration": 25.0,
             "airAcceleration": 10.0,
             "airDeceleration": 12.0,
             "characterPadding": 0.019999999552965164,
@@ -653,21 +653,21 @@
             "enhancedInternalEdgeRemoval": true,
             "groundGraceSeconds": 0.10000000149011612,
             "inputDeadZone": 0.07999999821186066,
-            "jumpBufferSeconds": 0.11999999731779099,
-            "jumpHeight": 1.2000000476837158,
+            "jumpBufferSeconds": 0.10000000149011612,
+            "jumpHeight": 1.0,
             "maximumCollisionHits": 256,
             "maximumFallSpeed": 55.0,
             "maximumSlopeAngleDegrees": 50.0,
-            "maximumSpeed": 5.0,
+            "maximumSpeed": 3.200000047683716,
             "motionPriority": 100,
             "movementSpace": "Camera",
             "penetrationRecoverySpeed": 1.0,
             "predictiveContactDistance": 0.10000000149011612,
             "rotateToMove": true,
             "sprintMultiplier": 1.5,
-            "stepForwardTestDistance": 0.15000000596046448,
+            "stepForwardTestDistance": 1.0,
             "stepHeight": 0.4000000059604645,
-            "stickToFloorDistance": 0.5,
+            "stickToFloorDistance": 1.0,
             "turnSpeedDegrees": 720.0
           },
           "type": "CharacterLocomotionComponent"
@@ -682,6 +682,30 @@
             "sprintAction": "Gameplay.Sprint"
           },
           "type": "CharacterInputComponent"
+        },
+        {
+          "properties": {
+            "autoPlay": true,
+            "clip": "Idle_Loop",
+            "clipId": 796133302757091679,
+            "clipModelAssetId": "b5495438c8743f173e2cf1a7536224af",
+            "defaultBlendDurationSec": 0.20000000298023224,
+            "finished": false,
+            "loop": true,
+            "playing": true,
+            "speed": 1.0,
+            "timeSec": 0.04368479922413826
+          },
+          "type": "AnimatorComponent"
+        },
+        {
+          "properties": {
+            "enabled": true,
+            "playOnStart": true,
+            "stateMachineAssetGuid": "7ec5b84321976180c7cbd7b4cb36d320",
+            "syncCharacterMotion": true
+          },
+          "type": "AnimationStateMachineComponent"
         }
       ],
       "editorVisible": true,
@@ -692,9 +716,9 @@
       "sourcePrefabId": "",
       "transform": {
         "position": [
-          -11.1691312789917,
-          4.5257887840271,
-          -1.1672077178955078
+          -11.062285423278809,
+          4.333516597747803,
+          -1.2606830596923828
         ],
         "rotationEulerDeg": [
           0.0,
@@ -713,7 +737,7 @@
         {
           "properties": {
             "enabled": true,
-            "farClip": 100.0,
+            "farClip": 157.0,
             "nearClip": 0.10000000149011612,
             "verticalFovDegrees": 60.0
           },
@@ -730,7 +754,7 @@
             "collisionRadius": 0.25,
             "distanceSmooth": 18.0,
             "enabled": true,
-            "followSmooth": 12.0,
+            "followSmooth": 22.600000381469727,
             "initialDistance": 5.800000190734863,
             "initialPitchDegrees": 28.0,
             "initialYawDegrees": 0.0,
@@ -771,7 +795,129 @@
         "position": [
           -9.300864219665527,
           5.176947116851807,
-          -7.22235107421875
+          -9.436297416687012
+        ],
+        "rotationEulerDeg": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "scale": [
+          1.0,
+          1.0,
+          1.0
+        ]
+      }
+    },
+    {
+      "components": [
+        {
+          "properties": {
+            "assetId": "",
+            "castShadow": true,
+            "receiveShadow": true,
+            "renderStatic": false,
+            "visible": true
+          },
+          "type": "ModelComponent"
+        },
+        {
+          "properties": {
+            "depth": 1.0,
+            "doubleSided": false,
+            "generateTangents": true,
+            "height": 1.0,
+            "kind": "Box",
+            "segmentsX": 10,
+            "segmentsY": 10,
+            "segmentsZ": 1,
+            "sphereSlices": 32,
+            "sphereStacks": 16,
+            "width": 1.0
+          },
+          "type": "ProceduralMeshComponent"
+        },
+        {
+          "properties": {
+            "center": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "collisionAssetId": "",
+            "enabled": true,
+            "filter": {
+              "layer": 1,
+              "mask": 4294967295
+            },
+            "fitMode": "Geometry",
+            "height": 1.0,
+            "material": {
+              "density": 1.0,
+              "friction": 0.5,
+              "restitution": 0.0
+            },
+            "radius": 0.5,
+            "rotation": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "shape": "Box",
+            "size": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "trigger": false
+          },
+          "type": "ColliderComponent"
+        },
+        {
+          "properties": {
+            "allowSleeping": true,
+            "angularDamping": 0.05000000074505806,
+            "continuousCollision": false,
+            "enabled": true,
+            "gravityScale": 1.0,
+            "initialAngularVelocity": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "initialLinearVelocity": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "linearDamping": 0.05000000074505806,
+            "lockRotation": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "lockTranslation": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "mass": 1.0,
+            "motionType": "Dynamic"
+          },
+          "type": "PhysicsBodyComponent"
+        }
+      ],
+      "editorVisible": true,
+      "enabled": true,
+      "id": 7,
+      "name": "Box",
+      "parent": null,
+      "sourcePrefabId": "",
+      "transform": {
+        "position": [
+          -14.544028282165527,
+          6.562768936157227,
+          2.909273624420166
         ],
         "rotationEulerDeg": [
           0.0,

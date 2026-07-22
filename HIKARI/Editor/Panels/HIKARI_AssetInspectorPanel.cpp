@@ -37,6 +37,8 @@ namespace HIKARI {
             case AssetType::Particle: return "Particle";
             case AssetType::VfxEffect: return "VfxEffect";
             case AssetType::Sequence: return "Sequence";
+            case AssetType::AnimationStateMachine:
+                return "Animation State Machine";
             case AssetType::Unknown:
             default: return "Unknown";
             }

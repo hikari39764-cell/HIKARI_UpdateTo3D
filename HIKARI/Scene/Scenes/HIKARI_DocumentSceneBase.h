@@ -9,7 +9,9 @@
 #include "Assets/HIKARI_AssetDatabase.h"
 #include "Assets/HIKARI_AssetRegistry.h"
 #include "Assets/Sequence/HIKARI_SequenceAssetStore.h"
+#include "Assets/Animation/HIKARI_AnimationStateMachineAssetStore.h"
 #include "Animation/Runtime/HIKARI_AnimationPoseService.h"
+#include "Animation/StateMachine/HIKARI_AnimationStateMachineRuntimeService.h"
 #include "Core/HIKARI_FixedStepClock.h"
 #include "Render3D/Core/HIKARI_Camera3D.h"
 #include "Render3D/Core/HIKARI_RenderView.h"
@@ -285,6 +287,8 @@ namespace HIKARI {
         RuntimePlayStateService runtimePlayStateService_{};
         GameplayCameraService gameplayCameraService_{};
         ANIMATION::AnimationPoseService animationPoseService_{};
+        ANIMATION::AnimationStateMachineRuntimeService
+            animationStateMachineRuntimeService_{};
         GAMEPLAY::MotionIntentService motionIntentService_{};
         GAMEPLAY::CharacterMotionStateService
             characterMotionStateService_{};
@@ -310,6 +314,7 @@ namespace HIKARI {
         AssetDatabase assetDatabase_{};
         AssetRegistry assetRegistry_{};
         SequenceAssetStore sequenceAssetStore_{};
+        AnimationStateMachineAssetStore animationStateMachineAssetStore_{};
         SEQUENCER::SequencePlaybackService sequencePlaybackService_{};
         ComponentRegistry componentRegistry_{};
         SceneSerializer sceneSerializer_{};

@@ -31,6 +31,14 @@ namespace HIKARI {
             return model != nullptr ? model->GetModelAsset() : nullptr;
         }
 
+        float ResolveDuration(
+            const ModelAsset& model,
+            const ANIMATION::AnimationClipReference& clip) noexcept {
+            const AnimationClip* resolved =
+                ANIMATION::ResolveAnimationClip(model, clip);
+            return resolved != nullptr ? resolved->durationSec : 0.0f;
+        }
+
 #if defined(HIKARI_ENABLE_IMGUI)
         const AnimationClip* FindClip(
             const ModelAsset* asset,
@@ -73,6 +81,8 @@ namespace HIKARI {
         autoPlay_ = in.value("autoPlay", autoPlay_);
         playing_ = in.value("playing", autoPlay_);
         finished_ = in.value("finished", finished_);
+        secondaryClip_ = {};
+        secondaryWeight_ = 0.0f;
         ClearTransition();
     }
 
@@ -196,14 +206,26 @@ namespace HIKARI {
         ANIMATION::AnimationClipReference clip,
         bool loop,
         bool restart) {
-        clip_ = std::move(clip);
+        ANIMATION::AnimationMotionSample motion{};
+        motion.primaryClip = std::move(clip);
+        PlayMotion(std::move(motion), speed_, loop, restart);
+    }
+
+    void AnimatorComponent::PlayMotion(
+        ANIMATION::AnimationMotionSample motion,
+        float speed,
+        bool loop,
+        bool restart) {
+        clip_ = std::move(motion.primaryClip);
+        secondaryClip_ = std::move(motion.secondaryClip);
+        secondaryWeight_ = std::clamp(
+            motion.secondaryWeight, 0.0f, 1.0f);
+        speed_ = speed;
         loop_ = loop;
-        playing_ = true;
+        playing_ = !clip_.IsEmpty();
         finished_ = false;
         ClearTransition();
-        if (restart) {
-            timeSec_ = 0.0f;
-        }
+        if (restart) timeSec_ = 0.0f;
     }
 
     void AnimatorComponent::CrossFade(
@@ -225,30 +247,78 @@ namespace HIKARI {
         float durationSeconds,
         bool loop,
         bool restart) {
+        ANIMATION::AnimationMotionSample motion{};
+        motion.primaryClip = std::move(clip);
+        CrossFadeMotion(
+            std::move(motion),
+            durationSeconds,
+            speed_,
+            loop,
+            restart);
+    }
+
+    void AnimatorComponent::CrossFadeMotion(
+        ANIMATION::AnimationMotionSample motion,
+        float durationSeconds,
+        float speed,
+        bool loop,
+        bool restart) {
         const float safeDuration = std::isfinite(durationSeconds)
             ? (std::max)(0.0f, durationSeconds)
             : 0.0f;
         if (safeDuration <= 0.0f || clip_.IsEmpty()) {
-            Play(std::move(clip), loop, restart);
+            PlayMotion(std::move(motion), speed, loop, restart);
             return;
         }
-        if (clip == clip_ && !restart) {
+        if (motion.primaryClip == clip_ &&
+            motion.secondaryClip == secondaryClip_ && !restart) {
+            secondaryWeight_ = std::clamp(
+                motion.secondaryWeight, 0.0f, 1.0f);
+            speed_ = speed;
             loop_ = loop;
             playing_ = true;
             return;
         }
 
         transitionSourceClip_ = clip_;
+        transitionSourceSecondaryClip_ = secondaryClip_;
+        transitionSourceSecondaryWeight_ = secondaryWeight_;
         transitionSourceTimeSec_ = timeSec_;
+        transitionSourceSpeed_ = speed_;
         transitionSourceLoop_ = loop_;
         transitionDurationSec_ = safeDuration;
         transitionElapsedSec_ = 0.0f;
 
-        clip_ = std::move(clip);
+        clip_ = std::move(motion.primaryClip);
+        secondaryClip_ = std::move(motion.secondaryClip);
+        secondaryWeight_ = std::clamp(
+            motion.secondaryWeight, 0.0f, 1.0f);
+        speed_ = speed;
         loop_ = loop;
-        playing_ = true;
+        playing_ = !clip_.IsEmpty();
         finished_ = false;
         if (restart) timeSec_ = 0.0f;
+    }
+
+    void AnimatorComponent::UpdateMotion(
+        ANIMATION::AnimationMotionSample motion,
+        const ModelAsset& model) {
+        const bool primaryChanged = motion.primaryClip != clip_;
+        if (primaryChanged) {
+            const float oldDuration = ResolveDuration(model, clip_);
+            const float newDuration = ResolveDuration(
+                model, motion.primaryClip);
+            if (oldDuration > 0.0f && newDuration > 0.0f) {
+                float phase = std::fmod(timeSec_ / oldDuration, 1.0f);
+                if (phase < 0.0f) phase += 1.0f;
+                timeSec_ = phase * newDuration;
+            }
+        }
+        clip_ = std::move(motion.primaryClip);
+        secondaryClip_ = std::move(motion.secondaryClip);
+        secondaryWeight_ = std::clamp(
+            motion.secondaryWeight, 0.0f, 1.0f);
+        playing_ = !clip_.IsEmpty() && !finished_;
     }
 
     void AnimatorComponent::PlayCurrent(bool restart) {
@@ -292,7 +362,8 @@ namespace HIKARI {
 
         timeSec_ += deltaTimeSec * speed_;
         if (IsTransitioning()) {
-            transitionSourceTimeSec_ += deltaTimeSec * speed_;
+            transitionSourceTimeSec_ +=
+                deltaTimeSec * transitionSourceSpeed_;
             transitionElapsedSec_ += (std::max)(0.0f, deltaTimeSec);
             if (transitionElapsedSec_ >= transitionDurationSec_) {
                 ClearTransition();
@@ -332,6 +403,8 @@ namespace HIKARI {
     void AnimatorComponent::SetClip(
         ANIMATION::AnimationClipReference clip) {
         clip_ = std::move(clip);
+        secondaryClip_ = {};
+        secondaryWeight_ = 0.0f;
         finished_ = false;
         ClearTransition();
     }
@@ -343,6 +416,11 @@ namespace HIKARI {
     const ANIMATION::AnimationClipReference&
         AnimatorComponent::GetClipReference() const {
         return clip_;
+    }
+
+    ANIMATION::AnimationMotionSample
+        AnimatorComponent::GetMotionSample() const noexcept {
+        return { clip_, secondaryClip_, secondaryWeight_ };
     }
 
     void AnimatorComponent::BindClipToModel(const ModelAsset& model) {
@@ -362,7 +440,9 @@ namespace HIKARI {
             }
         };
         bind(clip_);
+        bind(secondaryClip_);
         bind(transitionSourceClip_);
+        bind(transitionSourceSecondaryClip_);
     }
 
     void AnimatorComponent::SetTime(float timeSec) {
@@ -453,8 +533,21 @@ namespace HIKARI {
         return transitionSourceClip_;
     }
 
+    ANIMATION::AnimationMotionSample
+        AnimatorComponent::GetTransitionSourceMotion() const noexcept {
+        return {
+            transitionSourceClip_,
+            transitionSourceSecondaryClip_,
+            transitionSourceSecondaryWeight_
+        };
+    }
+
     float AnimatorComponent::GetTransitionSourceTime() const noexcept {
         return transitionSourceTimeSec_;
+    }
+
+    float AnimatorComponent::GetTransitionSourceSpeed() const noexcept {
+        return transitionSourceSpeed_;
     }
 
     bool AnimatorComponent::GetTransitionSourceLoop() const noexcept {
@@ -463,7 +556,10 @@ namespace HIKARI {
 
     void AnimatorComponent::ClearTransition() noexcept {
         transitionSourceClip_ = {};
+        transitionSourceSecondaryClip_ = {};
+        transitionSourceSecondaryWeight_ = 0.0f;
         transitionSourceTimeSec_ = 0.0f;
+        transitionSourceSpeed_ = 1.0f;
         transitionDurationSec_ = 0.0f;
         transitionElapsedSec_ = 0.0f;
         transitionSourceLoop_ = true;

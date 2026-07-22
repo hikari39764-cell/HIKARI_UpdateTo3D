@@ -35,6 +35,7 @@ namespace HIKARI::EDITOR {
         bool resetSceneLayoutRequested_ = false;
         bool resetCinematicsLayoutRequested_ = false;
         bool resetModelCollisionLayoutRequested_ = false;
+        bool resetAnimationStateMachineLayoutRequested_ = false;
         EditorViewInstance cinematicsGameView_{};
         EditorViewInstance cinematicsDirectorView_{};
         EditorViewInstance cinematicsOverviewView_{};

@@ -723,6 +723,14 @@ namespace HIKARI {
         DocumentSceneBase& scene) {
 
         if (workspaceHost_.IsActive(
+                EDITOR::EditorWorkspaceId::AnimationStateMachine)) {
+            (void)animationStateMachineWorkspaceController_.Save(
+                scene,
+                viewportDropMessage_);
+            return;
+        }
+
+        if (workspaceHost_.IsActive(
                 EDITOR::EditorWorkspaceId::ModelCollision)) {
             (void)modelCollisionWorkspaceController_.SaveDocument(
                 scene,
@@ -755,6 +763,18 @@ namespace HIKARI {
     void DocumentSceneEditorController::ExecuteDocumentHistory(
         DocumentSceneBase& scene,
         bool redo) {
+
+        if (workspaceHost_.IsActive(
+                EDITOR::EditorWorkspaceId::AnimationStateMachine)) {
+            if (redo) {
+                (void)animationStateMachineWorkspaceController_.Redo(
+                    viewportDropMessage_);
+            } else {
+                (void)animationStateMachineWorkspaceController_.Undo(
+                    viewportDropMessage_);
+            }
+            return;
+        }
 
         if (workspaceHost_.IsActive(
                 EDITOR::EditorWorkspaceId::ModelCollision)) {
@@ -883,7 +903,18 @@ namespace HIKARI {
             workspaceHost_.IsActive(
                 EDITOR::EditorWorkspaceId::ModelCollision) &&
             modelCollisionWorkspaceController_.IsEditingModel();
-        if (modelCollisionDocument) {
+        const bool animationStateMachineDocument =
+            workspaceHost_.IsActive(
+                EDITOR::EditorWorkspaceId::AnimationStateMachine) &&
+            animationStateMachineWorkspaceController_.IsDocumentOpen();
+        if (animationStateMachineDocument) {
+            documentMenu.canUndo =
+                animationStateMachineWorkspaceController_.CanUndo();
+            documentMenu.canRedo =
+                animationStateMachineWorkspaceController_.CanRedo();
+            documentMenu.undoLabel = "Edit Animation State Machine";
+            documentMenu.redoLabel = "Edit Animation State Machine";
+        } else if (modelCollisionDocument) {
             documentMenu.canUndo =
                 modelCollisionWorkspaceController_.CanUndo();
             documentMenu.canRedo =
@@ -939,6 +970,31 @@ namespace HIKARI {
                 scene,
                 *activation,
                 workspaceHost_);
+            animationStateMachineWorkspaceController_.ApplyWorkspaceActivation(
+                scene,
+                *activation);
+        }
+
+        if (workspaceHost_.IsActive(
+                EDITOR::EditorWorkspaceId::AnimationStateMachine)) {
+            animationStateMachineWorkspaceController_.DrawDockSpace(
+                workspaceHost_.ConsumeReset(
+                    EDITOR::EditorWorkspaceId::AnimationStateMachine));
+            const EDITOR::AnimationStateMachineWorkspaceResult result =
+                animationStateMachineWorkspaceController_.Draw(scene);
+            if (result.exitToSceneRequested) {
+                EDITOR::EditorWorkspaceOpenRequest request{};
+                request.workspaceId = EDITOR::EditorWorkspaceId::Scene;
+                (void)workspaceHost_.RequestOpen(std::move(request));
+            }
+            if (!result.statusMessage.empty()) {
+                viewportDropMessage_ = result.statusMessage;
+            }
+            DrawPendingSceneOpenModal(scene);
+            if (renderQualitySavePending_ && !ImGui::IsAnyItemActive()) {
+                (void)SaveRenderQualityProfile(scene);
+            }
+            return;
         }
 
         if (workspaceHost_.IsActive(
@@ -1076,6 +1132,18 @@ namespace HIKARI {
                     EDITOR::EditorWorkspaceId::ModelCollision;
                 request.modelAssetGuid =
                     AssetGuid{ activatedModelCollisionGuid };
+                (void)workspaceHost_.RequestOpen(std::move(request));
+            }
+
+            const std::string activatedAnimationStateMachineGuid =
+                resourceWorkspacePanel_.
+                    ConsumeActivatedAnimationStateMachineGuid();
+            if (!activatedAnimationStateMachineGuid.empty()) {
+                EDITOR::EditorWorkspaceOpenRequest request{};
+                request.workspaceId =
+                    EDITOR::EditorWorkspaceId::AnimationStateMachine;
+                request.animationStateMachineAssetGuid =
+                    AssetGuid{ activatedAnimationStateMachineGuid };
                 (void)workspaceHost_.RequestOpen(std::move(request));
             }
 
