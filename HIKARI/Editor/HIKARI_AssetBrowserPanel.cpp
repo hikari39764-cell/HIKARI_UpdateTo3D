@@ -1,6 +1,5 @@
 #include "HIKARI_AssetBrowserPanel.h"
 #include "Core/Text/HIKARI_AsciiCase.h"
-#include "Core/Text/HIKARI_AsciiCase.h"
 
 #include <algorithm>
 #include <array>
@@ -22,7 +21,8 @@
 #include <json.hpp>
 
 #include "Assets/HIKARI_AssetDatabase.h"
-#include "Assets/HIKARI_AssetSourcePolicy.h"
+#include "Assets/Semantics/HIKARI_AssetArtifactSemantics.h"
+#include "Assets/Semantics/HIKARI_AssetSourceSemantics.h"
 #include "Assets/HIKARI_AssetImportState.h"
 #include "Assets/HIKARI_AssetUsageAnalyzer.h"
 #include "Assets/Material/HIKARI_MaterialAssetData.h"
@@ -45,21 +45,7 @@ namespace HIKARI {
 
     namespace {
         const char* ToAssetTypeText(AssetType type) {
-            switch (type) {
-            case AssetType::Model: return "Model";
-            case AssetType::Scene: return "Scene";
-            case AssetType::Sky: return "Sky";
-            case AssetType::Texture: return "Texture";
-            case AssetType::Material: return "Material";
-            case AssetType::Animation: return "Animation";
-            case AssetType::Particle: return "Particle";
-            case AssetType::VfxEffect: return "Vfx";
-            case AssetType::Sequence: return "Sequence";
-            case AssetType::AnimationStateMachine:
-                return "Animation State Machine";
-            case AssetType::Unknown:
-            default: return "Unknown";
-            }
+            return ASSETS::SEMANTICS::ToString(type).data();
         }
 
 
@@ -81,24 +67,8 @@ namespace HIKARI {
         }
 
         bool IsSupportedImportSource(const std::filesystem::path& path) {
-            const std::string filename = TEXT::ToLowerAsciiCopy(path.filename().string());
-            const std::string ext = TEXT::ToLowerAsciiCopy(path.extension().string());
-            return ext == ".png" ||
-                ext == ".jpg" ||
-                ext == ".jpeg" ||
-                ext == ".tga" ||
-                ext == ".bmp" ||
-                ext == ".dds" ||
-                ext == ".hdr" ||
-                ext == ".gltf" ||
-                ext == ".fbx" ||
-                ext == ".obj" ||
-                ext == ".hscene" ||
-                filename.ends_with(".scene.json") ||
-                ext == ".hmat" ||
-                filename.ends_with(".material.json") ||
-                ext == ".efk" ||
-                ext == ".efkefc";
+            return ASSETS::SEMANTICS::ClassifyAssetTypeFromPath(path) !=
+                AssetType::Unknown;
         }
 
         std::filesystem::path SuggestedTargetDirectory(
@@ -110,23 +80,38 @@ namespace HIKARI {
             }
 
             const std::string filename = TEXT::ToLowerAsciiCopy(sourcePath.filename().string());
-            const std::string ext = TEXT::ToLowerAsciiCopy(sourcePath.extension().string());
-            if (ext == ".gltf" || ext == ".fbx" || ext == ".obj") {
+            const std::string extension =
+                TEXT::ToLowerAsciiCopy(sourcePath.extension().string());
+            AssetType type =
+                ASSETS::SEMANTICS::ClassifyAssetTypeFromPath(sourcePath);
+            if (type == AssetType::Texture &&
+                extension == ".dds" &&
+                (filename.find("sky") != std::string::npos ||
+                    filename.find("cube") != std::string::npos ||
+                    filename.find("cubemap") != std::string::npos)) {
+                type = AssetType::Sky;
+            }
+
+            if (type == AssetType::Model) {
                 return "Assets/Models";
             }
-            if (ext == ".hscene" || filename.ends_with(".scene.json")) {
+            if (type == AssetType::Scene) {
                 return "Assets/Scenes";
             }
-            if (ext == ".hmat" || filename.ends_with(".material.json")) {
+            if (type == AssetType::Material) {
                 return "Assets/Materials";
             }
-            if (ext == ".efk" || ext == ".efkefc") {
+            if (type == AssetType::VfxEffect) {
                 return "Assets/Vfx";
             }
-            if (ext == ".dds" && (filename.find("sky") != std::string::npos ||
-                filename.find("cube") != std::string::npos ||
-                filename.find("cubemap") != std::string::npos)) {
+            if (type == AssetType::Sky) {
                 return "Assets/Skies";
+            }
+            if (type == AssetType::Sequence) {
+                return "Assets/Sequences";
+            }
+            if (type == AssetType::AnimationStateMachine) {
+                return "Assets/Animations";
             }
             return "Assets/Textures";
         }
@@ -532,7 +517,7 @@ namespace HIKARI {
                     const std::filesystem::path entryPath = entry.path();
                     const bool supportedAsset = IsSupportedImportSource(entryPath);
                     const bool copyOnlySidecar =
-                        IsAssetCompanionSource(entryPath);
+                        ASSETS::SEMANTICS::IsAssetCompanionSource(entryPath);
                     if (!supportedAsset && !copyOnlySidecar) {
                         ++skippedCount;
                         continue;
@@ -580,7 +565,7 @@ namespace HIKARI {
             const bool supportedAsset =
                 IsSupportedImportSource(droppedPath);
             const bool companionSource =
-                IsAssetCompanionSource(droppedPath);
+                ASSETS::SEMANTICS::IsAssetCompanionSource(droppedPath);
             if (!regularFile ||
                 (!supportedAsset && !companionSource)) {
                 ++skippedCount;
@@ -768,97 +753,10 @@ namespace HIKARI {
             return haystack.find(needle) != std::string::npos;
         }
 
-        bool HasArtifactFormat(const AssetRecord& record, std::string_view format) {
-            for (const AssetArtifactDesc& artifact : record.artifactManifest.artifacts) {
-                if (artifact.format == format && !artifact.path.empty()) {
-                    return true;
-                }
-            }
-            return false;
-        }
-
         nlohmann::json ReadImportSettings(const AssetRecord& record) {
             nlohmann::json settings = nlohmann::json::parse(record.meta.importSettingsJson, nullptr, false);
             return settings.is_object() ? settings : nlohmann::json::object();
         }
-
-        nlohmann::json& EnsureClusterGeometrySettings(nlohmann::json& settings) {
-            if (!settings.contains("clusterGeometry") || !settings["clusterGeometry"].is_object()) {
-                settings["clusterGeometry"] = nlohmann::json::object();
-            }
-            return settings["clusterGeometry"];
-        }
-
-#if defined(HIKARI_WITH_EDITOR)
-        bool DrawModelClusterCookSettings(nlohmann::json& settings) {
-            static const char* ModelGeometryProfileItems[] = { "Scene", "Character" };
-            nlohmann::json& cluster = EnsureClusterGeometrySettings(settings);
-            bool dirty = false;
-
-            bool enabled = cluster.value("enabled", true);
-            if (ImGui::Checkbox("Build HCMESH", &enabled)) {
-                cluster["enabled"] = enabled;
-                dirty = true;
-            }
-
-            int profile = 0;
-            const std::string profileValue = cluster.value("profile", std::string("Scene"));
-            if (profileValue == "Character") {
-                profile = 1;
-            }
-            if (ImGui::Combo("Cook Profile", &profile, ModelGeometryProfileItems, IM_ARRAYSIZE(ModelGeometryProfileItems))) {
-                cluster["profile"] = ModelGeometryProfileItems[profile];
-                cluster["partitionLargeSurfaces"] = true;
-                cluster["largeSurfaceTargetExtent"] = profile == 1 ? 1.25f : 3.0f;
-                cluster["partitionMinClusterEstimate"] = profile == 1 ? 4 : 16;
-                cluster["compactUnderfilledClusters"] = true;
-                cluster["minClusterOccupancyRatio"] = 0.75f;
-                cluster["maxNormalBucketClusterOverhead"] = 1.20f;
-                cluster["clusterMergeNormalMinDot"] = 0.20f;
-                cluster["normalBucketCoherentGroupMinDot"] = 0.35f;
-                cluster["normalBucketQualityBonusRatio"] = 0.15f;
-                dirty = true;
-            }
-
-            const bool characterProfile = profile == 1;
-            const float defaultPartitionExtent = characterProfile ? 1.25f : 3.0f;
-            int lodCount = cluster.value("maxLodCount", 5);
-            if (ImGui::InputInt("LOD Count", &lodCount)) {
-                cluster["maxLodCount"] = (std::max)(1, (std::min)(lodCount, 5));
-                dirty = true;
-            }
-
-            float qualityBias = cluster.value("lodQualityBias", 1.0f);
-            if (ImGui::InputFloat("LOD Quality Bias", &qualityBias)) {
-                cluster["lodQualityBias"] = (std::max)(0.50f, (std::min)(qualityBias, 4.0f));
-                dirty = true;
-            }
-
-            bool partition = cluster.value("partitionLargeSurfaces", true);
-            if (ImGui::Checkbox("Partition Large Surfaces", &partition)) {
-                cluster["partitionLargeSurfaces"] = partition;
-                dirty = true;
-            }
-
-            float extent = cluster.value("largeSurfaceTargetExtent", defaultPartitionExtent);
-            if (ImGui::InputFloat("Partition Target Extent", &extent)) {
-                cluster["largeSurfaceTargetExtent"] =
-                    (std::max)(characterProfile ? 1.0f : 2.0f, (std::min)(extent, 64.0f));
-                dirty = true;
-            }
-
-            bool lockBorders = cluster.value("lockPartitionBorders", true);
-            if (ImGui::Checkbox("Lock Partition Borders", &lockBorders)) {
-                cluster["lockPartitionBorders"] = lockBorders;
-                dirty = true;
-            }
-
-            if (dirty) {
-                settings["meshFormat"] = "HCMESH";
-            }
-            return dirty;
-        }
-#endif
 
         bool IsBrokenRecord(const AssetRecord& record) {
             const AssetImportState state = GetImportState(record);
@@ -928,19 +826,27 @@ namespace HIKARI {
 
         const char* ToCookedBadge(const AssetRecord& record) {
             if (record.type == AssetType::Texture) {
-                if (HasArtifactFormat(record, "HTEX")) {
+                if (ASSETS::SEMANTICS::HasAssetArtifact(
+                    record,
+                    ASSETS::SEMANTICS::AssetArtifactKind::MainTexture)) {
                     return "HTEX Ready";
                 }
-                if (HasArtifactFormat(record, "DDS")) {
+                if (ASSETS::SEMANTICS::HasAssetArtifact(
+                    record,
+                    ASSETS::SEMANTICS::AssetArtifactKind::DebugTextureDds)) {
                     return "DDS Only";
                 }
             }
             if (record.type == AssetType::Model) {
-                const bool hasHmodel = HasArtifactFormat(record, "HMODEL");
-                const bool hasHcmesh = HasArtifactFormat(record, "HCMESH");
-                const bool hasCollision = HasArtifactFormat(
+                const bool hasHmodel = ASSETS::SEMANTICS::HasAssetArtifact(
                     record,
-                    "HCOLLISION");
+                    ASSETS::SEMANTICS::AssetArtifactKind::MainModel);
+                const bool hasHcmesh = ASSETS::SEMANTICS::HasAssetArtifact(
+                    record,
+                    ASSETS::SEMANTICS::AssetArtifactKind::ClusteredGeometry);
+                const bool hasCollision = ASSETS::SEMANTICS::HasAssetArtifact(
+                    record,
+                    ASSETS::SEMANTICS::AssetArtifactKind::CollisionGeometry);
                 if (hasHmodel && hasHcmesh && hasCollision) {
                     return "HMODEL + HCMESH + HCOLLISION";
                 }
@@ -1006,20 +912,28 @@ namespace HIKARI {
 
         const char* ToCompactCookedBadge(const AssetRecord& record) {
             if (record.type == AssetType::Texture) {
-                if (HasArtifactFormat(record, "HTEX")) {
+                if (ASSETS::SEMANTICS::HasAssetArtifact(
+                    record,
+                    ASSETS::SEMANTICS::AssetArtifactKind::MainTexture)) {
                     return "HTEX";
                 }
-                if (HasArtifactFormat(record, "DDS")) {
+                if (ASSETS::SEMANTICS::HasAssetArtifact(
+                    record,
+                    ASSETS::SEMANTICS::AssetArtifactKind::DebugTextureDds)) {
                     return "DDS";
                 }
                 return "RAW";
             }
             if (record.type == AssetType::Model) {
-                const bool hasHmodel = HasArtifactFormat(record, "HMODEL");
-                const bool hasHcmesh = HasArtifactFormat(record, "HCMESH");
-                const bool hasCollision = HasArtifactFormat(
+                const bool hasHmodel = ASSETS::SEMANTICS::HasAssetArtifact(
                     record,
-                    "HCOLLISION");
+                    ASSETS::SEMANTICS::AssetArtifactKind::MainModel);
+                const bool hasHcmesh = ASSETS::SEMANTICS::HasAssetArtifact(
+                    record,
+                    ASSETS::SEMANTICS::AssetArtifactKind::ClusteredGeometry);
+                const bool hasCollision = ASSETS::SEMANTICS::HasAssetArtifact(
+                    record,
+                    ASSETS::SEMANTICS::AssetArtifactKind::CollisionGeometry);
                 if (hasHmodel && hasHcmesh && hasCollision) {
                     return "H+HC+C";
                 }

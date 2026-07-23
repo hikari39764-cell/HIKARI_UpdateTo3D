@@ -5,13 +5,17 @@
 namespace HIKARI {
 
     void AssetImporterRegistry::Register(std::unique_ptr<IAssetImporter> importer) {
-        if (!importer || importer->GetImporterId() == nullptr || importer->GetImporterId()[0] == '\0') {
+        if (!importer || importer->GetSemantics().importerId.empty()) {
             HIKARI_LOG_WARN("[AssetImporter] Skip invalid importer registration.");
             return;
         }
 
-        if (FindById(importer->GetImporterId()) != nullptr) {
-            HIKARI_LOG_WARN(std::string("[AssetImporter] Duplicate importer ignored: ") + importer->GetImporterId());
+        const std::string_view importerId =
+            importer->GetSemantics().importerId;
+        if (FindById(importerId) != nullptr) {
+            HIKARI_LOG_WARN(
+                std::string("[AssetImporter] Duplicate importer ignored: ") +
+                std::string(importerId));
             return;
         }
 
@@ -20,7 +24,8 @@ namespace HIKARI {
 
     const IAssetImporter* AssetImporterRegistry::FindById(std::string_view importerId) const {
         for (const auto& importer : importers_) {
-            if (importer && importerId == importer->GetImporterId()) {
+            if (importer &&
+                importerId == importer->GetSemantics().importerId) {
                 return importer.get();
             }
         }
@@ -29,7 +34,8 @@ namespace HIKARI {
 
     IAssetImporter* AssetImporterRegistry::FindById(std::string_view importerId) {
         for (auto& importer : importers_) {
-            if (importer && importerId == importer->GetImporterId()) {
+            if (importer &&
+                importerId == importer->GetSemantics().importerId) {
                 return importer.get();
             }
         }
@@ -37,21 +43,19 @@ namespace HIKARI {
     }
 
     const IAssetImporter* AssetImporterRegistry::FindForSource(const std::filesystem::path& sourcePath) const {
-        for (const auto& importer : importers_) {
-            if (importer && importer->CanImport(sourcePath)) {
-                return importer.get();
-            }
-        }
-        return nullptr;
+        const ASSETS::SEMANTICS::AssetImporterSemantics* semantics =
+            ASSETS::SEMANTICS::ResolveAssetSourceSemantics(sourcePath);
+        return semantics != nullptr
+            ? FindById(semantics->importerId)
+            : nullptr;
     }
 
     IAssetImporter* AssetImporterRegistry::FindForSource(const std::filesystem::path& sourcePath) {
-        for (auto& importer : importers_) {
-            if (importer && importer->CanImport(sourcePath)) {
-                return importer.get();
-            }
-        }
-        return nullptr;
+        const ASSETS::SEMANTICS::AssetImporterSemantics* semantics =
+            ASSETS::SEMANTICS::ResolveAssetSourceSemantics(sourcePath);
+        return semantics != nullptr
+            ? FindById(semantics->importerId)
+            : nullptr;
     }
 
 } // namespace HIKARI

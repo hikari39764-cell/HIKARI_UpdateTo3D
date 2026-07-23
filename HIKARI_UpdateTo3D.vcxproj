@@ -602,7 +602,11 @@
     <ClCompile Include="HIKARI\Assets\HIKARI_AssetImportState.cpp" />
     <ClCompile Include="HIKARI\Assets\HIKARI_AssetRegistry.cpp" />
     <ClCompile Include="HIKARI\Assets\HIKARI_AssetRegistryBuilder.cpp" />
-    <ClCompile Include="HIKARI\Assets\HIKARI_AssetSourcePolicy.cpp" />
+    <ClCompile Include="HIKARI\Assets\Semantics\HIKARI_AssetArtifactSemantics.cpp" />
+    <ClCompile Include="HIKARI\Assets\Semantics\HIKARI_AssetSourceSemantics.cpp" />
+    <ClCompile Include="HIKARI\Assets\Importers\Policy\HIKARI_MaterialImportPolicy.cpp" />
+    <ClCompile Include="HIKARI\Assets\Importers\Policy\HIKARI_ModelImportPolicy.cpp" />
+    <ClCompile Include="HIKARI\Assets\Importers\Policy\HIKARI_TextureImportPolicy.cpp" />
     <ClCompile Include="HIKARI\Assets\HIKARI_AssetUsageAnalyzer.cpp" />
     <ClCompile Include="HIKARI\Assets\Collision\HIKARI_CollisionGeometryAsset.cpp" />
     <ClCompile Include="HIKARI\Assets\Collision\HIKARI_HcollisionFormat.cpp" />
@@ -685,6 +689,7 @@
     <ClCompile Include="HIKARI\Scene\Scenes\HIKARI_GameDocumentScene.cpp" />
     <ClCompile Include="HIKARI\Editor\HIKARI_HierarchyPanel.cpp" />
     <ClCompile Include="HIKARI\Editor\HIKARI_AssetBrowserPanel.cpp" />
+    <ClCompile Include="HIKARI\Editor\Assets\HIKARI_AssetImportSettingsEditor.cpp" />
     <ClCompile Include="HIKARI\Editor\HIKARI_StatsPanel.cpp" />
     <ClCompile Include="HIKARI\App\HIKARI_EngineApp.cpp" />
     <ClCompile Include="HIKARI\Platform\HIKARI_Win32Window.cpp" />
@@ -1111,6 +1116,7 @@
     <ClInclude Include="HIKARI\Editor\HIKARI_HierarchyPanel.h" />
     <ClInclude Include="HIKARI\Editor\HIKARI_ComponentDocumentEditor.h" />
     <ClInclude Include="HIKARI\Editor\HIKARI_AssetBrowserPanel.h" />
+    <ClInclude Include="HIKARI\Editor\Assets\HIKARI_AssetImportSettingsEditor.h" />
     <ClInclude Include="HIKARI\Editor\HIKARI_StatsPanel.h" />
     <ClInclude Include="HIKARI\Render3D\Debug\HIKARI_DebugCameraController3D.h" />
     <ClInclude Include="HIKARI\Render3D\Debug\HIKARI_RenderDebugView.h" />
@@ -1202,7 +1208,11 @@
     <ClInclude Include="HIKARI\Assets\HIKARI_AssetTypes.h" />
     <ClInclude Include="HIKARI\Assets\HIKARI_AssetRegistry.h" />
     <ClInclude Include="HIKARI\Assets\HIKARI_AssetRegistryBuilder.h" />
-    <ClInclude Include="HIKARI\Assets\HIKARI_AssetSourcePolicy.h" />
+    <ClInclude Include="HIKARI\Assets\Semantics\HIKARI_AssetArtifactSemantics.h" />
+    <ClInclude Include="HIKARI\Assets\Semantics\HIKARI_AssetSourceSemantics.h" />
+    <ClInclude Include="HIKARI\Assets\Importers\Policy\HIKARI_MaterialImportPolicy.h" />
+    <ClInclude Include="HIKARI\Assets\Importers\Policy\HIKARI_ModelImportPolicy.h" />
+    <ClInclude Include="HIKARI\Assets\Importers\Policy\HIKARI_TextureImportPolicy.h" />
     <ClInclude Include="HIKARI\Assets\HIKARI_AssetUsageAnalyzer.h" />
     <ClInclude Include="HIKARI\Assets\Collision\HIKARI_CollisionGeometryAsset.h" />
     <ClInclude Include="HIKARI\Assets\Collision\HIKARI_HcollisionFormat.h" />

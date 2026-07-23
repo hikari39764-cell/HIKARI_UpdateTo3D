@@ -5,6 +5,7 @@
 
 #include "Assets/Collision/HIKARI_HcollisionFormat.h"
 #include "Assets/HIKARI_AssetDatabase.h"
+#include "Assets/Semantics/HIKARI_AssetArtifactSemantics.h"
 #include "Core/HIKARI_Logger.h"
 #include "Scene/Components/HIKARI_ColliderComponent.h"
 
@@ -121,18 +122,14 @@ namespace HIKARI::PHYSICS {
         if (record == nullptr) {
             return false;
         }
-        const auto found = std::find_if(
-            record->artifactManifest.artifacts.begin(),
-            record->artifactManifest.artifacts.end(),
-            [](const AssetArtifactDesc& artifact) {
-                return artifact.role == "CollisionGeometry" ||
-                    artifact.format == "HCOLLISION";
-            });
-        if (found == record->artifactManifest.artifacts.end() ||
-            found->path.empty()) {
+        const AssetArtifactDesc* artifact =
+            ASSETS::SEMANTICS::FindCompatibleAssetArtifact(
+                *record,
+                ASSETS::SEMANTICS::AssetArtifactKind::CollisionGeometry);
+        if (artifact == nullptr) {
             return false;
         }
-        outPath = std::filesystem::path(found->path);
+        outPath = std::filesystem::path(artifact->path);
         if (outPath.is_relative()) {
             outPath = assetDatabase_->GetProjectRoot() / outPath;
         }

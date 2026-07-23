@@ -15,7 +15,8 @@
 
 #if defined(HIKARI_WITH_EDITOR)
 #include "Assets/HIKARI_AssetDatabase.h"
-#include "Assets/HIKARI_AssetSourcePolicy.h"
+#include "Assets/Semantics/HIKARI_AssetSourceSemantics.h"
+#include "Assets/Semantics/HIKARI_AssetArtifactSemantics.h"
 #include "Assets/HIKARI_AssetRecord.h"
 #include "Assets/HIKARI_AssetTypes.h"
 #include "Assets/HIKARI_AssetUsageAnalyzer.h"
@@ -601,7 +602,7 @@ namespace HIKARI::EDITOR {
                 }
 
                 for (const AssetDependencyDesc& dependency : record->artifactManifest.dependencies) {
-                    if (IsSourceOnlyAssetDependencyRole(
+                    if (ASSETS::SEMANTICS::IsSourceOnlyAssetDependencyRole(
                             dependency.role)) {
                         continue;
                     }
@@ -635,8 +636,10 @@ namespace HIKARI::EDITOR {
                 return false;
             }
 
-            const std::string role = TEXT::ToLowerAsciiCopy(artifact.role);
-            if (role == "debugdds") {
+            if (ASSETS::SEMANTICS::MatchesAssetArtifact(
+                artifact,
+                ASSETS::SEMANTICS::AssetArtifactKind::DebugTextureDds,
+                true)) {
                 return false;
             }
 

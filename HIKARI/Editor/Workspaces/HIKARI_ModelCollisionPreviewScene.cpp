@@ -3,6 +3,7 @@
 #include <algorithm>
 
 #include "Assets/Formats/HIKARI_HmodelFormat.h"
+#include "Assets/Semantics/HIKARI_AssetArtifactSemantics.h"
 #include "Render3D/Core/HIKARI_BoundsUtils.h"
 
 namespace HIKARI::EDITOR {
@@ -16,45 +17,19 @@ namespace HIKARI::EDITOR {
                 : (projectRoot / path).lexically_normal();
         }
 
-        std::filesystem::path FindArtifactPath(
+        std::filesystem::path ResolveArtifactPath(
             const AssetRecord& record,
             const std::filesystem::path& projectRoot,
-            const char* role,
-            const char* format) {
+            ASSETS::SEMANTICS::AssetArtifactKind kind) {
 
-            const auto found = std::find_if(
-                record.artifactManifest.artifacts.begin(),
-                record.artifactManifest.artifacts.end(),
-                [role, format](const AssetArtifactDesc& artifact) {
-                    return artifact.role == role &&
-                        artifact.format == format &&
-                        !artifact.path.empty();
-                });
-            return found != record.artifactManifest.artifacts.end()
-                ? ResolvePath(projectRoot, found->path)
-                : std::filesystem::path{};
-        }
-
-        std::filesystem::path FindModelArtifactPath(
-            const AssetRecord& record,
-            const std::filesystem::path& projectRoot) {
-
-            return FindArtifactPath(
-                record,
-                projectRoot,
-                "MainModel",
-                "HMODEL");
-        }
-
-        std::filesystem::path FindClusteredGeometryArtifactPath(
-            const AssetRecord& record,
-            const std::filesystem::path& projectRoot) {
-
-            return FindArtifactPath(
-                record,
-                projectRoot,
-                "ClusteredGeometry",
-                "HCMESH");
+            const std::string path =
+                ASSETS::SEMANTICS::FindAssetArtifactPath(
+                    record,
+                    kind,
+                    true);
+            return path.empty()
+                ? std::filesystem::path{}
+                : ResolvePath(projectRoot, path);
         }
     }
 
@@ -69,13 +44,19 @@ namespace HIKARI::EDITOR {
             return false;
         }
         const std::filesystem::path modelPath =
-            FindModelArtifactPath(record, projectRoot);
+            ResolveArtifactPath(
+                record,
+                projectRoot,
+                ASSETS::SEMANTICS::AssetArtifactKind::MainModel);
         if (modelPath.empty()) {
             outMessage = "model has no HMODEL artifact; import it first";
             return false;
         }
         const std::filesystem::path clusteredGeometryPath =
-            FindClusteredGeometryArtifactPath(record, projectRoot);
+            ResolveArtifactPath(
+                record,
+                projectRoot,
+                ASSETS::SEMANTICS::AssetArtifactKind::ClusteredGeometry);
         if (clusteredGeometryPath.empty()) {
             outMessage =
                 "model has no HCMESH artifact; reimport it before editing collision";

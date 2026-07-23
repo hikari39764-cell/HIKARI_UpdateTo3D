@@ -1,42 +1,22 @@
 #include "HIKARI_VfxAssetImporter.h"
-#include "Core/Text/HIKARI_AsciiCase.h"
-#include "Core/Text/HIKARI_AsciiCase.h"
-
-#include <algorithm>
-#include <cctype>
 
 #include <json.hpp>
 
 namespace HIKARI {
 
-    namespace {
-    }
-
-    const char* VfxAssetImporter::GetImporterId() const {
-        return "VfxAssetImporter";
-    }
-
-    uint32_t VfxAssetImporter::GetImporterVersion() const {
-        return 1;
-    }
-
-    bool VfxAssetImporter::CanImport(const std::filesystem::path& sourcePath) const {
-        const std::string ext = TEXT::ToLowerAsciiCopy(sourcePath.extension().string());
-        return ext == ".efk" || ext == ".efkefc";
+    ASSETS::SEMANTICS::AssetImporterKind
+        VfxAssetImporter::GetImporterKind() const noexcept {
+        return ASSETS::SEMANTICS::AssetImporterKind::VfxEffect;
     }
 
     AssetMeta VfxAssetImporter::CreateDefaultMeta(
         const std::filesystem::path& sourcePath,
         const AssetGuid& guid) const {
 
-        AssetMeta meta{};
-        meta.metaVersion = 1;
-        meta.guid = guid;
-        meta.type = AssetType::VfxEffect;
-        meta.importerId = GetImporterId();
-        meta.importerVersion = GetImporterVersion();
-        meta.sourcePath = sourcePath.generic_string();
-        meta.displayName = sourcePath.stem().string();
+        AssetMeta meta = ASSETS::SEMANTICS::MakeBaseAssetMeta(
+            sourcePath,
+            guid,
+            GetImporterKind());
         meta.importSettingsJson = nlohmann::json{
             { "sourceFormat", sourcePath.extension().string() },
             { "outputFormat", "HPAK" },

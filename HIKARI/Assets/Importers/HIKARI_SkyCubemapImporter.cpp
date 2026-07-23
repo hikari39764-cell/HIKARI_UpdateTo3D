@@ -1,15 +1,13 @@
 #include "HIKARI_SkyCubemapImporter.h"
-#include "Core/Text/HIKARI_AsciiCase.h"
-#include "Core/Text/HIKARI_AsciiCase.h"
 
 #include <Windows.h>
 
-#include <algorithm>
 #include <filesystem>
 #include <sstream>
 
 #include <json.hpp>
 
+#include "Assets/Semantics/HIKARI_AssetArtifactSemantics.h"
 #include "Core/HIKARI_Logger.h"
 #include "Project/Paths/HIKARI_ProjectPath.h"
 #include "HIKARI_IblBaker.h"
@@ -17,16 +15,6 @@
 namespace HIKARI {
 
     namespace {
-
-        bool IsSkyPath(const std::filesystem::path& path) {
-            for (const std::filesystem::path& part : path) {
-                const std::string name = TEXT::ToLowerAsciiCopy(part.string());
-                if (name == "skies" || name == "sky") {
-                    return true;
-                }
-            }
-            return false;
-        }
 
         nlohmann::json MakeDefaultSettings() {
             return nlohmann::json{
@@ -100,30 +88,19 @@ namespace HIKARI {
         : backend_(std::move(backend)) {
     }
 
-    const char* SkyCubemapImporter::GetImporterId() const {
-        return "SkyCubemapImporter";
-    }
-
-    uint32_t SkyCubemapImporter::GetImporterVersion() const {
-        return 1;
-    }
-
-    bool SkyCubemapImporter::CanImport(const std::filesystem::path& sourcePath) const {
-        return IsSkyPath(sourcePath) && TEXT::ToLowerAsciiCopy(sourcePath.extension().string()) == ".dds";
+    ASSETS::SEMANTICS::AssetImporterKind
+        SkyCubemapImporter::GetImporterKind() const noexcept {
+        return ASSETS::SEMANTICS::AssetImporterKind::SkyCubemap;
     }
 
     AssetMeta SkyCubemapImporter::CreateDefaultMeta(
         const std::filesystem::path& sourcePath,
         const AssetGuid& guid) const {
 
-        AssetMeta meta{};
-        meta.metaVersion = 1;
-        meta.guid = guid;
-        meta.type = AssetType::Sky;
-        meta.importerId = GetImporterId();
-        meta.importerVersion = GetImporterVersion();
-        meta.sourcePath = sourcePath.generic_string();
-        meta.displayName = sourcePath.stem().string();
+        AssetMeta meta = ASSETS::SEMANTICS::MakeBaseAssetMeta(
+            sourcePath,
+            guid,
+            GetImporterKind());
         meta.importSettingsJson = MakeDefaultSettings().dump(2);
         return meta;
     }
@@ -182,11 +159,12 @@ namespace HIKARI {
 
         result.success = true;
         result.message = "[SkyCubemapImporter] Imported sky cubemap";
-        result.artifacts.push_back(AssetArtifactDesc{
-            "SkyCubemap",
-            PROJECT_PATHS::MakeProjectRelativeString(context.projectRoot, finalPath),
-            "DDS"
-        });
+        result.artifacts.push_back(
+            ASSETS::SEMANTICS::MakeAssetArtifact(
+                ASSETS::SEMANTICS::AssetArtifactKind::SkyCubemap,
+                PROJECT_PATHS::MakeProjectRelativeString(
+                    context.projectRoot,
+                    finalPath)));
 
         if (settingsJson.value("autoBakeIBL", true)) {
             IblBakeSettings iblSettings{};
@@ -205,21 +183,24 @@ namespace HIKARI {
                 iblSettings);
 
             if (bake.success) {
-                result.artifacts.push_back(AssetArtifactDesc{
-                    "IblIrradiance",
-                    PROJECT_PATHS::MakeProjectRelativeString(context.projectRoot, bake.irradiancePath),
-                    "DDS"
-                });
-                result.artifacts.push_back(AssetArtifactDesc{
-                    "IblPrefiltered",
-                    PROJECT_PATHS::MakeProjectRelativeString(context.projectRoot, bake.prefilteredPath),
-                    "DDS"
-                });
-                result.artifacts.push_back(AssetArtifactDesc{
-                    "BrdfLut",
-                    PROJECT_PATHS::MakeProjectRelativeString(context.projectRoot, bake.brdfLutPath),
-                    "DDS"
-                });
+                result.artifacts.push_back(
+                    ASSETS::SEMANTICS::MakeAssetArtifact(
+                        ASSETS::SEMANTICS::AssetArtifactKind::IblIrradiance,
+                        PROJECT_PATHS::MakeProjectRelativeString(
+                            context.projectRoot,
+                            bake.irradiancePath)));
+                result.artifacts.push_back(
+                    ASSETS::SEMANTICS::MakeAssetArtifact(
+                        ASSETS::SEMANTICS::AssetArtifactKind::IblPrefiltered,
+                        PROJECT_PATHS::MakeProjectRelativeString(
+                            context.projectRoot,
+                            bake.prefilteredPath)));
+                result.artifacts.push_back(
+                    ASSETS::SEMANTICS::MakeAssetArtifact(
+                        ASSETS::SEMANTICS::AssetArtifactKind::BrdfLut,
+                        PROJECT_PATHS::MakeProjectRelativeString(
+                            context.projectRoot,
+                            bake.brdfLutPath)));
                 result.message += "; IBL baked";
             } else {
                 result.message += "; IBL bake failed: " + bake.message;

@@ -1,6 +1,5 @@
 #include "HIKARI_AssetDatabase.h"
 #include "Core/Text/HIKARI_AsciiCase.h"
-#include "Core/Text/HIKARI_AsciiCase.h"
 
 #include <algorithm>
 #include <cctype>
@@ -14,7 +13,9 @@
 
 #include "Assets/Collision/HIKARI_ModelCollisionArtifact.h"
 #include "Assets/Geometry/HIKARI_HcmeshFormat.h"
-#include "Assets/HIKARI_AssetSourcePolicy.h"
+#include "Assets/Importers/Policy/HIKARI_MaterialImportPolicy.h"
+#include "Assets/Semantics/HIKARI_AssetArtifactSemantics.h"
+#include "Assets/Semantics/HIKARI_AssetSourceSemantics.h"
 #include "Core/HIKARI_Logger.h"
 #include "Project/Paths/HIKARI_ProjectPath.h"
 #include "Importers/HIKARI_MaterialImporter.h"
@@ -67,83 +68,19 @@ namespace HIKARI {
             return metaPath.lexically_normal();
         }
 
-        bool IsSkyFolderPath(const std::filesystem::path& path) {
-            for (const std::filesystem::path& part : path) {
-                const std::string lower = TEXT::ToLowerAsciiCopy(part.string());
-                if (lower == "skies" || lower == "sky") {
-                    return true;
-                }
-            }
-            return false;
-        }
-
-        bool IsTextureExtension(const std::string& ext) {
-            return ext == ".png" || ext == ".jpg" || ext == ".jpeg" ||
-                ext == ".tga" || ext == ".bmp" || ext == ".dds" ||
-                ext == ".hdr";
-        }
-
-        bool IsModelExtension(const std::string& ext) {
-            return ext == ".gltf" || ext == ".obj" || ext == ".fbx";
-        }
-
-        bool IsVfxExtension(const std::string& ext) {
-            return ext == ".efk" || ext == ".efkefc";
-        }
-
-        bool IsScenePath(const std::filesystem::path& path) {
-            const std::string filename = TEXT::ToLowerAsciiCopy(path.filename().string());
-            const std::string ext = TEXT::ToLowerAsciiCopy(path.extension().string());
-            const std::string generic = TEXT::ToLowerAsciiCopy(path.generic_string());
-            return ext == ".hscene" ||
-                EndsWith(filename, ".scene.json") ||
-                (ext == ".json" && generic.find("assets/scenes/") != std::string::npos);
-        }
-
-        const char* ToString(AssetType type) {
-            switch (type) {
-            case AssetType::Model: return "Model";
-            case AssetType::Scene: return "Scene";
-            case AssetType::Sky: return "Sky";
-            case AssetType::Texture: return "Texture";
-            case AssetType::Material: return "Material";
-            case AssetType::Animation: return "Animation";
-            case AssetType::Particle: return "Particle";
-            case AssetType::VfxEffect: return "VfxEffect";
-            case AssetType::Sequence: return "Sequence";
-            case AssetType::AnimationStateMachine:
-                return "AnimationStateMachine";
-            case AssetType::Unknown:
-            default: return "Unknown";
-            }
-        }
-
-        AssetType ParseAssetType(const std::string& text) {
-            if (text == "Model") return AssetType::Model;
-            if (text == "Scene") return AssetType::Scene;
-            if (text == "Sky") return AssetType::Sky;
-            if (text == "Texture") return AssetType::Texture;
-            if (text == "Material") return AssetType::Material;
-            if (text == "Animation") return AssetType::Animation;
-            if (text == "Particle") return AssetType::Particle;
-            if (text == "VfxEffect" || text == "Vfx") return AssetType::VfxEffect;
-            if (text == "Sequence") return AssetType::Sequence;
-            if (text == "AnimationStateMachine") {
-                return AssetType::AnimationStateMachine;
-            }
-            return AssetType::Unknown;
-        }
-
         std::string NormalizeImporterId(std::string importerId) {
             // 旧 Stub 名で保存済みの meta を、現在の正式 importer 名へ寄せる。
             if (importerId == "ModelImporterStub") {
-                return "ModelImporter";
+                return std::string(ASSETS::SEMANTICS::GetAssetImporterSemantics(
+                    ASSETS::SEMANTICS::AssetImporterKind::Model).importerId);
             }
             if (importerId == "SceneImporterStub") {
-                return "SceneAssetImporter";
+                return std::string(ASSETS::SEMANTICS::GetAssetImporterSemantics(
+                    ASSETS::SEMANTICS::AssetImporterKind::Scene).importerId);
             }
             if (importerId == "VfxImporterStub") {
-                return "VfxAssetImporter";
+                return std::string(ASSETS::SEMANTICS::GetAssetImporterSemantics(
+                    ASSETS::SEMANTICS::AssetImporterKind::VfxEffect).importerId);
             }
             return importerId;
         }
@@ -216,47 +153,6 @@ namespace HIKARI {
 
             outRoot = nlohmann::json::parse(ifs, nullptr, false);
             return !outRoot.is_discarded() && outRoot.is_object();
-        }
-
-        bool HasArtifactByRoleAndFormat(
-            const AssetRecord& record,
-            std::string_view role,
-            std::string_view format) {
-
-            for (const AssetArtifactDesc& artifact : record.artifactManifest.artifacts) {
-                if (artifact.role == role && artifact.format == format && !artifact.path.empty()) {
-                    return true;
-                }
-            }
-            return false;
-        }
-
-        const AssetArtifactDesc* FindArtifactByRoleAndFormat(
-            const AssetRecord& record,
-            std::string_view role,
-            std::string_view format) {
-
-            for (const AssetArtifactDesc& artifact : record.artifactManifest.artifacts) {
-                if (artifact.role == role && artifact.format == format && !artifact.path.empty()) {
-                    return &artifact;
-                }
-            }
-            return nullptr;
-        }
-
-        bool IsMaterialHmatCookEnabled(const AssetRecord& record) {
-            if (record.type != AssetType::Material) {
-                return false;
-            }
-
-            nlohmann::json settings = nlohmann::json::parse(record.meta.importSettingsJson, nullptr, false);
-            if (!settings.is_object()) {
-                settings = nlohmann::json::object();
-            }
-
-            const bool cookMaterial = settings.value("cookMaterial", true);
-            const std::string outputFormat = settings.value("outputFormat", std::string("HMAT"));
-            return cookMaterial && outputFormat == "HMAT";
         }
 
         int ImportPriority(AssetType type) {
@@ -362,7 +258,7 @@ namespace HIKARI {
 
         auto appendRecordForSource = [&](const std::filesystem::path& sourcePath, bool allowCreateMissingMeta) {
             std::filesystem::path relativeSource = NormalizeProjectPath(sourcePath);
-            if (IsAssetCompanionSource(relativeSource)) {
+            if (ASSETS::SEMANTICS::IsAssetCompanionSource(relativeSource)) {
                 return true;
             }
             const AssetType guessedType = GuessAssetTypeFromPath(relativeSource);
@@ -479,7 +375,8 @@ namespace HIKARI {
         context.sourceMetaRoot = sourceMetaRoot_;
         context.importedDirectory = GetImportedDirectory(record->guid);
         const AssetRecord sourceSnapshot = *record;
-        const uint32_t importerVersion = importer->GetImporterVersion();
+        const uint32_t importerVersion =
+            importer->GetSemantics().importerVersion;
 
         std::error_code ec{};
         std::filesystem::create_directories(context.importedDirectory, ec);
@@ -599,8 +496,10 @@ namespace HIKARI {
         std::erase_if(
             artifacts,
             [](const AssetArtifactDesc& artifact) {
-                return artifact.role == "CollisionGeometry" ||
-                    artifact.format == "HCOLLISION";
+                return ASSETS::SEMANTICS::MatchesAssetArtifact(
+                    artifact,
+                    ASSETS::SEMANTICS::AssetArtifactKind::CollisionGeometry,
+                    true);
             });
         if (collision.ready) {
             std::error_code relativeEc{};
@@ -608,13 +507,11 @@ namespace HIKARI {
                 collision.path,
                 projectRoot_,
                 relativeEc);
-            artifacts.push_back(AssetArtifactDesc{
-                "CollisionGeometry",
+            artifacts.push_back(ASSETS::SEMANTICS::MakeAssetArtifact(
+                ASSETS::SEMANTICS::AssetArtifactKind::CollisionGeometry,
                 relativeEc
                     ? collision.path.generic_string()
-                    : relative.lexically_normal().generic_string(),
-                "HCOLLISION"
-            });
+                    : relative.lexically_normal().generic_string()));
         }
 
           AssetImportResult manifestUpdate{};
@@ -631,7 +528,8 @@ namespace HIKARI {
               diagnostics = nlohmann::json::object();
           }
           diagnostics["collisionGeometry"] = {
-              { "format", "HCOLLISION" },
+              { "format", std::string(ASSETS::SEMANTICS::ToString(
+                    CookedAssetFormat::HCOLLISION)) },
               { "ready", collision.ready },
               { "shapeCount", collision.shapeCount },
               { "message", collision.message },
@@ -917,7 +815,7 @@ namespace HIKARI {
         nlohmann::json root{
             { "metaVersion", record.meta.metaVersion },
             { "guid", record.meta.guid.value },
-            { "type", ToString(record.meta.type) },
+            { "type", std::string(ASSETS::SEMANTICS::ToString(record.meta.type)) },
             { "importerId", record.meta.importerId },
             { "importerVersion", record.meta.importerVersion },
             { "sourcePath", record.meta.sourcePath },
@@ -946,7 +844,8 @@ namespace HIKARI {
         outMeta = AssetMeta{};
         outMeta.metaVersion = root.value("metaVersion", 1u);
         outMeta.guid.value = root.value("guid", "");
-        outMeta.type = ParseAssetType(root.value("type", "Unknown"));
+        outMeta.type = ASSETS::SEMANTICS::ParseAssetType(
+            root.value("type", "Unknown"));
         outMeta.importerId = NormalizeImporterId(root.value("importerId", ""));
         outMeta.importerVersion = root.value("importerVersion", 1u);
         outMeta.sourcePath = root.value("sourcePath", "");
@@ -1032,7 +931,10 @@ namespace HIKARI {
 
     ClusteredGeometryArtifactInfo AssetDatabase::GetClusteredGeometryArtifactInfo(const AssetRecord& record) const {
         ClusteredGeometryArtifactInfo info{};
-        const AssetArtifactDesc* artifact = FindArtifactByRoleAndFormat(record, "ClusteredGeometry", "HCMESH");
+        const AssetArtifactDesc* artifact =
+            ASSETS::SEMANTICS::FindAssetArtifact(
+                record,
+                ASSETS::SEMANTICS::AssetArtifactKind::ClusteredGeometry);
         if (artifact == nullptr) {
             info.state = ClusteredGeometryArtifactState::Missing;
             info.message = "HCMESH artifact is not recorded in artifact manifest";
@@ -1182,64 +1084,17 @@ namespace HIKARI {
     }
 
     AssetType AssetDatabase::GuessAssetTypeFromPath(const std::filesystem::path& sourcePath) const {
-        const std::string ext = TEXT::ToLowerAsciiCopy(sourcePath.extension().string());
-        const std::string generic = TEXT::ToLowerAsciiCopy(sourcePath.generic_string());
-
-        if (ext == ".dds" && IsSkyFolderPath(sourcePath)) {
-            return AssetType::Sky;
-        }
-        if (IsTextureExtension(ext)) {
-            return AssetType::Texture;
-        }
-        if (IsModelExtension(ext)) {
-            return AssetType::Model;
-        }
-        if (IsScenePath(sourcePath)) {
-            return AssetType::Scene;
-        }
-        if (ext == ".hsequence") {
-            return AssetType::Sequence;
-        }
-        if (ext == ".hanimsm") {
-            return AssetType::AnimationStateMachine;
-        }
-        if (ext == ".hmat" || EndsWith(generic, ".material.json")) {
-            return AssetType::Material;
-        }
-        if (IsVfxExtension(ext)) {
-            return AssetType::VfxEffect;
-        }
-        return AssetType::Unknown;
+        return ASSETS::SEMANTICS::ClassifyAssetTypeFromPath(sourcePath);
     }
 
     std::string AssetDatabase::SelectDefaultImporterId(AssetType type, const std::filesystem::path& sourcePath) const {
-        if (type == AssetType::Sky) {
-            return "SkyCubemapImporter";
+        if (const ASSETS::SEMANTICS::AssetImporterSemantics* semantics =
+            ASSETS::SEMANTICS::FindDefaultAssetImporterSemantics(type)) {
+            return std::string(semantics->importerId);
         }
-        if (type == AssetType::Texture) {
-            return "TextureImporter";
-        }
-        if (type == AssetType::Model) {
-            return "ModelImporter";
-        }
-        if (type == AssetType::Scene) {
-            return "SceneAssetImporter";
-        }
-        if (type == AssetType::Sequence) {
-            return "SequenceAssetImporter";
-        }
-        if (type == AssetType::AnimationStateMachine) {
-            return "AnimationStateMachineAssetImporter";
-        }
-        if (type == AssetType::Material) {
-            return "MaterialImporter";
-        }
-        if (type == AssetType::VfxEffect) {
-            return "VfxAssetImporter";
-        }
-
-        if (const IAssetImporter* importer = importerRegistry_.FindForSource(sourcePath)) {
-            return importer->GetImporterId();
+        if (const ASSETS::SEMANTICS::AssetImporterSemantics* semantics =
+            ASSETS::SEMANTICS::ResolveAssetSourceSemantics(sourcePath)) {
+            return std::string(semantics->importerId);
         }
         return {};
     }
@@ -1370,7 +1225,7 @@ namespace HIKARI {
         if (hasArtifactTime) {
             for (const AssetDependencyDesc& dependency :
                  record.artifactManifest.dependencies) {
-                if (!IsSourceOnlyAssetDependencyRole(
+                if (!ASSETS::SEMANTICS::IsSourceOnlyAssetDependencyRole(
                         dependency.role) ||
                     dependency.path.empty()) {
                     continue;
@@ -1399,14 +1254,21 @@ namespace HIKARI {
         }
 
         const IAssetImporter* importer = importerRegistry_.FindById(record.meta.importerId);
-        const bool importerVersionOutdated = importer && record.meta.importerVersion != importer->GetImporterVersion();
+        const bool importerVersionOutdated =
+            importer &&
+            record.meta.importerVersion !=
+                importer->GetSemantics().importerVersion;
         const bool textureNeedsArtifact = record.type == AssetType::Texture && record.artifactManifest.artifacts.empty();
         const bool modelNeedsArtifact = record.type == AssetType::Model && record.artifactManifest.artifacts.empty();
         const bool skyNeedsArtifact = record.type == AssetType::Sky && record.artifactManifest.artifacts.empty();
         // Material の cook 設定が有効な場合は artifact 欠落も outdated として扱う。
         const bool materialNeedsArtifact =
-            IsMaterialHmatCookEnabled(record) &&
-            !HasArtifactByRoleAndFormat(record, "Material", "HMAT");
+            record.type == AssetType::Material &&
+            ASSETS::IMPORT_POLICY::ResolveMaterialImportPolicy(
+                record.meta.importSettingsJson).ShouldCookHmat() &&
+            !ASSETS::SEMANTICS::HasAssetArtifact(
+                record,
+                ASSETS::SEMANTICS::AssetArtifactKind::Material);
         record.importOutdated = record.importerMissing ||
             record.artifactMissing ||
             sourceNewerThanArtifact ||

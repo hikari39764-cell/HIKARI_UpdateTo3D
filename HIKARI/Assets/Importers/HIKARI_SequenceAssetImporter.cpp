@@ -6,36 +6,21 @@
 #include <json.hpp>
 
 #include "Assets/Sequence/HIKARI_SequenceAsset.h"
-#include "Core/Text/HIKARI_AsciiCase.h"
-
 namespace HIKARI {
 
-    const char* SequenceAssetImporter::GetImporterId() const {
-        return "SequenceAssetImporter";
-    }
-
-    uint32_t SequenceAssetImporter::GetImporterVersion() const {
-        return 1;
-    }
-
-    bool SequenceAssetImporter::CanImport(
-        const std::filesystem::path& sourcePath) const {
-
-        return TEXT::ToLowerAsciiCopy(sourcePath.extension().string()) ==
-            ".hsequence";
+    ASSETS::SEMANTICS::AssetImporterKind
+        SequenceAssetImporter::GetImporterKind() const noexcept {
+        return ASSETS::SEMANTICS::AssetImporterKind::Sequence;
     }
 
     AssetMeta SequenceAssetImporter::CreateDefaultMeta(
         const std::filesystem::path& sourcePath,
         const AssetGuid& guid) const {
 
-        AssetMeta meta{};
-        meta.guid = guid;
-        meta.type = AssetType::Sequence;
-        meta.importerId = GetImporterId();
-        meta.importerVersion = GetImporterVersion();
-        meta.sourcePath = sourcePath.generic_string();
-        meta.displayName = sourcePath.stem().string();
+        AssetMeta meta = ASSETS::SEMANTICS::MakeBaseAssetMeta(
+            sourcePath,
+            guid,
+            GetImporterKind());
         meta.importSettingsJson = nlohmann::json{
             { "runtimeLoader", "SequenceAssetStore" },
             { "sourceAuthoritative", true }

@@ -145,7 +145,8 @@ namespace HIKARI {
             QueuedImportBatch::WorkItem item{};
             item.sourceSnapshot = *record;
             item.importer = importer;
-            item.importerVersion = importer->GetImporterVersion();
+            item.importerVersion =
+                importer->GetSemantics().importerVersion;
             item.context.projectRoot = projectRoot_;
             item.context.assetsRoot = assetsRoot_;
             item.context.libraryRoot = libraryRoot_;

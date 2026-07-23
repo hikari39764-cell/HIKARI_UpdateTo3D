@@ -8,6 +8,7 @@
 #include "Assets/HIKARI_AssetArtifactManifest.h"
 #include "Assets/HIKARI_AssetMeta.h"
 #include "Assets/HIKARI_AssetRecord.h"
+#include "Assets/Semantics/HIKARI_AssetSourceSemantics.h"
 
 namespace HIKARI {
 
@@ -34,9 +35,14 @@ namespace HIKARI {
     public:
         virtual ~IAssetImporter() = default;
 
-        virtual const char* GetImporterId() const = 0;
-        virtual uint32_t GetImporterVersion() const = 0;
-        virtual bool CanImport(const std::filesystem::path& sourcePath) const = 0;
+        virtual ASSETS::SEMANTICS::AssetImporterKind GetImporterKind()
+            const noexcept = 0;
+
+        const ASSETS::SEMANTICS::AssetImporterSemantics& GetSemantics()
+            const noexcept {
+            return ASSETS::SEMANTICS::GetAssetImporterSemantics(
+                GetImporterKind());
+        }
 
         virtual AssetMeta CreateDefaultMeta(
             const std::filesystem::path& sourcePath,

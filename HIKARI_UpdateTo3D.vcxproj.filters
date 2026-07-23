@@ -13,6 +13,12 @@
     <Filter Include="Header Files\Assets\Importers">
       <UniqueIdentifier>{1F40F81B-B4C4-4A4C-B6D7-9C08C296821D}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Header Files\Assets\Importers\Policy">
+      <UniqueIdentifier>{E890DD4E-D5F2-4266-9DC8-3C11AB36F1D2}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\Assets\Semantics">
+      <UniqueIdentifier>{2DC573A7-4A7B-47F6-97B2-93B43A57D474}</UniqueIdentifier>
+    </Filter>
     <Filter Include="Header Files\Assets\Formats">
       <UniqueIdentifier>{4B30B5B4-EF24-4D76-86F5-3E3E2D6E8F3D}</UniqueIdentifier>
     </Filter>
@@ -99,6 +105,9 @@
     </Filter>
     <Filter Include="Header Files\Editor\Panels">
       <UniqueIdentifier>{DDC228B8-08A1-55B1-A9BC-E6AAA3E568F3}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\Editor\Assets">
+      <UniqueIdentifier>{A36511AA-40E1-4809-86D4-B8C89D1E4EA1}</UniqueIdentifier>
     </Filter>
     <Filter Include="Header Files\Editor\Tools">
       <UniqueIdentifier>{1CA6A825-F0C3-4EA6-B5B2-B7B67E5D4E36}</UniqueIdentifier>
@@ -391,6 +400,12 @@
     <Filter Include="Source Files\Assets\Importers">
       <UniqueIdentifier>{8A8DE0F9-A8BD-41BB-9822-92024C79B41A}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Source Files\Assets\Importers\Policy">
+      <UniqueIdentifier>{F099E31C-7D30-456C-907F-B752AD46F7BB}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Assets\Semantics">
+      <UniqueIdentifier>{B1D1ECDC-7D40-4BD0-88CB-515886F9E91E}</UniqueIdentifier>
+    </Filter>
     <Filter Include="Source Files\Assets\Formats">
       <UniqueIdentifier>{2D3D2691-AEB2-4D03-94A1-E68C32A0A7C5}</UniqueIdentifier>
     </Filter>
@@ -474,6 +489,9 @@
     </Filter>
     <Filter Include="Source Files\Editor\Panels">
       <UniqueIdentifier>{34A5A9E3-66B5-542D-8726-306B268D5013}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Editor\Assets">
+      <UniqueIdentifier>{C5E77B2E-DCEA-4F3D-B245-B1AC3A32D2D0}</UniqueIdentifier>
     </Filter>
     <Filter Include="Source Files\Editor\Tools">
       <UniqueIdentifier>{D4F447D2-5D56-48E9-98DF-AC84FB14244B}</UniqueIdentifier>
@@ -1218,8 +1236,20 @@
     <ClCompile Include="HIKARI\Assets\HIKARI_AssetRegistryBuilder.cpp">
       <Filter>Source Files\Assets</Filter>
     </ClCompile>
-    <ClCompile Include="HIKARI\Assets\HIKARI_AssetSourcePolicy.cpp">
-      <Filter>Source Files\Assets</Filter>
+    <ClCompile Include="HIKARI\Assets\Semantics\HIKARI_AssetArtifactSemantics.cpp">
+      <Filter>Source Files\Assets\Semantics</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Assets\Semantics\HIKARI_AssetSourceSemantics.cpp">
+      <Filter>Source Files\Assets\Semantics</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Assets\Importers\Policy\HIKARI_MaterialImportPolicy.cpp">
+      <Filter>Source Files\Assets\Importers\Policy</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Assets\Importers\Policy\HIKARI_ModelImportPolicy.cpp">
+      <Filter>Source Files\Assets\Importers\Policy</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Assets\Importers\Policy\HIKARI_TextureImportPolicy.cpp">
+      <Filter>Source Files\Assets\Importers\Policy</Filter>
     </ClCompile>
     <ClCompile Include="HIKARI\Assets\HIKARI_AssetUsageAnalyzer.cpp">
       <Filter>Source Files\Assets</Filter>
@@ -2009,6 +2039,9 @@
     </ClCompile>
     <ClCompile Include="HIKARI\Editor\HIKARI_AssetBrowserPanel.cpp">
       <Filter>Source Files\Editor\Panels</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Editor\Assets\HIKARI_AssetImportSettingsEditor.cpp">
+      <Filter>Source Files\Editor\Assets</Filter>
     </ClCompile>
     <ClCompile Include="HIKARI\Editor\Panels\HIKARI_AssetInspectorPanel.cpp">
       <Filter>Source Files\Editor\Panels</Filter>
@@ -2908,8 +2941,20 @@
     <ClInclude Include="HIKARI\Assets\HIKARI_AssetRegistryBuilder.h">
       <Filter>Header Files\Assets</Filter>
     </ClInclude>
-    <ClInclude Include="HIKARI\Assets\HIKARI_AssetSourcePolicy.h">
-      <Filter>Header Files\Assets</Filter>
+    <ClInclude Include="HIKARI\Assets\Semantics\HIKARI_AssetArtifactSemantics.h">
+      <Filter>Header Files\Assets\Semantics</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Assets\Semantics\HIKARI_AssetSourceSemantics.h">
+      <Filter>Header Files\Assets\Semantics</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Assets\Importers\Policy\HIKARI_MaterialImportPolicy.h">
+      <Filter>Header Files\Assets\Importers\Policy</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Assets\Importers\Policy\HIKARI_ModelImportPolicy.h">
+      <Filter>Header Files\Assets\Importers\Policy</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Assets\Importers\Policy\HIKARI_TextureImportPolicy.h">
+      <Filter>Header Files\Assets\Importers\Policy</Filter>
     </ClInclude>
     <ClInclude Include="HIKARI\Assets\HIKARI_AssetUsageAnalyzer.h">
       <Filter>Header Files\Assets</Filter>
@@ -3558,6 +3603,9 @@
     </ClInclude>
     <ClInclude Include="HIKARI\Editor\HIKARI_AssetBrowserPanel.h">
       <Filter>Header Files\Editor\Panels</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Editor\Assets\HIKARI_AssetImportSettingsEditor.h">
+      <Filter>Header Files\Editor\Assets</Filter>
     </ClInclude>
     <ClInclude Include="HIKARI\Editor\Panels\HIKARI_AssetInspectorPanel.h">
       <Filter>Header Files\Editor\Panels</Filter>

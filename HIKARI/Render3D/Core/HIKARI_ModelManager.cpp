@@ -16,6 +16,7 @@
 #include <vector>
 #include <json.hpp>
 #include "Assets/Formats/HIKARI_HmodelFormat.h"
+#include "Assets/Semantics/HIKARI_AssetArtifactSemantics.h"
 #include "Core/HIKARI_Logger.h"
 #include "Render3D/Core/HIKARI_AssimpModelLoader.h"
 #include "Render3D/Core/HIKARI_BoundsUtils.h"
@@ -82,12 +83,6 @@ namespace HIKARI {
             case ModelTextureUsage::SpecularColor: return "SpecularColor";
             default: return "Unknown";
             }
-        }
-
-        bool IsHtexPath(const std::string& path) {
-            std::string ext = std::filesystem::path(path).extension().string();
-            TEXT::ToLowerAsciiInPlace(ext);
-            return ext == ".htex";
         }
 
         RENDER3D::TextureResourceColorSpace ColorSpaceForUsage(ModelTextureUsage usage) {
@@ -864,7 +859,8 @@ namespace HIKARI {
         } else {
             std::string ext = GetFileExt(sourcePath);
             TEXT::ToLowerAsciiInPlace(ext);
-            if (ext == ".hmodel") {
+            if (ASSETS::SEMANTICS::ClassifyCookedAssetFormat(sourcePath) ==
+                CookedAssetFormat::HMODEL) {
                 ok = LoadAsHmodel(*asset);
             } else if (ext == ".obj") {
                 ok = LoadAsObj(*asset, true);
@@ -923,7 +919,8 @@ namespace HIKARI {
         std::string ext = GetFileExt(sourcePath);
         TEXT::ToLowerAsciiInPlace(ext);
 
-        if (ext == ".hmodel") {
+        if (ASSETS::SEMANTICS::ClassifyCookedAssetFormat(sourcePath) ==
+            CookedAssetFormat::HMODEL) {
             std::string message{};
             return ReadHmodelFile(sourcePath, asset, message);
         }
@@ -1026,7 +1023,8 @@ namespace HIKARI {
         }
 
         if (resolvedPath == sourceTexturePath) {
-            if (IsHtexPath(resolvedPath)) {
+            if (ASSETS::SEMANTICS::ClassifyCookedAssetFormat(resolvedPath) ==
+                CookedAssetFormat::HTEX) {
                 ++textureResolveStats_.resolvedHtex;
                 HIKARI_LOG_INFO("[ModelTextureResolver] resolved HTEX: " +
                     sourceTexturePath +
@@ -1037,7 +1035,9 @@ namespace HIKARI {
                     sourceTexturePath +
                     " usage=" + ToModelTextureUsageText(usage));
             }
-        } else if (IsHtexPath(resolvedPath)) {
+        } else if (
+            ASSETS::SEMANTICS::ClassifyCookedAssetFormat(resolvedPath) ==
+            CookedAssetFormat::HTEX) {
             ++textureResolveStats_.resolvedHtex;
             HIKARI_LOG_INFO("[ModelTextureResolver] resolved HTEX: " +
                 sourceTexturePath +

@@ -21,6 +21,7 @@
 #include "Render2D/HIKARI_DxTexture.h"
 #include "HIKARI_Services.h"
 #include "Assets/HIKARI_AssetRegistryBuilder.h"
+#include "Assets/Semantics/HIKARI_AssetArtifactSemantics.h"
 #include "Core/HIKARI_Logger.h"
 #include "Core/Math/HIKARI_MathValidation.h"
 #include "Core/HIKARI_TimeService.h"
@@ -192,8 +193,8 @@ namespace HIKARI {
         }
 
         bool IsCookedTextureRuntimePath(const std::filesystem::path& path) {
-            const std::string ext = TEXT::ToLowerAsciiCopy(path.extension().string());
-            if (ext == ".htex") {
+            if (ASSETS::SEMANTICS::ClassifyCookedAssetFormat(path) ==
+                CookedAssetFormat::HTEX) {
                 return true;
             }
 

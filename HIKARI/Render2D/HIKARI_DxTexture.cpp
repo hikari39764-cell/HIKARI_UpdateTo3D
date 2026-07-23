@@ -11,6 +11,7 @@
 #include <d3dx12.h>
 #include "../External/WICTextureLoader.h"
 #include "Assets/Formats/HIKARI_HtexFormat.h"
+#include "Assets/Semantics/HIKARI_AssetArtifactSemantics.h"
 #include "Core/HIKARI_Logger.h"
 #include "Gfx/HIKARI_DXCheck.h"
 #include "Gfx/HIKARI_GpuDeferredReleaseQueue.h"
@@ -121,18 +122,6 @@ namespace HIKARI {
                 return TextureColorSpace::Srgb;
             }
 
-            bool IsHtexPath(const std::string& path)
-            {
-                const std::string lower = TEXT::ToLowerAsciiCopy(path);
-                return lower.size() >= 5 && lower.substr(lower.size() - 5) == ".htex";
-            }
-
-            bool IsDdsPath(const std::string& path)
-            {
-                const std::string lower = TEXT::ToLowerAsciiCopy(path);
-                return lower.size() >= 4 && lower.substr(lower.size() - 4) == ".dds";
-            }
-
             bool IsTgaPath(const std::string& path)
             {
                 const std::string lower = TEXT::ToLowerAsciiCopy(path);
@@ -148,7 +137,8 @@ namespace HIKARI {
                     return colorSpace;
                 }
 
-                return IsHtexPath(path)
+                return ASSETS::SEMANTICS::ClassifyCookedAssetFormat(path) ==
+                    CookedAssetFormat::HTEX
                     ? TextureColorSpace::Auto
                     : ResolveAutoColorSpace(name, path);
             }
@@ -488,7 +478,8 @@ namespace HIKARI {
                     continue;
                 }
 
-                if (!IsHtexPath(request.path)) {
+                if (ASSETS::SEMANTICS::ClassifyCookedAssetFormat(
+                    request.path) != CookedAssetFormat::HTEX) {
                     result.handle = LoadTextureWithColorSpace(
                         request.name,
                         request.path,
@@ -950,10 +941,12 @@ namespace HIKARI {
 
         int DxTextureManager::CreateTextureFromFile(const std::string& path, TextureColorSpace colorSpace)
         {
-            if (IsHtexPath(path)) {
+            if (ASSETS::SEMANTICS::ClassifyCookedAssetFormat(path) ==
+                CookedAssetFormat::HTEX) {
                 return CreateTextureFromHtexFile(path, colorSpace);
             }
-            if (IsDdsPath(path)) {
+            if (ASSETS::SEMANTICS::ClassifyCookedAssetFormat(path) ==
+                CookedAssetFormat::DDS) {
                 return CreateDdsTextureFromFile(path, colorSpace);
             }
             if (IsTgaPath(path)) {

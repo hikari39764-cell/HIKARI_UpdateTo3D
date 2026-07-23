@@ -1,39 +1,15 @@
 #include "HIKARI_MaterialImporter.h"
-#include "Core/Text/HIKARI_AsciiCase.h"
-#include "Core/Text/HIKARI_AsciiCase.h"
-
-#include <algorithm>
-#include <cctype>
-
-#include <json.hpp>
 
 #include "Assets/Formats/HIKARI_HmatFormat.h"
+#include "Assets/Importers/Policy/HIKARI_MaterialImportPolicy.h"
 #include "Assets/Material/HIKARI_MaterialAssetData.h"
+#include "Assets/Semantics/HIKARI_AssetArtifactSemantics.h"
 #include "Core/HIKARI_Logger.h"
 #include "Project/Paths/HIKARI_ProjectPath.h"
 
 namespace HIKARI {
 
     namespace {
-
-        bool IsMaterialJson(const std::filesystem::path& sourcePath) {
-            const std::string filename = TEXT::ToLowerAsciiCopy(sourcePath.filename().string());
-            return filename.ends_with(".material.json");
-        }
-
-        nlohmann::json ParseImportSettingsOrDefault(const AssetMeta& meta) {
-            nlohmann::json settings = nlohmann::json::parse(meta.importSettingsJson, nullptr, false);
-            if (!settings.is_object()) {
-                settings = nlohmann::json::object();
-            }
-            return settings;
-        }
-
-        bool ShouldCookHmat(const nlohmann::json& settings) {
-            const bool cookMaterial = settings.value("cookMaterial", true);
-            const std::string outputFormat = settings.value("outputFormat", std::string("HMAT"));
-            return cookMaterial && outputFormat == "HMAT";
-        }
 
         void AddTextureDependency(
             std::string role,
@@ -52,36 +28,23 @@ namespace HIKARI {
         }
     }
 
-    const char* MaterialImporter::GetImporterId() const {
-        return "MaterialImporter";
-    }
-
-    uint32_t MaterialImporter::GetImporterVersion() const {
-        return 4;
-    }
-
-    bool MaterialImporter::CanImport(const std::filesystem::path& sourcePath) const {
-        return IsMaterialJson(sourcePath);
+    ASSETS::SEMANTICS::AssetImporterKind
+        MaterialImporter::GetImporterKind() const noexcept {
+        return ASSETS::SEMANTICS::AssetImporterKind::Material;
     }
 
     AssetMeta MaterialImporter::CreateDefaultMeta(
         const std::filesystem::path& sourcePath,
         const AssetGuid& guid) const {
 
-        AssetMeta meta{};
-        meta.metaVersion = 1;
-        meta.guid = guid;
-        meta.type = AssetType::Material;
-        meta.importerId = GetImporterId();
-        meta.importerVersion = GetImporterVersion();
-        meta.sourcePath = sourcePath.generic_string();
+        AssetMeta meta = ASSETS::SEMANTICS::MakeBaseAssetMeta(
+            sourcePath,
+            guid,
+            GetImporterKind());
         meta.displayName = sourcePath.stem().stem().string();
-        meta.importSettingsJson = nlohmann::json{
-            { "shaderModel", "PBR" },
-            { "sourceFormat", ".material.json" },
-            { "outputFormat", "HMAT" },
-            { "cookMaterial", true },
-        }.dump(2);
+        meta.importSettingsJson =
+            ASSETS::IMPORT_POLICY::
+                MakeDefaultMaterialImportSettingsJson();
         return meta;
     }
 
@@ -90,7 +53,9 @@ namespace HIKARI {
         const AssetImportContext& context) {
 
         AssetImportResult result{};
-        if (!IsMaterialJson(record.sourcePath)) {
+        if (!ASSETS::SEMANTICS::IsAssetSourceForImporter(
+            record.sourcePath,
+            GetImporterKind())) {
             result.message = "[AssetImporter] unsupported material source: " + record.sourcePath.generic_string();
             HIKARI_LOG_WARN("[MaterialImporter] unsupported material source: " + record.sourcePath.generic_string());
             return result;
@@ -116,7 +81,10 @@ namespace HIKARI {
         AddTextureDependency("Specular", data.specularTexture, result);
         AddTextureDependency("SpecularColor", data.specularColorTexture, result);
 
-        if (!ShouldCookHmat(ParseImportSettingsOrDefault(record.meta))) {
+        const ASSETS::IMPORT_POLICY::MaterialImportPolicy importPolicy =
+            ASSETS::IMPORT_POLICY::ResolveMaterialImportPolicy(
+                record.meta.importSettingsJson);
+        if (!importPolicy.ShouldCookHmat()) {
             result.success = true;
             result.message = "[MaterialImporter] Material JSON validated without cook: " + record.sourcePath.generic_string();
             HIKARI_LOG_INFO("[MaterialImporter] validate only: " + record.sourcePath.generic_string());
@@ -135,11 +103,10 @@ namespace HIKARI {
 
         const std::filesystem::path relativeOutput =
             PROJECT_PATHS::MakeProjectRelativePath(context.projectRoot, outputPath);
-        result.artifacts.push_back(AssetArtifactDesc{
-            "Material",
-            relativeOutput.generic_string(),
-            "HMAT"
-        });
+        result.artifacts.push_back(
+            ASSETS::SEMANTICS::MakeAssetArtifact(
+                ASSETS::SEMANTICS::AssetArtifactKind::Material,
+                relativeOutput.generic_string()));
 
         result.success = true;
         result.message = "[MaterialImporter] Material cooked HMAT: " + relativeOutput.generic_string();

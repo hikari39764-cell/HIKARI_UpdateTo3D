@@ -6,9 +6,8 @@ namespace HIKARI {
 
     class ModelImporter final : public IAssetImporter {
     public:
-        const char* GetImporterId() const override;
-        uint32_t GetImporterVersion() const override;
-        bool CanImport(const std::filesystem::path& sourcePath) const override;
+        ASSETS::SEMANTICS::AssetImporterKind GetImporterKind()
+            const noexcept override;
 
         AssetMeta CreateDefaultMeta(
             const std::filesystem::path& sourcePath,

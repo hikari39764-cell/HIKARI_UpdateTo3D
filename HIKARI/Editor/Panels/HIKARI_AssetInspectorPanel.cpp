@@ -15,7 +15,11 @@
 
 #include "Assets/HIKARI_AssetDatabase.h"
 #include "Assets/HIKARI_AssetImportState.h"
+#include "Assets/Importers/Policy/HIKARI_TextureImportPolicy.h"
 #include "Assets/Material/HIKARI_MaterialAssetData.h"
+#include "Assets/Semantics/HIKARI_AssetArtifactSemantics.h"
+#include "Assets/Semantics/HIKARI_AssetSourceSemantics.h"
+#include "Editor/Assets/HIKARI_AssetImportSettingsEditor.h"
 #include "Editor/HIKARI_EditorContext.h"
 #include "Editor/Widgets/HIKARI_MaterialTextureSlotWidget.h"
 
@@ -26,24 +30,6 @@
 namespace HIKARI {
 
     namespace {
-        const char* ToAssetTypeText(AssetType type) {
-            switch (type) {
-            case AssetType::Model: return "Model";
-            case AssetType::Scene: return "Scene";
-            case AssetType::Sky: return "Sky";
-            case AssetType::Texture: return "Texture";
-            case AssetType::Material: return "Material";
-            case AssetType::Animation: return "Animation";
-            case AssetType::Particle: return "Particle";
-            case AssetType::VfxEffect: return "VfxEffect";
-            case AssetType::Sequence: return "Sequence";
-            case AssetType::AnimationStateMachine:
-                return "Animation State Machine";
-            case AssetType::Unknown:
-            default: return "Unknown";
-            }
-        }
-
         const char* ToClusteredGeometryArtifactStateText(ClusteredGeometryArtifactState state) {
             switch (state) {
             case ClusteredGeometryArtifactState::Exists: return "Exists";
@@ -55,21 +41,43 @@ namespace HIKARI {
             }
         }
 
-        const char* TextureUsageItems[] = {
-            "Auto", "BaseColor", "Normal", "MetallicRoughness", "Occlusion", "Emissive",
-            "Mask", "UI", "SkyCubemap", "IblIrradiance", "IblPrefiltered", "BrdfLut"
+        const std::array TextureUsageItems = {
+            ASSETS::IMPORT_POLICY::ToString(TextureUsage::Auto).data(),
+            ASSETS::IMPORT_POLICY::ToString(TextureUsage::BaseColor).data(),
+            ASSETS::IMPORT_POLICY::ToString(TextureUsage::Normal).data(),
+            ASSETS::IMPORT_POLICY::ToString(TextureUsage::MetallicRoughness).data(),
+            ASSETS::IMPORT_POLICY::ToString(TextureUsage::Occlusion).data(),
+            ASSETS::IMPORT_POLICY::ToString(TextureUsage::Emissive).data(),
+            ASSETS::IMPORT_POLICY::ToString(TextureUsage::Mask).data(),
+            ASSETS::IMPORT_POLICY::ToString(TextureUsage::UI).data(),
+            ASSETS::IMPORT_POLICY::ToString(TextureUsage::SkyCubemap).data(),
+            ASSETS::IMPORT_POLICY::ToString(TextureUsage::IblIrradiance).data(),
+            ASSETS::IMPORT_POLICY::ToString(TextureUsage::IblPrefiltered).data(),
+            ASSETS::IMPORT_POLICY::ToString(TextureUsage::BrdfLut).data(),
         };
 
-        const char* TextureColorSpaceItems[] = {
-            "Auto", "Linear", "Srgb"
+        const std::array TextureColorSpaceItems = {
+            ASSETS::IMPORT_POLICY::ToString(TextureAssetColorSpace::Auto).data(),
+            ASSETS::IMPORT_POLICY::ToString(TextureAssetColorSpace::Linear).data(),
+            ASSETS::IMPORT_POLICY::ToString(TextureAssetColorSpace::Srgb).data(),
         };
 
-        const char* TextureCompressionItems[] = {
-            "Auto", "None", "BC1", "BC3", "BC4", "BC5", "BC6H", "BC7"
+        const std::array TextureCompressionItems = {
+            ASSETS::IMPORT_POLICY::ToString(TextureCompression::Auto).data(),
+            ASSETS::IMPORT_POLICY::ToString(TextureCompression::None).data(),
+            ASSETS::IMPORT_POLICY::ToString(TextureCompression::BC1).data(),
+            ASSETS::IMPORT_POLICY::ToString(TextureCompression::BC3).data(),
+            ASSETS::IMPORT_POLICY::ToString(TextureCompression::BC4).data(),
+            ASSETS::IMPORT_POLICY::ToString(TextureCompression::BC5).data(),
+            ASSETS::IMPORT_POLICY::ToString(TextureCompression::BC6H).data(),
+            ASSETS::IMPORT_POLICY::ToString(TextureCompression::BC7).data(),
         };
 
-        const char* TextureMipPolicyItems[] = {
-            "Auto", "Generate", "Preserve", "None"
+        const std::array TextureMipPolicyItems = {
+            ASSETS::IMPORT_POLICY::ToString(TextureMipPolicy::Auto).data(),
+            ASSETS::IMPORT_POLICY::ToString(TextureMipPolicy::Generate).data(),
+            ASSETS::IMPORT_POLICY::ToString(TextureMipPolicy::Preserve).data(),
+            ASSETS::IMPORT_POLICY::ToString(TextureMipPolicy::None).data(),
         };
 
         const char* CoordinateSystemItems[] = {
@@ -78,10 +86,6 @@ namespace HIKARI {
 
         const char* GeneratePolicyItems[] = {
             "IfMissing", "Always", "Never"
-        };
-
-        const char* ModelGeometryProfileItems[] = {
-            "Scene", "Character"
         };
 
         int FindItemIndex(const char* const* items, int count, const std::string& value) {
@@ -179,87 +183,6 @@ namespace HIKARI {
                 return true;
             }
             return false;
-        }
-
-        nlohmann::json& EnsureClusterGeometrySettings(nlohmann::json& settings) {
-            if (!settings.contains("clusterGeometry") || !settings["clusterGeometry"].is_object()) {
-                settings["clusterGeometry"] = nlohmann::json::object();
-            }
-            return settings["clusterGeometry"];
-        }
-
-        bool DrawClampedIntSetting(
-            const char* label,
-            nlohmann::json& settings,
-            const char* key,
-            int fallback,
-            int minimum,
-            int maximum) {
-
-            int value = settings.value(key, fallback);
-            if (ImGui::InputInt(label, &value)) {
-                settings[key] = (std::max)(minimum, (std::min)(value, maximum));
-                return true;
-            }
-            return false;
-        }
-
-        bool DrawClampedFloatSetting(
-            const char* label,
-            nlohmann::json& settings,
-            const char* key,
-            float fallback,
-            float minimum,
-            float maximum) {
-
-            float value = settings.value(key, fallback);
-            if (ImGui::InputFloat(label, &value)) {
-                settings[key] = (std::max)(minimum, (std::min)(value, maximum));
-                return true;
-            }
-            return false;
-        }
-
-        bool DrawModelClusterCookSettings(nlohmann::json& settings) {
-            nlohmann::json& cluster = EnsureClusterGeometrySettings(settings);
-            bool dirty = false;
-
-            ImGui::SeparatorText("Cluster Geometry");
-            dirty = DrawBoolSetting("Build HCMESH", cluster, "enabled", true) || dirty;
-
-            int profile = FindItemIndex(
-                ModelGeometryProfileItems,
-                IM_ARRAYSIZE(ModelGeometryProfileItems),
-                cluster.value("profile", std::string("Scene")));
-            if (ImGui::Combo(
-                    "Cook Profile",
-                    &profile,
-                    ModelGeometryProfileItems,
-                    IM_ARRAYSIZE(ModelGeometryProfileItems))) {
-                cluster["profile"] = ModelGeometryProfileItems[profile];
-                cluster["partitionLargeSurfaces"] = true;
-                cluster["largeSurfaceTargetExtent"] = profile == 1 ? 1.25f : 3.0f;
-                dirty = true;
-            }
-
-            const bool characterProfile = profile == 1;
-            const float defaultPartitionExtent = characterProfile ? 1.25f : 3.0f;
-            dirty = DrawClampedIntSetting("LOD Count", cluster, "maxLodCount", 5, 1, 5) || dirty;
-            dirty = DrawClampedFloatSetting("LOD Quality Bias", cluster, "lodQualityBias", 1.0f, 0.50f, 4.0f) || dirty;
-            dirty = DrawBoolSetting("Partition Large Surfaces", cluster, "partitionLargeSurfaces", true) || dirty;
-            dirty = DrawClampedFloatSetting(
-                "Partition Target Extent",
-                cluster,
-                "largeSurfaceTargetExtent",
-                defaultPartitionExtent,
-                characterProfile ? 1.0f : 2.0f,
-                64.0f) || dirty;
-            dirty = DrawBoolSetting("Lock Partition Borders", cluster, "lockPartitionBorders", true) || dirty;
-
-            if (dirty) {
-                settings["meshFormat"] = "HCMESH";
-            }
-            return dirty;
         }
 
         void DrawPathRow(const char* label, const std::filesystem::path& path) {
@@ -703,7 +626,9 @@ namespace HIKARI {
                 }
 
                 ImGui::Text("GUID: %s", record->guid.value.c_str());
-                ImGui::Text("Type: %s", ToAssetTypeText(record->type));
+                ImGui::Text(
+                    "Type: %s",
+                    ASSETS::SEMANTICS::ToString(record->type).data());
                 DrawPathRow("Source Path", record->sourcePath);
                 DrawPathRow("Meta Path", record->metaPath);
                 ImGui::Text("Importer: %s", record->meta.importerId.empty() ? "<none>" : record->meta.importerId.c_str());
@@ -751,10 +676,30 @@ namespace HIKARI {
 
             if (ImGui::BeginTabItem("Import Settings")) {
                 if (record->type == AssetType::Texture) {
-                    dirty = DrawComboSetting("Usage", settings, "usage", TextureUsageItems, IM_ARRAYSIZE(TextureUsageItems)) || dirty;
-                    dirty = DrawComboSetting("Color Space", settings, "colorSpace", TextureColorSpaceItems, IM_ARRAYSIZE(TextureColorSpaceItems)) || dirty;
-                    dirty = DrawComboSetting("Compression", settings, "compression", TextureCompressionItems, IM_ARRAYSIZE(TextureCompressionItems)) || dirty;
-                    dirty = DrawComboSetting("Mip Policy", settings, "mipPolicy", TextureMipPolicyItems, IM_ARRAYSIZE(TextureMipPolicyItems)) || dirty;
+                    dirty = DrawComboSetting(
+                        "Usage",
+                        settings,
+                        "usage",
+                        TextureUsageItems.data(),
+                        static_cast<int>(TextureUsageItems.size())) || dirty;
+                    dirty = DrawComboSetting(
+                        "Color Space",
+                        settings,
+                        "colorSpace",
+                        TextureColorSpaceItems.data(),
+                        static_cast<int>(TextureColorSpaceItems.size())) || dirty;
+                    dirty = DrawComboSetting(
+                        "Compression",
+                        settings,
+                        "compression",
+                        TextureCompressionItems.data(),
+                        static_cast<int>(TextureCompressionItems.size())) || dirty;
+                    dirty = DrawComboSetting(
+                        "Mip Policy",
+                        settings,
+                        "mipPolicy",
+                        TextureMipPolicyItems.data(),
+                        static_cast<int>(TextureMipPolicyItems.size())) || dirty;
                     dirty = DrawIntSetting("Max Size", settings, "maxSize", 4096, 1) || dirty;
                     dirty = DrawBoolSetting("Force Power Of Two", settings, "forcePowerOfTwo", false) || dirty;
                     dirty = DrawBoolSetting("Allow Resize", settings, "allowResize", false) || dirty;
@@ -775,7 +720,10 @@ namespace HIKARI {
                     dirty = DrawComboSetting("Generate Tangents", settings, "generateTangents", GeneratePolicyItems, IM_ARRAYSIZE(GeneratePolicyItems)) || dirty;
                     dirty = DrawBoolSetting("Load Materials", settings, "loadMaterials", true) || dirty;
                     dirty = DrawBoolSetting("Load Textures", settings, "loadTextures", true) || dirty;
-                    dirty = DrawModelClusterCookSettings(settings) || dirty;
+                    dirty =
+                        EDITOR::ASSET_IMPORT_SETTINGS::
+                            DrawModelClusterCookSettings(settings, true) ||
+                        dirty;
                 } else if (record->type == AssetType::Scene) {
                     dirty = DrawBoolSetting("Cook Scene", settings, "cookScene", false) || dirty;
                     ImGui::TextDisabled("Scene cook is reserved; SceneSerializer JSON remains the runtime source.");
@@ -889,10 +837,13 @@ namespace HIKARI {
                     }
                 } else if (record->type == AssetType::Sky) {
                     ImGui::TextDisabled("Cubemap face/equirect preview is reserved for the sky preview pass");
-                    for (const AssetArtifactDesc& artifact : record->artifactManifest.artifacts) {
-                        if (artifact.role == "SkyCubemap") {
-                            ImGui::Text("Sky cubemap: %s", artifact.path.c_str());
-                        }
+                    if (const AssetArtifactDesc* artifact =
+                        ASSETS::SEMANTICS::FindCompatibleAssetArtifact(
+                            *record,
+                            ASSETS::SEMANTICS::AssetArtifactKind::SkyCubemap)) {
+                        ImGui::Text(
+                            "Sky cubemap: %s",
+                            artifact->path.c_str());
                     }
                 } else if (record->type == AssetType::Model) {
                     DrawPathRow("Model Source", record->sourcePath);

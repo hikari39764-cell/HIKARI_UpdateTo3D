@@ -7,33 +7,21 @@
 #include <json.hpp>
 
 #include "Assets/Animation/HIKARI_AnimationStateMachineAsset.h"
-#include "Core/Text/HIKARI_AsciiCase.h"
-
 namespace HIKARI {
-    const char* AnimationStateMachineAssetImporter::GetImporterId() const {
-        return "AnimationStateMachineAssetImporter";
-    }
 
-    uint32_t AnimationStateMachineAssetImporter::GetImporterVersion() const {
-        return 2u;
-    }
-
-    bool AnimationStateMachineAssetImporter::CanImport(
-        const std::filesystem::path& sourcePath) const {
-        return TEXT::ToLowerAsciiCopy(sourcePath.extension().string()) ==
-            ".hanimsm";
+    ASSETS::SEMANTICS::AssetImporterKind
+        AnimationStateMachineAssetImporter::GetImporterKind()
+        const noexcept {
+        return ASSETS::SEMANTICS::AssetImporterKind::AnimationStateMachine;
     }
 
     AssetMeta AnimationStateMachineAssetImporter::CreateDefaultMeta(
         const std::filesystem::path& sourcePath,
         const AssetGuid& guid) const {
-        AssetMeta meta{};
-        meta.guid = guid;
-        meta.type = AssetType::AnimationStateMachine;
-        meta.importerId = GetImporterId();
-        meta.importerVersion = GetImporterVersion();
-        meta.sourcePath = sourcePath.generic_string();
-        meta.displayName = sourcePath.stem().string();
+        AssetMeta meta = ASSETS::SEMANTICS::MakeBaseAssetMeta(
+            sourcePath,
+            guid,
+            GetImporterKind());
         meta.importSettingsJson = nlohmann::json{
             { "runtimeLoader", "AnimationStateMachineAssetStore" },
             { "sourceAuthoritative", true }
