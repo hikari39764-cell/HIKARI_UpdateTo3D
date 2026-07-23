@@ -74,10 +74,11 @@ namespace HIKARI::EDITOR {
         }
 
         void SelectRuntimeObject(EditorContext& context, GameObject* object) {
-            context.selection.selectedObject = object;
-            context.selection.selectedAsset = nullptr;
-            context.selection.selectedAssetGuid.clear();
-            context.selection.selectedAssetPath.clear();
+            if (object == nullptr) {
+                context.selection.ClearObjects();
+            } else if (World* world = object->GetWorld()) {
+                context.selection.SelectObject(*world, object);
+            }
         }
 
         std::vector<OverviewCameraEntry> GatherCameras(

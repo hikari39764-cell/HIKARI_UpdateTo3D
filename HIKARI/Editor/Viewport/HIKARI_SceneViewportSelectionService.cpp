@@ -4,6 +4,7 @@
 #include <array>
 #include <cmath>
 #include <limits>
+#include <utility>
 #include <vector>
 
 #include "Render3D/Core/HIKARI_BoundsUtils.h"
@@ -356,7 +357,125 @@ namespace HIKARI::EDITOR {
                 color,
                 2.0f);
         }
+
+        bool RectanglesOverlap(
+            const ImVec2& firstMin,
+            const ImVec2& firstMax,
+            const ImVec2& secondMin,
+            const ImVec2& secondMax) {
+
+            return firstMin.x <= secondMax.x &&
+                firstMax.x >= secondMin.x &&
+                firstMin.y <= secondMax.y &&
+                firstMax.y >= secondMin.y;
+        }
+
+        bool ContainsPoint(
+            const ImVec2& minimum,
+            const ImVec2& maximum,
+            const ImVec2& point) {
+
+            return point.x >= minimum.x &&
+                point.x <= maximum.x &&
+                point.y >= minimum.y &&
+                point.y <= maximum.y;
+        }
+
+        std::vector<SceneObjectId> PickObjectsInRectangle(
+            const Camera3D& camera,
+            const SceneViewportRect& viewport,
+            const MATH::Vec2& first,
+            const MATH::Vec2& second,
+            const std::unordered_set<uint64_t>& lockedObjectIds) {
+
+            const ImVec2 selectionMin{
+                (std::min)(first.x, second.x),
+                (std::min)(first.y, second.y)
+            };
+            const ImVec2 selectionMax{
+                (std::max)(first.x, second.x),
+                (std::max)(first.y, second.y)
+            };
+
+            std::vector<SceneObjectId> selected{};
+            for (const RENDER3D::RUNTIME::SceneRenderObject& object :
+                RenderSubmissionSystem::GetSceneRenderCache().GetObjects()) {
+                if (!object.valid ||
+                    !object.desc.visible ||
+                    !object.desc.id.IsValid() ||
+                    lockedObjectIds.contains(object.desc.id.value) ||
+                    !BOUNDS::IsUsable(object.desc.worldBounds)) {
+                    continue;
+                }
+
+                const Bounds& bounds = object.desc.worldBounds;
+                const MATH::Vec3 center{
+                    (bounds.min.x + bounds.max.x) * 0.5f,
+                    (bounds.min.y + bounds.max.y) * 0.5f,
+                    (bounds.min.z + bounds.max.z) * 0.5f
+                };
+                ImVec2 centerScreen{};
+                const bool centerVisible = ProjectPoint(
+                    camera,
+                    viewport,
+                    center,
+                    centerScreen);
+
+                const std::vector<ImVec2> hull = BuildBoundsHull(
+                    camera,
+                    viewport,
+                    bounds);
+                bool intersects = centerVisible &&
+                    ContainsPoint(
+                        selectionMin,
+                        selectionMax,
+                        centerScreen);
+                if (!intersects &&
+                    hull.size() >= 3u &&
+                    !IsOversizedHull(hull, viewport)) {
+                    ImVec2 hullMin = hull.front();
+                    ImVec2 hullMax = hull.front();
+                    for (const ImVec2& point : hull) {
+                        hullMin.x = (std::min)(hullMin.x, point.x);
+                        hullMin.y = (std::min)(hullMin.y, point.y);
+                        hullMax.x = (std::max)(hullMax.x, point.x);
+                        hullMax.y = (std::max)(hullMax.y, point.y);
+                    }
+                    intersects = RectanglesOverlap(
+                        selectionMin,
+                        selectionMax,
+                        hullMin,
+                        hullMax);
+                }
+                if (intersects) {
+                    selected.push_back(
+                        SceneObjectId{ object.desc.id.value });
+                }
+            }
+            std::sort(
+                selected.begin(),
+                selected.end(),
+                [](SceneObjectId lhs, SceneObjectId rhs) {
+                    return lhs.value < rhs.value;
+                });
+            selected.erase(
+                std::unique(selected.begin(), selected.end()),
+                selected.end());
+            return selected;
+        }
 #endif
+    }
+
+    void SceneViewportSelectionService::SetLockedObjectIds(
+        std::unordered_set<uint64_t> lockedObjectIds) {
+
+        lockedObjectIds_ = std::move(lockedObjectIds);
+        if (lockedObjectIds_.contains(contextTarget_.value)) {
+            contextTarget_ = {};
+        }
+        if (lockedObjectIds_.contains(selectionAnchor_.objectId.value)) {
+            selectionAnchor_ = {};
+        }
     }
 
     SceneObjectId SceneViewportSelectionService::PickObject(
@@ -387,7 +506,8 @@ namespace HIKARI::EDITOR {
             cache.GetSurfaceInstances()) {
             if (!surface.valid ||
                 !surface.visible ||
-                !surface.objectId.IsValid()) {
+                !surface.objectId.IsValid() ||
+                lockedObjectIds_.contains(surface.objectId.value)) {
                 continue;
             }
             float distance = 0.0f;
@@ -419,7 +539,8 @@ namespace HIKARI::EDITOR {
             cache.GetObjects()) {
             if (!object.valid ||
                 !object.desc.visible ||
-                !object.desc.id.IsValid()) {
+                !object.desc.id.IsValid() ||
+                lockedObjectIds_.contains(object.desc.id.value)) {
                 continue;
             }
             float distance = 0.0f;
@@ -460,17 +581,73 @@ namespace HIKARI::EDITOR {
         const ImVec2 mouse = ImGui::GetMousePos();
         const MATH::Vec2 mousePosition{ mouse.x, mouse.y };
         const bool blocked = blockedRegion.Contains(mousePosition);
+        const ImGuiIO& io = ImGui::GetIO();
+        const EditorObjectSelectionMode inputMode = io.KeyCtrl
+            ? EditorObjectSelectionMode::Toggle
+            : (io.KeyShift
+                ? EditorObjectSelectionMode::Add
+                : EditorObjectSelectionMode::Replace);
 
         if (interactionEnabled &&
             viewportHovered &&
             !gizmoCaptured &&
             !blocked &&
+            !io.KeyAlt &&
             ImGui::IsMouseClicked(ImGuiMouseButton_Left)) {
-            result.selection = PickObject(
+            const SceneObjectId picked = PickObject(
                 camera,
                 viewport,
                 mousePosition);
-            result.selectionChanged = true;
+            if (picked.value != 0u) {
+                result.selections.push_back(picked);
+                result.selectionMode = inputMode;
+                result.selectionChanged = true;
+            } else {
+                marqueeActive_ = true;
+                marqueeStart_ = mousePosition;
+                marqueeCurrent_ = mousePosition;
+                marqueeMode_ = inputMode;
+            }
+        }
+
+        if (marqueeActive_) {
+            marqueeCurrent_.x = std::clamp(
+                mousePosition.x,
+                viewport.x,
+                viewport.x + viewport.width);
+            marqueeCurrent_.y = std::clamp(
+                mousePosition.y,
+                viewport.y,
+                viewport.y + viewport.height);
+            if (ImGui::IsMouseReleased(ImGuiMouseButton_Left)) {
+                const float deltaX =
+                    marqueeCurrent_.x - marqueeStart_.x;
+                const float deltaY =
+                    marqueeCurrent_.y - marqueeStart_.y;
+                constexpr float kMarqueeThresholdSquared = 16.0f;
+                if (deltaX * deltaX + deltaY * deltaY >
+                    kMarqueeThresholdSquared) {
+                    result.selections = PickObjectsInRectangle(
+                        camera,
+                        viewport,
+                        marqueeStart_,
+                        marqueeCurrent_,
+                        lockedObjectIds_);
+                    result.selectionMode = marqueeMode_;
+                    result.selectionChanged = true;
+                } else if (
+                    marqueeMode_ ==
+                    EditorObjectSelectionMode::Replace) {
+                    result.selectionMode =
+                        EditorObjectSelectionMode::Replace;
+                    result.selectionChanged = true;
+                }
+                marqueeActive_ = false;
+            }
+        }
+
+        if (!interactionEnabled) {
+            marqueeActive_ = false;
         }
 
         if (interactionEnabled &&
@@ -498,8 +675,12 @@ namespace HIKARI::EDITOR {
                     camera,
                     viewport,
                     mousePosition);
-                result.selection = contextTarget_;
-                result.selectionChanged = true;
+                if (contextTarget_.value != 0u) {
+                    result.selections = { contextTarget_ };
+                    result.selectionMode =
+                        EditorObjectSelectionMode::Replace;
+                    result.selectionChanged = true;
+                }
                 result.openContextMenu = true;
             }
             contextPressActive_ = false;
@@ -513,6 +694,40 @@ namespace HIKARI::EDITOR {
         (void)gizmoCaptured;
 #endif
         return result;
+    }
+
+    void SceneViewportSelectionService::DrawMarquee(
+        ImDrawList* drawList) const {
+#if defined(HIKARI_WITH_EDITOR)
+        if (!marqueeActive_ || drawList == nullptr) {
+            return;
+        }
+        const ImVec2 minimum{
+            (std::min)(marqueeStart_.x, marqueeCurrent_.x),
+            (std::min)(marqueeStart_.y, marqueeCurrent_.y)
+        };
+        const ImVec2 maximum{
+            (std::max)(marqueeStart_.x, marqueeCurrent_.x),
+            (std::max)(marqueeStart_.y, marqueeCurrent_.y)
+        };
+        const ImU32 border = marqueeMode_ ==
+                EditorObjectSelectionMode::Toggle
+            ? IM_COL32(246, 184, 78, 245)
+            : IM_COL32(73, 224, 235, 245);
+        drawList->AddRectFilled(
+            minimum,
+            maximum,
+            IM_COL32(54, 208, 224, 28));
+        drawList->AddRect(
+            minimum,
+            maximum,
+            border,
+            0.0f,
+            0,
+            1.5f);
+#else
+        (void)drawList;
+#endif
     }
 
     void SceneViewportSelectionService::DrawSelectionOutline(

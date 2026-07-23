@@ -6,35 +6,45 @@
 
 namespace HIKARI::EDITOR {
 
-    void DrawEditorDocumentMenu(EditorDocumentMenuState& state) {
+    void DrawEditorDocumentMenu(EditorCommandRouter& commandRouter) {
 #if defined(HIKARI_WITH_EDITOR)
         if (!ImGui::BeginMenu("Edit")) {
             return;
         }
 
-        const std::string undoText = state.undoLabel.empty()
-            ? "Undo"
-            : "Undo " + state.undoLabel;
-        const std::string redoText = state.redoLabel.empty()
-            ? "Redo"
-            : "Redo " + state.redoLabel;
-        state.undoRequested |= ImGui::MenuItem(
-            undoText.c_str(),
-            "Ctrl+Z",
-            false,
-            state.canUndo);
-        state.redoRequested |= ImGui::MenuItem(
-            redoText.c_str(),
-            "Ctrl+Y / Ctrl+Shift+Z",
-            false,
-            state.canRedo);
+        const EditorCommandBinding* undo = commandRouter.Find(
+            EditorCommandId::Undo);
+        const EditorCommandBinding* redo = commandRouter.Find(
+            EditorCommandId::Redo);
+        if (ImGui::MenuItem(
+                undo ? undo->label.c_str() : "Undo",
+                EditorCommandRouter::Shortcut(EditorCommandId::Undo),
+                false,
+                commandRouter.CanExecute(EditorCommandId::Undo))) {
+            (void)commandRouter.Execute(EditorCommandId::Undo);
+        }
+        if (ImGui::MenuItem(
+                redo ? redo->label.c_str() : "Redo",
+                EditorCommandRouter::Shortcut(EditorCommandId::Redo),
+                false,
+                commandRouter.CanExecute(EditorCommandId::Redo))) {
+            (void)commandRouter.Execute(EditorCommandId::Redo);
+        }
         ImGui::Separator();
-        state.saveRequested |= ImGui::MenuItem(
-            "Save Current Scene",
-            "Ctrl+S");
+        const EditorCommandBinding* save = commandRouter.Find(
+            EditorCommandId::SaveDocument);
+        if (ImGui::MenuItem(
+                save ? save->label.c_str() : "Save",
+                EditorCommandRouter::Shortcut(
+                    EditorCommandId::SaveDocument),
+                false,
+                commandRouter.CanExecute(
+                    EditorCommandId::SaveDocument))) {
+            (void)commandRouter.Execute(EditorCommandId::SaveDocument);
+        }
         ImGui::EndMenu();
 #else
-        (void)state;
+        (void)commandRouter;
 #endif
     }
 

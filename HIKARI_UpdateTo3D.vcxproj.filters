@@ -1062,6 +1062,9 @@
     <ClCompile Include="HIKARI\Editor\Authoring\HIKARI_EditorObjectPlacement.cpp">
       <Filter>Source Files\Editor\Authoring</Filter>
     </ClCompile>
+    <ClCompile Include="HIKARI\Editor\Authoring\HIKARI_EditorObjectState.cpp">
+      <Filter>Source Files\Editor\Authoring</Filter>
+    </ClCompile>
     <ClCompile Include="HIKARI\Editor\Authoring\HIKARI_PrimitiveCreationDialog.cpp">
       <Filter>Source Files\Editor\Authoring</Filter>
     </ClCompile>
@@ -2016,7 +2019,19 @@
     <ClCompile Include="HIKARI\Editor\HIKARI_DocumentComponentAuthoringService.cpp">
       <Filter>Source Files\Editor\Controllers</Filter>
     </ClCompile>
+    <ClCompile Include="HIKARI\Editor\Controllers\HIKARI_DocumentSceneEditorCommands.cpp">
+      <Filter>Source Files\Editor\Controllers</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Editor\Commands\HIKARI_EditorCommandRouter.cpp">
+      <Filter>Source Files\Editor\Controllers</Filter>
+    </ClCompile>
     <ClCompile Include="HIKARI\Editor\Commands\HIKARI_SceneObjectCommandService.cpp">
+      <Filter>Source Files\Editor\Controllers</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Editor\Selection\HIKARI_EditorSelection.cpp">
+      <Filter>Source Files\Editor\Controllers</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Editor\Selection\HIKARI_SceneSelectionTransform.cpp">
       <Filter>Source Files\Editor\Controllers</Filter>
     </ClCompile>
     <ClCompile Include="HIKARI\Editor\Panels\HIKARI_SceneCreationPanel.cpp">
@@ -2633,6 +2648,9 @@
       <Filter>Header Files\Editor\Authoring</Filter>
     </ClInclude>
     <ClInclude Include="HIKARI\Editor\Authoring\HIKARI_EditorObjectPlacement.h">
+      <Filter>Header Files\Editor\Authoring</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Editor\Authoring\HIKARI_EditorObjectState.h">
       <Filter>Header Files\Editor\Authoring</Filter>
     </ClInclude>
     <ClInclude Include="HIKARI\Editor\Authoring\HIKARI_PrimitiveCreationDialog.h">
@@ -3508,7 +3526,16 @@
     <ClInclude Include="HIKARI\Editor\Widgets\HIKARI_MaterialTextureSlotWidget.h">
       <Filter>Header Files\Editor\Panels</Filter>
     </ClInclude>
+    <ClInclude Include="HIKARI\Editor\Commands\HIKARI_EditorCommandRouter.h">
+      <Filter>Header Files\Editor\Controllers</Filter>
+    </ClInclude>
     <ClInclude Include="HIKARI\Editor\Commands\HIKARI_SceneObjectCommandService.h">
+      <Filter>Header Files\Editor\Controllers</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Editor\Selection\HIKARI_EditorSelection.h">
+      <Filter>Header Files\Editor\Controllers</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Editor\Selection\HIKARI_SceneSelectionTransform.h">
       <Filter>Header Files\Editor\Controllers</Filter>
     </ClInclude>
     <ClInclude Include="HIKARI\Editor\Panels\HIKARI_SceneCreationPanel.h">

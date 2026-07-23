@@ -132,10 +132,7 @@ namespace HIKARI::EDITOR {
                 scene.GetCamera(),
                 primitiveRequest.mesh);
         GameObject* object = CreatePrimitiveObject(scene, primitiveRequest);
-        context.selection.selectedObject = object;
-        context.selection.selectedAsset = nullptr;
-        context.selection.selectedAssetGuid.clear();
-        context.selection.selectedAssetPath.clear();
+        context.selection.SelectObject(scene.GetWorld(), object);
         context.sceneDirty = true;
         selectionSync.SyncNextSceneObjectId(
             scene,
@@ -169,10 +166,7 @@ namespace HIKARI::EDITOR {
         CreateObjectRequest request{};
         request.position = ComputeObjectPlacementInView(scene.GetCamera());
         GameObject* object = EDITOR::CreateEmptyObject(scene, request);
-        context.selection.selectedObject = object;
-        context.selection.selectedAsset = nullptr;
-        context.selection.selectedAssetGuid.clear();
-        context.selection.selectedAssetPath.clear();
+        context.selection.SelectObject(scene.GetWorld(), object);
         context.sceneDirty = true;
         selectionSync.SyncNextSceneObjectId(
             scene,

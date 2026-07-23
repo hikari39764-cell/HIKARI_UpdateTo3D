@@ -4,6 +4,7 @@
 #include <string>
 #include <string_view>
 #include <unordered_map>
+#include <unordered_set>
 #include <vector>
 
 #include "Scene/HIKARI_SceneObjectId.h"
@@ -17,6 +18,7 @@ namespace HIKARI {
         bool showComponentGizmos = true;
         bool showOnlySelectedObject = false;
         std::unordered_map<std::string, bool> providerVisibility{};
+        std::unordered_set<uint64_t> lockedObjectIds{};
 
         bool IsProviderVisible(
             std::string_view providerId,

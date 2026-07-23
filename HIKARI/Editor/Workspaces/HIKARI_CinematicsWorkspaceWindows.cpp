@@ -5,6 +5,7 @@
 #include "Editor/HIKARI_EditorContext.h"
 #include "Editor/HIKARI_EditorViewportInput.h"
 #include "Editor/HIKARI_SelectionSyncService.h"
+#include "Editor/Commands/HIKARI_EditorCommandRouter.h"
 #include "Editor/Play/HIKARI_EditorPlaySession.h"
 #include "Editor/Style/HIKARI_EditorGlyphs.h"
 #include "Editor/Style/HIKARI_EditorWidgets.h"
@@ -28,28 +29,13 @@ namespace HIKARI::EDITOR {
         constexpr float kRightColumnWidthRatio = 0.30f;
         constexpr float kCameraPanelHeightRatio = 0.60f;
 
-        bool CanUseViewportShortcut(bool focused) {
-            if (!focused) {
-                return false;
-            }
-            ImGuiIO& io = ImGui::GetIO();
-            if (io.WantTextInput || ImGui::IsAnyItemActive() ||
-                ImGui::GetDragDropPayload() != nullptr) {
-                return false;
-            }
-            if (ImGui::IsPopupOpen(
-                    nullptr,
-                    ImGuiPopupFlags_AnyPopupId)) {
-                return false;
-            }
-            return !ImGui::IsMouseDown(ImGuiMouseButton_Right);
-        }
-
         void HandleTransformGizmoShortcuts(
             EditorTransformGizmoState& state,
             bool focused) {
 
-            if (!CanUseViewportShortcut(focused)) {
+            if (!CanUseEditorShortcut(
+                    EditorShortcutScope::Viewport,
+                    focused)) {
                 return;
             }
             if (ImGui::IsKeyPressed(ImGuiKey_Q) ||
@@ -530,7 +516,7 @@ namespace HIKARI::EDITOR {
         result.saveSceneRequested |=
             toolbarResult.saveEmbeddedSceneRequested;
         if (toolbarResult.revealAssetRequested) {
-            context.selection.selectedObject = nullptr;
+            context.selection.ClearObjects();
             context.selection.selectedAsset = nullptr;
             context.selection.selectedAssetGuid =
                 toolbarResult.revealAssetGuid.value;

@@ -141,6 +141,35 @@ namespace HIKARI::EDITOR {
         return changed;
     }
 
+    void CinematicsWorkspaceController::BindDocumentCommands(
+        EditorCommandRouter& commandRouter,
+        DocumentSceneBase& scene) {
+
+        commandRouter.Bind(
+            EditorCommandId::SaveDocument,
+            "Save Sequence Asset",
+            IsEditingSequenceAsset(),
+            [this, &scene]() {
+                (void)SaveSequenceDocument(
+                    scene,
+                    pendingStatusMessage_);
+            });
+        commandRouter.Bind(
+            EditorCommandId::Undo,
+            "Undo Sequence Edit",
+            CanUndoSequenceDocument(),
+            [this]() {
+                (void)UndoSequenceDocument(pendingStatusMessage_);
+            });
+        commandRouter.Bind(
+            EditorCommandId::Redo,
+            "Redo Sequence Edit",
+            CanRedoSequenceDocument(),
+            [this]() {
+                (void)RedoSequenceDocument(pendingStatusMessage_);
+            });
+    }
+
     void CinematicsWorkspaceController::PrepareForRuntimePlay() {
         directorViewPanel_.ExitPilot();
     }
@@ -393,10 +422,9 @@ namespace HIKARI::EDITOR {
             if (GameObject* object = FindRuntimeObject(
                     scene,
                     result.selectedObjectId)) {
-                context.selection.selectedObject = object;
-                context.selection.selectedAsset = nullptr;
-                context.selection.selectedAssetGuid.clear();
-                context.selection.selectedAssetPath.clear();
+                context.selection.SelectObject(
+                    scene.GetWorld(),
+                    object);
             }
         }
 

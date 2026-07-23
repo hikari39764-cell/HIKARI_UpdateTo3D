@@ -6,6 +6,7 @@
 
 #include "Animation/StateMachine/HIKARI_AnimationStateMachine.h"
 #include "Assets/HIKARI_AssetGuid.h"
+#include "Editor/Commands/HIKARI_EditorCommandRouter.h"
 #include "Editor/Documents/HIKARI_AnimationStateMachineEditorDocument.h"
 #include "Editor/Workspaces/HIKARI_EditorWorkspace.h"
 #include "Scene/HIKARI_RuntimeObjectHandle.h"
@@ -31,7 +32,8 @@ namespace HIKARI::EDITOR {
             const EditorWorkspaceActivation& activation);
         void DrawDockSpace(bool resetDefaultDockLayout) const;
         AnimationStateMachineWorkspaceResult Draw(
-            DocumentSceneBase& scene);
+            DocumentSceneBase& scene,
+            EditorCommandRouter& commandRouter);
 
         bool IsDocumentOpen() const noexcept;
         bool IsDocumentDirty() const noexcept;
@@ -40,6 +42,9 @@ namespace HIKARI::EDITOR {
         bool Save(DocumentSceneBase& scene, std::string& outMessage);
         bool Undo(std::string& outMessage);
         bool Redo(std::string& outMessage);
+        void BindDocumentCommands(
+            EditorCommandRouter& commandRouter,
+            DocumentSceneBase& scene);
 
     private:
         enum class SelectionKind : uint8_t {
@@ -65,11 +70,13 @@ namespace HIKARI::EDITOR {
 
         void DrawGraphWindow(
             DocumentSceneBase& scene,
-            AnimationStateMachineWorkspaceResult& result);
+            AnimationStateMachineWorkspaceResult& result,
+            EditorCommandRouter& commandRouter);
         void DrawGraphMenuBar(
             DocumentSceneBase& scene,
             AnimationStateMachineWorkspaceResult& result,
-            GraphMenuRequests& requests);
+            GraphMenuRequests& requests,
+            EditorCommandRouter& commandRouter);
         void RequestDocumentAction(
             DocumentSceneBase& scene,
             AnimationStateMachineWorkspaceResult& result,

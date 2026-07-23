@@ -15,10 +15,12 @@ namespace HIKARI::EDITOR {
         const ImGuiIO& io = ImGui::GetIO();
         const bool popupOpen =
             ImGui::IsPopupOpen(nullptr, ImGuiPopupFlags_AnyPopupId);
+        const bool dragDropActive =
+            ImGui::GetDragDropPayload() != nullptr;
         EditorViewInputBlockState state{};
-        state.pointer = popupOpen;
+        state.pointer = popupOpen || dragDropActive;
         state.keyboard =
-            popupOpen || io.WantTextInput || ImGui::IsAnyItemActive();
+            state.pointer || io.WantTextInput || ImGui::IsAnyItemActive();
         return state;
 #else
         return {};

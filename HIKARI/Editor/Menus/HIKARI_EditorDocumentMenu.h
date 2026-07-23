@@ -1,19 +1,9 @@
 #pragma once
 
-#include <string>
+#include "Editor/Commands/HIKARI_EditorCommandRouter.h"
 
 namespace HIKARI::EDITOR {
 
-    struct EditorDocumentMenuState {
-        std::string undoLabel{};
-        std::string redoLabel{};
-        bool canUndo = false;
-        bool canRedo = false;
-        bool saveRequested = false;
-        bool undoRequested = false;
-        bool redoRequested = false;
-    };
-
-    void DrawEditorDocumentMenu(EditorDocumentMenuState& state);
+    void DrawEditorDocumentMenu(EditorCommandRouter& commandRouter);
 
 } // namespace HIKARI::EDITOR

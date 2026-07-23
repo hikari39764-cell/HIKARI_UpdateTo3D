@@ -36,6 +36,8 @@ namespace HIKARI {
         };
         for (const auto& object : world.GetObjects()) {
             if (!object ||
+                state.lockedObjectIds.contains(
+                    object->GetDocumentId().value) ||
                 (state.showOnlySelectedObject &&
                     (selectedObjectId.value == 0 ||
                         object->GetDocumentId() != selectedObjectId))) {

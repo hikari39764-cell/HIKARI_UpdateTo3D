@@ -76,12 +76,18 @@ namespace HIKARI::EDITOR {
 
     ModelCollisionWorkspaceResult ModelCollisionWorkspaceController::Draw(
         DocumentSceneBase& scene,
-        EditorWorkspaceHost& workspaceHost) {
+        EditorWorkspaceHost& workspaceHost,
+        EditorCommandRouter& commandRouter) {
 
         ModelCollisionWorkspaceResult result{};
         result.statusMessage = statusMessage_;
 #if defined(HIKARI_WITH_EDITOR)
-        DrawPreviewWindow(scene, workspaceHost, result);
+        BindSelectionCommands(commandRouter);
+        DrawPreviewWindow(
+            scene,
+            workspaceHost,
+            result,
+            commandRouter);
         DrawShapeListWindow();
         DrawShapeDetailsWindow();
         DrawSourceModelWindow();
@@ -91,6 +97,7 @@ namespace HIKARI::EDITOR {
 #else
         (void)scene;
         (void)workspaceHost;
+        (void)commandRouter;
 #endif
         return result;
     }
@@ -98,7 +105,8 @@ namespace HIKARI::EDITOR {
     void ModelCollisionWorkspaceController::DrawPreviewWindow(
         DocumentSceneBase& scene,
         EditorWorkspaceHost& workspaceHost,
-        ModelCollisionWorkspaceResult& result) {
+        ModelCollisionWorkspaceResult& result,
+        EditorCommandRouter& commandRouter) {
 #if defined(HIKARI_WITH_EDITOR)
         constexpr ImGuiWindowFlags previewWindowFlags =
             ImGuiWindowFlags_NoScrollbar |
@@ -112,7 +120,7 @@ namespace HIKARI::EDITOR {
             return;
         }
 
-        DrawPreviewToolbar(scene, result);
+        DrawPreviewToolbar(scene, result, commandRouter);
 
         ImVec2 canvasSize = ImGui::GetContentRegionAvail();
         canvasSize.x = (std::max)(canvasSize.x, kMinimumPreviewSize);
@@ -223,9 +231,7 @@ namespace HIKARI::EDITOR {
             TIME::GetFrameContext().unscaledDt,
             aspect);
         if (input.AcceptsKeyboard() && hovered && !io.WantTextInput) {
-            if (ImGui::IsKeyPressed(ImGuiKey_F, false)) {
-                FocusSelection();
-            }
+            (void)commandRouter.ProcessViewportShortcuts(true);
             if (ImGui::IsKeyPressed(ImGuiKey_W, false) &&
                 !input.rightMouseCaptured) {
                 gizmoState_.operation =
@@ -240,29 +246,6 @@ namespace HIKARI::EDITOR {
                 !input.rightMouseCaptured) {
                 gizmoState_.operation =
                     EditorTransformGizmoOperation::Scale;
-            }
-            if (selectionMode_ ==
-                    ModelCollisionSelectionMode::CollisionShapes &&
-                ImGui::IsKeyPressed(ImGuiKey_Delete, false)) {
-                DeleteSelectedShapes();
-            }
-            if (io.KeyCtrl && ImGui::IsKeyPressed(ImGuiKey_S, false)) {
-                (void)SaveDocument(scene, statusMessage_);
-            }
-            if (selectionMode_ ==
-                    ModelCollisionSelectionMode::CollisionShapes &&
-                io.KeyCtrl && ImGui::IsKeyPressed(ImGuiKey_D, false)) {
-                DuplicateSelectedShapes();
-            }
-            if (io.KeyCtrl && ImGui::IsKeyPressed(ImGuiKey_Z, false)) {
-                if (io.KeyShift) {
-                    (void)Redo(statusMessage_);
-                } else {
-                    (void)Undo(statusMessage_);
-                }
-            }
-            if (io.KeyCtrl && ImGui::IsKeyPressed(ImGuiKey_Y, false)) {
-                (void)Redo(statusMessage_);
             }
             if (selectionMode_ ==
                     ModelCollisionSelectionMode::CollisionShapes &&

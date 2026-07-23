@@ -35,6 +35,7 @@ namespace HIKARI {
         TransformData transform{};
         std::vector<SceneComponentData> components{};
         bool editorVisible = true;
+        bool editorLocked = false;
         bool enabled = true;
     };
 

@@ -413,6 +413,16 @@ namespace HIKARI::EDITOR {
             canvas.Line(0.0f, -0.82f, 0.0f, -0.38f);
             canvas.Line(0.0f, 0.38f, 0.0f, 0.82f);
             break;
+        case EditorGlyph::Lock:
+            canvas.Rect(-0.62f, -0.02f, 0.62f, 0.70f, 0.10f);
+            canvas.Arc(
+                3.14159265358979323846f,
+                6.28318530717958647692f,
+                0.42f);
+            canvas.Line(-0.42f, 0.0f, -0.42f, -0.24f);
+            canvas.Line(0.42f, 0.0f, 0.42f, -0.24f);
+            canvas.Circle(0.0f, 0.31f, 0.10f, true);
+            break;
         case EditorGlyph::Object: {
             const ImVec2 top[]{
                 { 0.0f, -0.72f }, { 0.66f, -0.34f },

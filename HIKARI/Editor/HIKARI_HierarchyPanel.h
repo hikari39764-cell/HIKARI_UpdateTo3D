@@ -17,7 +17,9 @@ namespace HIKARI {
             World& world,
             EditorSelection& selection,
             const std::function<void(GameObject&)>&
-                drawObjectContextMenu);
+                drawObjectContextMenu,
+            const std::function<bool(const GameObject&)>&
+                isObjectLocked = {});
 
     private:
         std::array<char, 128> searchBuffer_{};

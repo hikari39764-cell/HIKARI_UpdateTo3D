@@ -447,7 +447,7 @@ namespace HIKARI {
         DebugCameraController3D& debugCamera,
         bool& environmentLightingEnabled,
         bool& resetDockingLayoutRequested,
-        EDITOR::EditorDocumentMenuState& documentMenu) const {
+        EDITOR::EditorCommandRouter& commandRouter) const {
         if (!ImGui::BeginMainMenuBar()) {
             return;
         }
@@ -501,7 +501,7 @@ namespace HIKARI {
             ImGui::EndMenu();
         }
 
-        EDITOR::DrawEditorDocumentMenu(documentMenu);
+        EDITOR::DrawEditorDocumentMenu(commandRouter);
 
         if (ImGui::BeginMenu("Windows")) {
             if (ImGui::BeginMenu("Viewport")) {
@@ -608,7 +608,7 @@ namespace HIKARI {
         DebugCameraController3D&,
         bool&,
         bool&,
-        EDITOR::EditorDocumentMenuState&) const {}
+        EDITOR::EditorCommandRouter&) const {}
 #endif
 
 } // namespace HIKARI

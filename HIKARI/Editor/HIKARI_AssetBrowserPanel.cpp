@@ -1521,7 +1521,7 @@ namespace HIKARI {
         }
 
         void SelectRecord(const AssetRecord& record, EditorSelection& selection) {
-            selection.selectedObject = nullptr;
+            selection.ClearObjects();
             selection.selectedAssetGuid = record.guid.value;
             selection.selectedAssetPath = record.sourcePath.generic_string();
             selection.selectedAsset = nullptr;

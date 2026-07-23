@@ -12,7 +12,8 @@ namespace HIKARI::EDITOR {
 
     void ModelCollisionWorkspaceController::DrawPreviewToolbar(
         DocumentSceneBase& scene,
-        ModelCollisionWorkspaceResult& result) {
+        ModelCollisionWorkspaceResult& result,
+        EditorCommandRouter& commandRouter) {
 #if defined(HIKARI_WITH_EDITOR)
         constexpr ImVec2 kIconSize{ 28.0f, 28.0f };
         const std::string title = IsEditingModel()
@@ -30,7 +31,9 @@ namespace HIKARI::EDITOR {
         }
 
         ImGui::SameLine(0.0f, 12.0f);
-        ImGui::BeginDisabled(!IsEditingModel() || !history_.IsDirty());
+        ImGui::BeginDisabled(
+            !history_.IsDirty() ||
+            !commandRouter.CanExecute(EditorCommandId::SaveDocument));
         if (IconButton(
                 EditorGlyph::Save,
                 "CollisionSave",
@@ -39,45 +42,48 @@ namespace HIKARI::EDITOR {
                     : EditorButtonTone::Quiet,
                 kIconSize,
                 "Save collision setup (Ctrl+S)")) {
-            (void)SaveDocument(scene, statusMessage_);
+            (void)commandRouter.Execute(EditorCommandId::SaveDocument);
         }
         ImGui::EndDisabled();
 
         ImGui::SameLine();
-        ImGui::BeginDisabled(!history_.CanUndo());
+        ImGui::BeginDisabled(
+            !commandRouter.CanExecute(EditorCommandId::Undo));
         if (IconButton(
                 EditorGlyph::Undo,
                 "CollisionUndo",
                 EditorButtonTone::Quiet,
                 kIconSize,
                 "Undo (Ctrl+Z)")) {
-            (void)Undo(statusMessage_);
+            (void)commandRouter.Execute(EditorCommandId::Undo);
         }
         ImGui::EndDisabled();
 
         ImGui::SameLine();
-        ImGui::BeginDisabled(!history_.CanRedo());
+        ImGui::BeginDisabled(
+            !commandRouter.CanExecute(EditorCommandId::Redo));
         if (IconButton(
                 EditorGlyph::Redo,
                 "CollisionRedo",
                 EditorButtonTone::Quiet,
                 kIconSize,
                 "Redo (Ctrl+Y)")) {
-            (void)Redo(statusMessage_);
+            (void)commandRouter.Execute(EditorCommandId::Redo);
         }
         ImGui::EndDisabled();
 
         ImGui::SameLine(0.0f, 10.0f);
         ToolbarDivider();
         ImGui::SameLine(0.0f, 10.0f);
-        ImGui::BeginDisabled(!IsEditingModel());
+        ImGui::BeginDisabled(
+            !commandRouter.CanExecute(EditorCommandId::FocusSelection));
         if (IconButton(
                 EditorGlyph::Focus,
                 "CollisionFrameSelection",
                 EditorButtonTone::Quiet,
                 kIconSize,
                 "Frame selected collision or source part (F)")) {
-            FocusSelection();
+            (void)commandRouter.Execute(EditorCommandId::FocusSelection);
         }
         ImGui::SameLine();
         if (IconButton(
@@ -257,6 +263,7 @@ namespace HIKARI::EDITOR {
 #else
         (void)scene;
         (void)result;
+        (void)commandRouter;
 #endif
     }
 

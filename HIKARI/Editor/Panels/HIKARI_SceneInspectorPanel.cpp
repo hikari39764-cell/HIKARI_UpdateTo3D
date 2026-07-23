@@ -97,10 +97,9 @@ namespace HIKARI::EDITOR {
         }
 
         void SelectObject(EditorContext& context, GameObject& object) {
-            context.selection.selectedObject = &object;
-            context.selection.selectedAsset = nullptr;
-            context.selection.selectedAssetGuid.clear();
-            context.selection.selectedAssetPath.clear();
+            if (World* world = object.GetWorld()) {
+                context.selection.SelectObject(*world, &object);
+            }
         }
 
         void DrawStatusMessage(
@@ -199,6 +198,21 @@ namespace HIKARI::EDITOR {
         }
         ImGui::PopID();
 
+        if (context.selection.GetSelectedObjectCount() > 1u) {
+            ImGui::TextDisabled(
+                "%d objects selected | Editing active object",
+                static_cast<int>(
+                    context.selection.GetSelectedObjectCount()));
+        }
+        if (target->editorLocked) {
+            StatusText(
+                "Locked in editor",
+                EditorStatusTone::Normal);
+            ImGui::SameLine();
+            ImGui::TextDisabled(
+                "Use Object Actions to unlock.");
+            ImGui::BeginDisabled();
+        }
         DrawTransform(scene, context, *target);
 
         ImGui::Spacing();
@@ -228,6 +242,9 @@ namespace HIKARI::EDITOR {
                     selectionSync,
                     *target)) {
             historyRequest_ = std::move(componentHistory);
+        }
+        if (target->editorLocked) {
+            ImGui::EndDisabled();
         }
 
 #else
@@ -262,7 +279,15 @@ namespace HIKARI::EDITOR {
         GameObject& object) {
 #if defined(HIKARI_WITH_EDITOR)
         if (context.selection.selectedObject != &object) {
-            SelectObject(context, object);
+            if (World* world = object.GetWorld()) {
+                context.selection.SelectObject(
+                    *world,
+                    &object,
+                    context.selection.IsObjectSelected(
+                        object.GetDocumentId())
+                        ? EditorObjectSelectionMode::Add
+                        : EditorObjectSelectionMode::Replace);
+            }
         }
         SceneObjectData* target =
             selectionSync.FindDocumentObjectByRuntime(scene, &object);
@@ -284,6 +309,19 @@ namespace HIKARI::EDITOR {
         if (commandItem(SceneObjectCommandId::Rename)) {
             RequestRename(object);
         }
+        const SceneObjectCommandId lockCommand =
+            target->editorLocked
+            ? SceneObjectCommandId::Unlock
+            : SceneObjectCommandId::Lock;
+        if (commandItem(lockCommand)) {
+            commands.Execute(
+                lockCommand,
+                scene,
+                context,
+                selectionSync);
+            return;
+        }
+        ImGui::Separator();
         if (commandItem(SceneObjectCommandId::Duplicate)) {
             commands.Execute(
                 SceneObjectCommandId::Duplicate,
@@ -306,17 +344,32 @@ namespace HIKARI::EDITOR {
             if (ImGui::MenuItem("Focus", "F")) {
                 focusObjectRequest_ = target->id;
             }
-            if (ImGui::MenuItem("Add Component...")) {
+            if (ImGui::MenuItem(
+                    "Add Component...",
+                    nullptr,
+                    false,
+                    !target->editorLocked)) {
                 openComponentPicker_ = true;
             }
-            if (ImGui::MenuItem("Collision...")) {
+            if (ImGui::MenuItem(
+                    "Collision...",
+                    nullptr,
+                    false,
+                    !target->editorLocked)) {
                 collisionAuthoringDialog_.Open(target->id);
             }
             ImGui::EndMenu();
         }
 
         if (ImGui::BeginMenu("Prefab")) {
-            if (ImGui::MenuItem("Save as Prefab...")) {
+            if (ImGui::MenuItem(
+                    "Save as Prefab...",
+                    nullptr,
+                    false,
+                    commands.CanExecute(
+                        SceneObjectCommandId::SaveAsPrefab,
+                        scene,
+                        context))) {
                 prefabObjectId_ = target->id;
                 std::snprintf(
                     prefabBuffer_,
@@ -377,7 +430,8 @@ namespace HIKARI::EDITOR {
                     "Snap Camera to Current View",
                     nullptr,
                     false,
-                    !target->parent.has_value())) {
+                    !target->editorLocked &&
+                        !target->parent.has_value())) {
                 if (scene.SnapCameraObjectToEditorView(target->id)) {
                     context.sceneDirty = true;
                 }

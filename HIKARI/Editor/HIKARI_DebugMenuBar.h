@@ -5,7 +5,7 @@ namespace HIKARI {
     class DebugCameraController3D;
     struct DebugWindowState;
     namespace EDITOR {
-        struct EditorDocumentMenuState;
+        class EditorCommandRouter;
         class EditorToolHost;
         class EditorWorkspaceHost;
     }
@@ -19,7 +19,7 @@ namespace HIKARI {
             DebugCameraController3D& debugCamera,
             bool& environmentLightingEnabled,
             bool& resetDockingLayoutRequested,
-            EDITOR::EditorDocumentMenuState& documentMenu) const;
+            EDITOR::EditorCommandRouter& commandRouter) const;
     };
 
 } // namespace HIKARI

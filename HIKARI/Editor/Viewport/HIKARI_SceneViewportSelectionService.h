@@ -1,5 +1,9 @@
 #pragma once
 
+#include <unordered_set>
+#include <vector>
+
+#include "Editor/Selection/HIKARI_EditorSelection.h"
 #include "Render3D/HIKARI_Math3D.h"
 #include "Scene/HIKARI_SceneObjectId.h"
 
@@ -24,13 +28,18 @@ namespace HIKARI {
         };
 
         struct SceneViewportInteractionResult {
-            SceneObjectId selection{};
+            std::vector<SceneObjectId> selections{};
+            EditorObjectSelectionMode selectionMode =
+                EditorObjectSelectionMode::Replace;
             bool selectionChanged = false;
             bool openContextMenu = false;
         };
 
         class SceneViewportSelectionService {
         public:
+            void SetLockedObjectIds(
+                std::unordered_set<uint64_t> lockedObjectIds);
+
             SceneObjectId PickObject(
                 const Camera3D& camera,
                 const SceneViewportRect& viewport,
@@ -49,6 +58,7 @@ namespace HIKARI {
                 const SceneViewportRect& viewport,
                 SceneObjectId objectId,
                 ImDrawList* drawList) const;
+            void DrawMarquee(ImDrawList* drawList) const;
 
             SceneObjectId GetContextTarget() const noexcept;
 
@@ -68,6 +78,12 @@ namespace HIKARI {
             MATH::Vec2 contextPressPosition_{};
             SceneObjectId contextTarget_{};
             SelectionAnchor selectionAnchor_{};
+            bool marqueeActive_ = false;
+            MATH::Vec2 marqueeStart_{};
+            MATH::Vec2 marqueeCurrent_{};
+            EditorObjectSelectionMode marqueeMode_ =
+                EditorObjectSelectionMode::Replace;
+            std::unordered_set<uint64_t> lockedObjectIds_{};
         };
 
     } // namespace EDITOR

@@ -2,9 +2,10 @@
 
 #include "Editor/Authoring/HIKARI_EditorObjectFactory.h"
 #include "Editor/Authoring/HIKARI_EditorObjectPlacement.h"
+#include "Editor/Authoring/HIKARI_EditorObjectState.h"
 #include "Editor/DragDrop/HIKARI_EditorAssetDragDrop.h"
-#include "Editor/History/HIKARI_CinematicsHistoryCommand.h"
 #include "Editor/History/HIKARI_SceneObjectsHistoryCommand.h"
+#include "Editor/Selection/HIKARI_SceneSelectionTransform.h"
 #include "Editor/History/HIKARI_SceneSystemsHistoryCommand.h"
 #include "Editor/SystemAuthoring/HIKARI_BuiltInSystemAuthoring.h"
 #include "Editor/Menus/HIKARI_EditorDocumentMenu.h"
@@ -18,6 +19,7 @@
 #include "Core/HIKARI_Logger.h"
 #include "HIKARI_Services.h"
 #include "Project/HIKARI_ProjectSettings.h"
+#include "Render3D/Core/HIKARI_BoundsUtils.h"
 #include "Render3D/Lighting/HIKARI_SceneLightingRuntimeData.h"
 #include "Render3D/Lighting/HIKARI_SkyRenderer.h"
 #include "Render3D/Reflection/HIKARI_ReflectionProbeRuntime.h"
@@ -26,6 +28,7 @@
 #include "Editor/Play/HIKARI_EditorPlaySession.h"
 #include "Runtime/HIKARI_RuntimeResourceRefreshService.h"
 #include "Scene/HIKARI_GameObject.h"
+#include "Scene/HIKARI_RenderSubmissionSystem.h"
 #include "Scene/Components/HIKARI_CameraComponent.h"
 #include "Scene/Components/HIKARI_ModelComponent.h"
 #include "Scene/HIKARI_SceneDocument.h"
@@ -35,7 +38,6 @@
 #include "Vfx/Post/HIKARI_PostSystem.h"
 
 #include <algorithm>
-#include <cstdint>
 #include <cmath>
 #include <cstdio>
 #include <iterator>
@@ -50,19 +52,6 @@
 namespace HIKARI {
 
     namespace {
-        bool IsObjectAlive(const World& world, const GameObject* object) {
-            if (!object) {
-                return false;
-            }
-
-            for (const auto& candidate : world.GetObjects()) {
-                if (candidate.get() == object) {
-                    return true;
-                }
-            }
-            return false;
-        }
-
         std::string SummarizeRuntimeRefreshReport(const RuntimeResourceRefreshReport& report) {
             return "Runtime refresh: texture " + std::to_string(report.textureInvalidatedCount) +
                 ", sky " + std::to_string(report.skyInvalidatedCount) +
@@ -73,32 +62,7 @@ namespace HIKARI {
                 ", failed " + std::to_string(report.failedCount);
         }
 
-        bool HasImpact(
-            EDITOR::EditorDocumentImpact value,
-            EDITOR::EditorDocumentImpact flag) noexcept {
-
-            return (static_cast<uint32_t>(value) &
-                static_cast<uint32_t>(flag)) != 0;
-        }
-
 #if defined(HIKARI_WITH_EDITOR)
-        bool CanUseViewportShortcut(bool focused) {
-            if (!focused) {
-                return false;
-            }
-            ImGuiIO& io = ImGui::GetIO();
-            if (io.WantTextInput || ImGui::IsAnyItemActive() || ImGui::GetDragDropPayload() != nullptr) {
-                return false;
-            }
-            if (ImGui::IsPopupOpen(nullptr, ImGuiPopupFlags_AnyPopupId)) {
-                return false;
-            }
-            if (ImGui::IsMouseDown(ImGuiMouseButton_Right)) {
-                return false;
-            }
-            return true;
-        }
-
         bool CouldMutateEditorDocumentThisFrame() {
             const ImGuiIO& io = ImGui::GetIO();
             return ImGui::IsAnyItemActive() || io.WantTextInput ||
@@ -111,7 +75,9 @@ namespace HIKARI {
         }
 
         void HandleTransformGizmoShortcuts(EditorTransformGizmoState& state, bool gameViewFocused) {
-            if (!CanUseViewportShortcut(gameViewFocused)) {
+            if (!EDITOR::CanUseEditorShortcut(
+                    EDITOR::EditorShortcutScope::Viewport,
+                    gameViewFocused)) {
                 return;
             }
 
@@ -663,218 +629,24 @@ namespace HIKARI {
             systemAuthoringRegistry_);
     }
 
-    void DocumentSceneEditorController::SyncDocumentHistory(
-        DocumentSceneBase& scene) {
-
-        const bool dirty =
-            context_.sceneDirty || scene.HasUnsavedSceneChanges();
-        if (documentHistory_.SyncDocumentRevision(
-                scene.GetSceneDocumentRevision(),
-                dirty)) {
-            historyExternalDirty_ = dirty;
-            return;
-        }
-
-        if (!dirty && documentHistory_.IsDirty()) {
-            documentHistory_.MarkSaved();
-            historyExternalDirty_ = false;
-        }
-    }
-
-    void DocumentSceneEditorController::HandleGlobalDocumentShortcuts(
-        DocumentSceneBase& scene) {
-#if defined(HIKARI_WITH_EDITOR)
-        ImGuiIO& io = ImGui::GetIO();
-        if (!io.KeyCtrl) {
-            return;
-        }
-
-        if (ImGui::IsKeyPressed(ImGuiKey_S, false)) {
-            SaveCurrentDocument(scene);
-            return;
-        }
-
-        if (io.WantTextInput || ImGui::IsAnyItemActive() ||
-            ImGui::IsPopupOpen(nullptr, ImGuiPopupFlags_AnyPopupId)) {
-            return;
-        }
-
-        const bool redo =
-            ImGui::IsKeyPressed(ImGuiKey_Y, false) ||
-            (io.KeyShift && ImGui::IsKeyPressed(ImGuiKey_Z, false));
-        if (redo) {
-            ExecuteDocumentHistory(scene, true);
-            return;
-        }
-        if (ImGui::IsKeyPressed(ImGuiKey_Z, false)) {
-            ExecuteDocumentHistory(scene, false);
-        }
-#else
-        (void)scene;
-#endif
-    }
-
-    void DocumentSceneEditorController::SaveCurrentDocument(
-        DocumentSceneBase& scene) {
-
-        if (workspaceHost_.IsActive(
-                EDITOR::EditorWorkspaceId::AnimationStateMachine)) {
-            (void)animationStateMachineWorkspaceController_.Save(
-                scene,
-                viewportDropMessage_);
-            return;
-        }
-
-        if (workspaceHost_.IsActive(
-                EDITOR::EditorWorkspaceId::ModelCollision)) {
-            (void)modelCollisionWorkspaceController_.SaveDocument(
-                scene,
-                viewportDropMessage_);
-            return;
-        }
-
-        if (workspaceHost_.IsActive(
-                EDITOR::EditorWorkspaceId::Cinematics) &&
-            cinematicsWorkspaceController_.IsEditingSequenceAsset()) {
-            (void)cinematicsWorkspaceController_.SaveSequenceDocument(
-                scene,
-                viewportDropMessage_);
-            return;
-        }
-
-        scene.GetSceneDocument().environment = scene.GetSceneEnvironment();
-        if (scene.SaveCurrentSceneDocument()) {
-            documentHistory_.MarkSaved();
-            historyExternalDirty_ = false;
-            context_.sceneDirty = false;
-            scene.SetUnsavedSceneChanges(false);
-            viewportDropMessage_ = "Scene saved";
-        } else {
-            viewportDropMessage_ =
-                "Save failed; save the scene as an asset first";
-        }
-    }
-
-    void DocumentSceneEditorController::ExecuteDocumentHistory(
-        DocumentSceneBase& scene,
-        bool redo) {
-
-        if (workspaceHost_.IsActive(
-                EDITOR::EditorWorkspaceId::AnimationStateMachine)) {
-            if (redo) {
-                (void)animationStateMachineWorkspaceController_.Redo(
-                    viewportDropMessage_);
-            } else {
-                (void)animationStateMachineWorkspaceController_.Undo(
-                    viewportDropMessage_);
-            }
-            return;
-        }
-
-        if (workspaceHost_.IsActive(
-                EDITOR::EditorWorkspaceId::ModelCollision)) {
-            if (redo) {
-                (void)modelCollisionWorkspaceController_.Redo(
-                    viewportDropMessage_);
-            } else {
-                (void)modelCollisionWorkspaceController_.Undo(
-                    viewportDropMessage_);
-            }
-            return;
-        }
-
-        if (workspaceHost_.IsActive(
-                EDITOR::EditorWorkspaceId::Cinematics) &&
-            cinematicsWorkspaceController_.IsEditingSequenceAsset()) {
-            if (redo) {
-                (void)cinematicsWorkspaceController_.RedoSequenceDocument(
-                    viewportDropMessage_);
-            } else {
-                (void)cinematicsWorkspaceController_.UndoSequenceDocument(
-                    viewportDropMessage_);
-            }
-            return;
-        }
-
-        ApplyHistoryResult(
-            scene,
-            redo
-                ? documentHistory_.Redo(scene.GetSceneDocument())
-                : documentHistory_.Undo(scene.GetSceneDocument()),
-            redo);
-    }
-
-    void DocumentSceneEditorController::ApplyHistoryResult(
-        DocumentSceneBase& scene,
-        const EDITOR::EditorHistoryResult& result,
-        bool redo) {
-
-        if (!result.changed) {
-            viewportDropMessage_ = redo
-                ? "Nothing to redo"
-                : "Nothing to undo";
-            return;
-        }
-        if (HasImpact(
-                result.impact,
-                EDITOR::EditorDocumentImpact::Cinematics)) {
-            cinematicsWorkspaceController_.OnCinematicsDocumentRestored(
-                scene,
-                workspaceHost_);
-        }
-        if (HasImpact(
-                result.impact,
-                EDITOR::EditorDocumentImpact::Systems)) {
-            sceneAuthoringUtilityWindows_.SetSystemsRuntimeApplyStatus(
-                scene.ApplySystemRuntimeChanges());
-        }
-        if (HasImpact(
-                result.impact,
-                EDITOR::EditorDocumentImpact::RuntimeWorld)) {
-            selectionSync_.RebuildRuntimeWorldWithSelectionSync(
-                scene,
-                context_.selection,
-                context_.nextSceneObjectId);
-        }
-
-        const bool dirty =
-            historyExternalDirty_ || documentHistory_.IsDirty();
-        context_.sceneDirty = dirty;
-        scene.SetUnsavedSceneChanges(dirty);
-        viewportDropMessage_ = std::string(redo ? "Redo: " : "Undo: ") +
-            result.label;
-    }
-
-    void DocumentSceneEditorController::RecordCinematicsHistory(
-        DocumentSceneBase& scene,
-        SceneCinematicsSettings before,
-        uint64_t mergeGroup,
-        bool externalDirtyBefore) {
-
-        historyExternalDirty_ |= externalDirtyBefore;
-        documentHistory_.RecordApplied(
-            EDITOR::MakeCinematicsHistoryCommand(
-                "Edit Camera Timeline",
-                std::move(before),
-                scene.GetSceneDocument().cinematics),
-            mergeGroup);
-        context_.sceneDirty = true;
-        scene.SetUnsavedSceneChanges(true);
-    }
-
     void DocumentSceneEditorController::Draw(
         DocumentSceneBase& scene,
         EDITOR::EditorPlaySession& playSession) {
 #if defined(HIKARI_WITH_EDITOR)
         SyncDocumentHistory(scene);
-        HandleGlobalDocumentShortcuts(scene);
-        if (!IsObjectAlive(scene.GetWorld(), context_.selection.selectedObject)) {
-            context_.selection.selectedObject = nullptr;
-            context_.selection.selectedAsset = nullptr;
-        }
+        context_.selection.RepairObjectSelection(scene.GetWorld());
+        context_.gizmos.lockedObjectIds =
+            EDITOR::CollectEditorLockedObjectIds(
+                scene.GetSceneDocument());
+        viewportSelectionService_.SetLockedObjectIds(
+            context_.gizmos.lockedObjectIds);
         cinematicsWorkspaceController_.SyncSceneIdentity(
             scene,
             workspaceHost_);
+        ConfigureEditorCommands(scene);
+        if (commandRouter_.ProcessDocumentShortcuts()) {
+            ConfigureEditorCommands(scene);
+        }
 
         documentToolbarController_.SyncDocumentMeta(scene, context_, selectionSync_);
         scene.SetUnsavedSceneChanges(context_.sceneDirty);
@@ -889,52 +661,6 @@ namespace HIKARI {
         scene.SetViewportDebugViewState(context_.viewportDebug);
 
         bool resetDockingLayoutRequested = false;
-        EDITOR::EditorDocumentMenuState documentMenu{};
-        const bool sequenceAssetDocument =
-            workspaceHost_.IsActive(
-                EDITOR::EditorWorkspaceId::Cinematics) &&
-            cinematicsWorkspaceController_.IsEditingSequenceAsset();
-        const bool modelCollisionDocument =
-            workspaceHost_.IsActive(
-                EDITOR::EditorWorkspaceId::ModelCollision) &&
-            modelCollisionWorkspaceController_.IsEditingModel();
-        const bool animationStateMachineDocument =
-            workspaceHost_.IsActive(
-                EDITOR::EditorWorkspaceId::AnimationStateMachine) &&
-            animationStateMachineWorkspaceController_.IsDocumentOpen();
-        if (animationStateMachineDocument) {
-            documentMenu.canUndo =
-                animationStateMachineWorkspaceController_.CanUndo();
-            documentMenu.canRedo =
-                animationStateMachineWorkspaceController_.CanRedo();
-            documentMenu.undoLabel = "Edit Animation State Machine";
-            documentMenu.redoLabel = "Edit Animation State Machine";
-        } else if (modelCollisionDocument) {
-            documentMenu.canUndo =
-                modelCollisionWorkspaceController_.CanUndo();
-            documentMenu.canRedo =
-                modelCollisionWorkspaceController_.CanRedo();
-            documentMenu.undoLabel = "Edit Model Collision";
-            documentMenu.redoLabel = "Edit Model Collision";
-        } else if (sequenceAssetDocument) {
-            documentMenu.canUndo =
-                cinematicsWorkspaceController_.CanUndoSequenceDocument();
-            documentMenu.canRedo =
-                cinematicsWorkspaceController_.CanRedoSequenceDocument();
-            documentMenu.undoLabel = "Edit Sequence Asset";
-            documentMenu.redoLabel = "Edit Sequence Asset";
-        } else {
-            documentMenu.canUndo = documentHistory_.CanUndo();
-            documentMenu.canRedo = documentHistory_.CanRedo();
-            if (const std::string* label =
-                    documentHistory_.GetUndoLabel()) {
-                documentMenu.undoLabel = *label;
-            }
-            if (const std::string* label =
-                    documentHistory_.GetRedoLabel()) {
-                documentMenu.redoLabel = *label;
-            }
-        }
         debugMenuBar_.Draw(
             context_.windows,
             toolHost_,
@@ -942,14 +668,7 @@ namespace HIKARI {
             scene.GetDebugCamera(),
             scene.GetEnvironmentLightingEnabled(),
             resetDockingLayoutRequested,
-            documentMenu);
-        if (documentMenu.saveRequested) {
-            SaveCurrentDocument(scene);
-        } else if (documentMenu.redoRequested) {
-            ExecuteDocumentHistory(scene, true);
-        } else if (documentMenu.undoRequested) {
-            ExecuteDocumentHistory(scene, false);
-        }
+            commandRouter_);
 
         if (resetDockingLayoutRequested) {
             workspaceHost_.RequestResetActiveLayout();
@@ -976,7 +695,9 @@ namespace HIKARI {
                 workspaceHost_.ConsumeReset(
                     EDITOR::EditorWorkspaceId::AnimationStateMachine));
             const EDITOR::AnimationStateMachineWorkspaceResult result =
-                animationStateMachineWorkspaceController_.Draw(scene);
+                animationStateMachineWorkspaceController_.Draw(
+                    scene,
+                    commandRouter_);
             if (result.exitToSceneRequested) {
                 EDITOR::EditorWorkspaceOpenRequest request{};
                 request.workspaceId = EDITOR::EditorWorkspaceId::Scene;
@@ -1000,7 +721,8 @@ namespace HIKARI {
             const EDITOR::ModelCollisionWorkspaceResult result =
                 modelCollisionWorkspaceController_.Draw(
                     scene,
-                    workspaceHost_);
+                    workspaceHost_,
+                    commandRouter_);
             if (result.exitToSceneRequested) {
                 EDITOR::EditorWorkspaceOpenRequest request{};
                 request.workspaceId = EDITOR::EditorWorkspaceId::Scene;
@@ -1045,7 +767,8 @@ namespace HIKARI {
                 documentHistory_.SealMerge();
             }
             if (result.saveSceneRequested) {
-                SaveCurrentDocument(scene);
+                (void)commandRouter_.Execute(
+                    EDITOR::EditorCommandId::SaveDocument);
             }
             if (result.toggleGamePreviewRequested) {
                 ToggleGamePreview(scene, playSession);
@@ -1123,7 +846,8 @@ namespace HIKARI {
                     std::move(history->beforeObjects),
                     std::move(history->afterObjects),
                     std::move(history->beforeCamera),
-                    std::move(history->afterCamera)));
+                    std::move(history->afterCamera),
+                    history->runtimeWorldAffected));
             context_.sceneDirty = true;
             scene.SetUnsavedSceneChanges(true);
         };
@@ -1144,36 +868,7 @@ namespace HIKARI {
         }
         if (const std::optional<SceneObjectId> focusRequest =
                 sceneInspectorPanel_.ConsumeFocusObjectRequest()) {
-            if (GameObject* object =
-                    scene.GetWorld().FindObject(*focusRequest)) {
-                DebugCameraController3D& debugCamera =
-                    scene.GetDebugCamera();
-                const float yaw = debugCamera.GetYaw();
-                const float pitch = debugCamera.GetPitch();
-                const float cp = std::cos(pitch);
-                const MATH::Vec3 forward = MATH::Normalize({
-                    std::sin(yaw) * cp,
-                    std::sin(pitch),
-                    std::cos(yaw) * cp
-                });
-                const Transform3D& transform = object->GetTransform();
-                const float radius = (std::max)({
-                    std::abs(transform.scale.x),
-                    std::abs(transform.scale.y),
-                    std::abs(transform.scale.z),
-                    1.0f
-                });
-                const float distance = (std::clamp)(
-                    radius * 3.0f,
-                    3.0f,
-                    50.0f);
-                const MATH::Vec3 position =
-                    transform.position - forward * distance;
-                debugCamera.SetPosition(position);
-                scene.GetCamera().SetLookAt(
-                    position,
-                    transform.position);
-            }
+            FocusSceneObjects(scene, { *focusRequest });
         }
         if (context_.windows.resources.showAssetBrowser) {
             ProjectSettingsService projectSettings{};
@@ -1656,28 +1351,18 @@ namespace HIKARI {
                 context_.transformGizmo,
                 gameViewFocused);
         }
-        if (!playSession.IsRunning() &&
-            CanUseViewportShortcut(gameViewFocused) &&
-            context_.selection.selectedObject != nullptr) {
-            if (ImGui::GetIO().KeyCtrl &&
-                ImGui::IsKeyPressed(ImGuiKey_D, false)) {
-                sceneObjectCommands_.Execute(
-                    EDITOR::SceneObjectCommandId::Duplicate,
-                    scene,
-                    context_,
-                    selectionSync_);
-            } else if (ImGui::IsKeyPressed(ImGuiKey_Delete, false)) {
-                sceneObjectCommands_.Execute(
-                    EDITOR::SceneObjectCommandId::Delete,
-                    scene,
-                    context_,
-                    selectionSync_);
-            } else if (ImGui::IsKeyPressed(ImGuiKey_F2, false)) {
+        if (!playSession.IsRunning()) {
+            const bool standardCommandExecuted =
+                commandRouter_.ProcessViewportShortcuts(
+                    gameViewFocused);
+            if (!standardCommandExecuted &&
+                EDITOR::CanUseEditorShortcut(
+                    EDITOR::EditorShortcutScope::Viewport,
+                    gameViewFocused) &&
+                context_.selection.selectedObject != nullptr &&
+                ImGui::IsKeyPressed(ImGuiKey_F2, false)) {
                 sceneInspectorPanel_.RequestRename(
                     *context_.selection.selectedObject);
-            } else if (ImGui::IsKeyPressed(ImGuiKey_F, false)) {
-                sceneInspectorPanel_.RequestFocus(
-                    context_.selection.selectedObject->GetDocumentId());
             }
         }
         EDITOR::SetGameViewportInputRect(imageOrigin.x, imageOrigin.y, imageSize.x, imageSize.y, gameViewFocused);
@@ -1696,44 +1381,37 @@ namespace HIKARI {
             if (!context_.overlays.editReflectionProbe &&
                 !ImGui::IsPopupOpen("SceneViewportContextMenu") &&
                 context_.selection.selectedObject != nullptr &&
-                !(selectedObjectIsCamera &&
-                    context_.transformGizmo.operation ==
-                        EditorTransformGizmoOperation::Scale)) {
+                !EDITOR::IsObjectEditorLocked(
+                    scene.GetSceneDocument(),
+                    context_.selection.GetActiveObjectId())) {
                 EditorTransformGizmoState gizmoState = context_.transformGizmo;
                 if (ImGui::IsKeyDown(ImGuiKey_ModCtrl)) {
                     gizmoState.snapEnabled = true;
                 }
-                EDITOR::EditorTransformGizmoResult gizmoResult{};
-                if (selectedObjectIsCamera) {
-                    GameObject cameraProxy{ "Camera Gizmo Proxy" };
-                    cameraProxy.SetDocumentId(
-                        context_.selection.selectedObject->GetDocumentId());
-                    Transform3D proxyTransform =
-                        context_.selection.selectedObject->GetTransform();
-                    proxyTransform.scale = { 1.0f, 1.0f, 1.0f };
-                    proxyTransform.useExplicitMatrix = false;
-                    (void)cameraProxy.SetLocalTransform(proxyTransform);
-                    gizmoResult = transformGizmo_.Draw(
-                        cameraProxy,
-                        scene.GetCamera(),
+                const EDITOR::SceneSelectionTransformResult transformResult =
+                    EDITOR::DrawSceneSelectionTransformGizmo(
+                        scene,
+                        context_.selection,
+                        transformGizmo_,
                         gizmoState,
                         viewportRect);
-                } else {
-                    gizmoResult = transformGizmo_.Draw(
-                        *context_.selection.selectedObject,
-                        scene.GetCamera(),
-                        gizmoState,
-                        viewportRect);
-                }
-                gizmoCapture = gizmoResult.interacting;
+                gizmoCapture = transformResult.gizmo.interacting;
 
-                const char* historyLabel = "Move Object";
+                const bool multipleObjects =
+                    context_.selection.GetSelectedObjectCount() > 1u;
+                const char* historyLabel = multipleObjects
+                    ? "Move Objects"
+                    : "Move Object";
                 switch (gizmoState.operation) {
                 case EditorTransformGizmoOperation::Rotate:
-                    historyLabel = "Rotate Object";
+                    historyLabel = multipleObjects
+                        ? "Rotate Objects"
+                        : "Rotate Object";
                     break;
                 case EditorTransformGizmoOperation::Scale:
-                    historyLabel = "Scale Object";
+                    historyLabel = multipleObjects
+                        ? "Scale Objects"
+                        : "Scale Object";
                     break;
                 case EditorTransformGizmoOperation::Translate:
                 default:
@@ -1743,35 +1421,15 @@ namespace HIKARI {
                     scene.GetSceneDocument(),
                     context_.selection.selectedObject->GetDocumentId(),
                     historyLabel,
-                    gizmoResult.manipulating || gizmoResult.changed,
+                    transformResult.gizmo.manipulating ||
+                        transformResult.gizmo.changed,
                     context_.sceneDirty ||
                         scene.HasUnsavedSceneChanges());
 
-                if (gizmoResult.changed) {
-                    if (selectedObjectIsCamera) {
-                        (void)scene.ApplyCameraObjectPose(
-                            context_.selection.selectedObject->GetDocumentId(),
-                            gizmoResult.transform.position,
-                            gizmoResult.rotation,
-                            true);
-                    }
-                    // Runtime Transform 縺ｨ SceneDocument 縺ｮ TRS 繧貞酔譎ゅ↓譖ｴ譁ｰ縺吶ｋ縲・
-                    if (SceneObjectData* documentObject =
-                        selectionSync_.FindDocumentObjectByRuntime(scene, context_.selection.selectedObject)) {
-                        const MATH::Vec3 rotationEulerDeg =
-                            MATH::EulerXYZDegreesFromQuatNearest(
-                                gizmoResult.rotation,
-                                documentObject->transform.rotationEulerDeg);
-                        documentObject->transform = gizmoResult.transform;
-                        documentObject->transform.rotationEulerDeg = rotationEulerDeg;
-                        if (selectedObjectIsCamera) {
-                            documentObject->transform.scale = {
-                                1.0f,
-                                1.0f,
-                                1.0f
-                            };
-                        }
-                    }
+                if (!transformResult.changedObjectIds.empty()) {
+                    EDITOR::CommitSceneSelectionTransforms(
+                        scene,
+                        transformResult);
                     context_.sceneDirty = true;
                     scene.SetUnsavedSceneChanges(true);
                     viewportTransformHistory_.MarkChanged();
@@ -1891,21 +1549,33 @@ namespace HIKARI {
                 authoringInteractionEnabled,
                 viewportImageHovered,
                 gizmoCapture);
-        if (interaction.selectionChanged) {
-            SelectViewportObject(scene, interaction.selection);
+        const bool preserveContextSelection =
+            interaction.openContextMenu &&
+            interaction.selections.size() == 1u &&
+            context_.selection.IsObjectSelected(
+                interaction.selections.front());
+        if (interaction.selectionChanged &&
+            !preserveContextSelection) {
+            SelectViewportObjects(
+                scene,
+                interaction.selections,
+                interaction.selectionMode);
         }
         if (interaction.openContextMenu) {
             ImGui::OpenPopup("SceneViewportContextMenu");
         }
 
         if (!playSession.IsRunning()) {
-            if (context_.selection.selectedObject != nullptr) {
+            for (SceneObjectId objectId :
+                context_.selection.GetSelectedObjectIds()) {
                 viewportSelectionService_.DrawSelectionOutline(
                     scene.GetCamera(),
                     sceneViewportRect,
-                    context_.selection.selectedObject->GetDocumentId(),
+                    objectId,
                     ImGui::GetWindowDrawList());
             }
+            viewportSelectionService_.DrawMarquee(
+                ImGui::GetWindowDrawList());
             DrawReflectionProbeLabels(
                 scene,
                 context_.overlays,
@@ -1972,24 +1642,115 @@ namespace HIKARI {
 #endif
     }
 
-    void DocumentSceneEditorController::SelectViewportObject(
+    void DocumentSceneEditorController::SelectViewportObjects(
         DocumentSceneBase& scene,
-        SceneObjectId objectId) {
+        const std::vector<SceneObjectId>& objectIds,
+        EditorObjectSelectionMode mode) {
 #if defined(HIKARI_WITH_EDITOR)
-        context_.selection.selectedObject = objectId.value != 0u
-            ? scene.GetWorld().FindObject(objectId)
-            : nullptr;
-        context_.selection.selectedAsset = nullptr;
-        context_.selection.selectedAssetGuid.clear();
-        context_.selection.selectedAssetPath.clear();
+        context_.selection.SelectObjectIds(
+            scene.GetWorld(),
+            objectIds,
+            mode);
         scene.SetSelectedGizmoObjectId(
             context_.selection.selectedObject != nullptr
                 ? context_.selection.selectedObject->GetDocumentId()
                 : SceneObjectId{});
 #else
         (void)scene;
-        (void)objectId;
+        (void)objectIds;
+        (void)mode;
 #endif
+    }
+
+    void DocumentSceneEditorController::FocusSceneObjects(
+        DocumentSceneBase& scene,
+        const std::vector<SceneObjectId>& objectIds) {
+
+        Bounds selectionBounds = BOUNDS::EmptyBounds();
+        bool hasSelectionBounds = false;
+        const RENDER3D::RUNTIME::SceneRenderCache& renderCache =
+            RenderSubmissionSystem::GetSceneRenderCache();
+
+        for (SceneObjectId objectId : objectIds) {
+            const RENDER3D::RUNTIME::SceneRenderObject* renderObject =
+                renderCache.Find(
+                    RENDER3D::RUNTIME::SceneRenderObjectId{
+                        objectId.value
+                    });
+            if (renderObject != nullptr &&
+                BOUNDS::IsUsable(renderObject->desc.worldBounds)) {
+                BOUNDS::Encapsulate(
+                    selectionBounds,
+                    renderObject->desc.worldBounds);
+                hasSelectionBounds = true;
+                continue;
+            }
+
+            const GameObject* object =
+                scene.GetWorld().FindObject(objectId);
+            if (object == nullptr) {
+                continue;
+            }
+            const MATH::Mat4& worldMatrix =
+                object->GetTransform().GetWorldMatrix();
+            MATH::Vec3 position{
+                worldMatrix.m[3][0],
+                worldMatrix.m[3][1],
+                worldMatrix.m[3][2]
+            };
+            MATH::Quat rotation{};
+            MATH::Vec3 scale{ 1.0f, 1.0f, 1.0f };
+            (void)MATH::DecomposeTRS(
+                worldMatrix,
+                position,
+                rotation,
+                scale);
+            const float radius = (std::max)({
+                std::abs(scale.x),
+                std::abs(scale.y),
+                std::abs(scale.z),
+                0.5f
+            });
+            const MATH::Vec3 extent{ radius, radius, radius };
+            BOUNDS::Encapsulate(selectionBounds, position - extent);
+            BOUNDS::Encapsulate(selectionBounds, position + extent);
+            hasSelectionBounds = true;
+        }
+
+        if (!hasSelectionBounds ||
+            !BOUNDS::IsUsable(selectionBounds)) {
+            return;
+        }
+
+        const MATH::Vec3 center =
+            (selectionBounds.min + selectionBounds.max) * 0.5f;
+        const MATH::Vec3 extent =
+            (selectionBounds.max - selectionBounds.min) * 0.5f;
+        const float radius = (std::max)(
+            std::sqrt(
+                extent.x * extent.x +
+                extent.y * extent.y +
+                extent.z * extent.z),
+            1.0f);
+
+        DebugCameraController3D& debugCamera =
+            scene.GetDebugCamera();
+        const float yaw = debugCamera.GetYaw();
+        const float pitch = debugCamera.GetPitch();
+        const float cp = std::cos(pitch);
+        const MATH::Vec3 forward = MATH::Normalize({
+            std::sin(yaw) * cp,
+            std::sin(pitch),
+            std::cos(yaw) * cp
+        });
+        const float distance = (std::clamp)(
+            radius * 2.5f,
+            3.0f,
+            5000.0f);
+        const MATH::Vec3 position =
+            center - forward * distance;
+        debugCamera.SetPosition(position);
+        scene.GetCamera().SetLookAt(position, center);
     }
 
     void DocumentSceneEditorController::DrawViewportContextMenu(
@@ -2043,10 +1804,7 @@ namespace HIKARI {
                 1.0f);
 
             GameObject* object = EDITOR::CreateModelObject(scene, payload.guid, request);
-            context_.selection.selectedObject = object;
-            context_.selection.selectedAsset = nullptr;
-            context_.selection.selectedAssetGuid.clear();
-            context_.selection.selectedAssetPath.clear();
+            context_.selection.SelectObject(scene.GetWorld(), object);
             context_.sceneDirty = true;
             scene.SetUnsavedSceneChanges(true);
             selectionSync_.SyncNextSceneObjectId(scene, context_.nextSceneObjectId);
@@ -2163,7 +1921,7 @@ namespace HIKARI {
             return false;
         }
 
-        context_.selection.selectedObject = nullptr;
+        context_.selection.ClearObjects();
         context_.selection.selectedAsset = nullptr;
         context_.selection.selectedAssetGuid = sceneGuid.value;
         context_.selection.selectedAssetPath.clear();
@@ -2217,6 +1975,11 @@ namespace HIKARI {
                     selectionSync_,
                     sceneObjectCommands_,
                     object);
+            },
+            [&](const GameObject& object) {
+                return EDITOR::IsObjectEditorLocked(
+                    scene.GetSceneDocument(),
+                    object.GetDocumentId());
             });
 
         if (ImGui::BeginPopupContextWindow(

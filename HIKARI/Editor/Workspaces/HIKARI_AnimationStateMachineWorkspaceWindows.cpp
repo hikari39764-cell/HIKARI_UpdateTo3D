@@ -76,17 +76,19 @@ namespace HIKARI::EDITOR {
 
     AnimationStateMachineWorkspaceResult
         AnimationStateMachineWorkspaceController::Draw(
-            DocumentSceneBase& scene) {
+            DocumentSceneBase& scene,
+            EditorCommandRouter& commandRouter) {
         AnimationStateMachineWorkspaceResult result{};
 #if defined(HIKARI_WITH_EDITOR)
         if (!document_.IsOpen()) document_.New();
-        DrawGraphWindow(scene, result);
+        DrawGraphWindow(scene, result, commandRouter);
         DrawParametersWindow();
         DrawTransitionsWindow();
         DrawDetailsWindow(scene);
         DrawDiagnosticsWindow(scene);
 #else
         (void)scene;
+        (void)commandRouter;
 #endif
         result.statusMessage = statusMessage_;
         return result;

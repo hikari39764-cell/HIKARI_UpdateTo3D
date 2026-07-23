@@ -3,22 +3,13 @@
 #include <cstdint>
 #include <string>
 
+#include "Editor/Selection/HIKARI_EditorSelection.h"
 #include "Render3D/HIKARI_Math3D.h"
 #include "Runtime/HIKARI_RuntimeResourceRefreshService.h"
 #include "Scene/Debug/HIKARI_ComponentGizmoRegistry.h"
 #include "Scene/Debug/HIKARI_ViewportDebugState.h"
 
 namespace HIKARI {
-
-    class GameObject;
-    class ModelAsset;
-
-    struct EditorSelection {
-        GameObject* selectedObject = nullptr;
-        ModelAsset* selectedAsset = nullptr;
-        std::string selectedAssetGuid{};
-        std::string selectedAssetPath{};
-    };
 
     enum class EditorTransformGizmoOperation {
         Translate,

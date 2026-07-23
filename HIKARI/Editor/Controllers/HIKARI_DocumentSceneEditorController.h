@@ -1,6 +1,7 @@
 #pragma once
 
 #include <optional>
+#include <vector>
 
 #include "Editor/HIKARI_DebugCameraPanel.h"
 #include "Editor/HIKARI_DebugMenuBar.h"
@@ -11,6 +12,7 @@
 #include "Editor/Gizmos/HIKARI_EditorTransformGizmo.h"
 #include "Editor/Panels/HIKARI_EnvironmentPanel.h"
 #include "Editor/HIKARI_HierarchyPanel.h"
+#include "Editor/Commands/HIKARI_EditorCommandRouter.h"
 #include "Editor/Commands/HIKARI_SceneObjectCommandService.h"
 #include "Editor/Panels/HIKARI_SceneCreationPanel.h"
 #include "Editor/Panels/HIKARI_SceneInspectorPanel.h"
@@ -88,9 +90,13 @@ namespace HIKARI {
         bool SaveRenderQualityProfile(DocumentSceneBase& scene);
         void DrawSceneWorkspaceWindow(DocumentSceneBase& scene);
         void DrawInspectorWindow(DocumentSceneBase& scene);
-        void SelectViewportObject(
+        void SelectViewportObjects(
             DocumentSceneBase& scene,
-            SceneObjectId objectId);
+            const std::vector<SceneObjectId>& objectIds,
+            EditorObjectSelectionMode mode);
+        void FocusSceneObjects(
+            DocumentSceneBase& scene,
+            const std::vector<SceneObjectId>& objectIds);
         void DrawViewportContextMenu(DocumentSceneBase& scene);
         void DrawDebugWorkspaceWindow(DocumentSceneBase& scene);
         void DrawDebugViewWindow(DocumentSceneBase& scene, bool& open);
@@ -98,9 +104,9 @@ namespace HIKARI {
         void DrawPendingSceneOpenModal(DocumentSceneBase& scene);
         bool OpenSceneAssetFromEditor(DocumentSceneBase& scene, const AssetGuid& sceneGuid);
         void SyncDocumentHistory(DocumentSceneBase& scene);
-        void HandleGlobalDocumentShortcuts(DocumentSceneBase& scene);
-        void SaveCurrentDocument(DocumentSceneBase& scene);
-        void ExecuteDocumentHistory(
+        void ConfigureEditorCommands(DocumentSceneBase& scene);
+        void SaveSceneDocument(DocumentSceneBase& scene);
+        void ExecuteSceneDocumentHistory(
             DocumentSceneBase& scene,
             bool redo);
         void ApplyHistoryResult(
@@ -117,6 +123,7 @@ namespace HIKARI {
         std::string viewportDropMessage_{};
         bool renderQualitySavePending_ = false;
         EDITOR::EditorDocumentHistory documentHistory_{};
+        EDITOR::EditorCommandRouter commandRouter_{};
         EDITOR::SceneObjectTransformHistorySession
             viewportTransformHistory_{};
         bool historyExternalDirty_ = false;

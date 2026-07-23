@@ -163,7 +163,7 @@ namespace HIKARI::EDITOR {
         }
 
         if (ImGui::SmallButton("Select") && record && selection) {
-            selection->selectedObject = nullptr;
+            selection->ClearObjects();
             selection->selectedAsset = nullptr;
             selection->selectedAssetGuid = record->guid.value;
             selection->selectedAssetPath = record->sourcePath.generic_string();

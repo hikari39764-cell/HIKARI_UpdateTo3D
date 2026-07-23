@@ -12,12 +12,14 @@ namespace HIKARI::EDITOR {
                 std::vector<SceneObjectData> beforeObjects,
                 std::vector<SceneObjectData> afterObjects,
                 SceneCameraSettings beforeCamera,
-                SceneCameraSettings afterCamera)
+                SceneCameraSettings afterCamera,
+                bool runtimeWorldAffected)
                 : label_(std::move(label)),
                   beforeObjects_(std::move(beforeObjects)),
                   afterObjects_(std::move(afterObjects)),
                   beforeCamera_(std::move(beforeCamera)),
-                  afterCamera_(std::move(afterCamera)) {
+                  afterCamera_(std::move(afterCamera)),
+                  runtimeWorldAffected_(runtimeWorldAffected) {
             }
 
             const std::string& GetLabel() const noexcept override {
@@ -25,7 +27,9 @@ namespace HIKARI::EDITOR {
             }
 
             EditorDocumentImpact GetImpact() const noexcept override {
-                return EditorDocumentImpact::RuntimeWorld;
+                return runtimeWorldAffected_
+                    ? EditorDocumentImpact::RuntimeWorld
+                    : EditorDocumentImpact::None;
             }
 
             void Undo(SceneDocument& document) const override {
@@ -49,6 +53,7 @@ namespace HIKARI::EDITOR {
             std::vector<SceneObjectData> afterObjects_{};
             SceneCameraSettings beforeCamera_{};
             SceneCameraSettings afterCamera_{};
+            bool runtimeWorldAffected_ = true;
         };
     }
 
@@ -56,16 +61,18 @@ namespace HIKARI::EDITOR {
         MakeSceneObjectsHistoryCommand(
             std::string label,
             std::vector<SceneObjectData> beforeObjects,
-            std::vector<SceneObjectData> afterObjects,
-            SceneCameraSettings beforeCamera,
-            SceneCameraSettings afterCamera) {
+        std::vector<SceneObjectData> afterObjects,
+        SceneCameraSettings beforeCamera,
+        SceneCameraSettings afterCamera,
+        bool runtimeWorldAffected) {
 
         return std::make_unique<SceneObjectsHistoryCommand>(
             std::move(label),
             std::move(beforeObjects),
             std::move(afterObjects),
             std::move(beforeCamera),
-            std::move(afterCamera));
+            std::move(afterCamera),
+            runtimeWorldAffected);
     }
 
 } // namespace HIKARI::EDITOR

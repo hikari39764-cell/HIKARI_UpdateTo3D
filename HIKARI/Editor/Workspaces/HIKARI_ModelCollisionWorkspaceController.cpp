@@ -58,6 +58,32 @@ namespace HIKARI::EDITOR {
         return history_.CanRedo();
     }
 
+    void ModelCollisionWorkspaceController::BindSelectionCommands(
+        EditorCommandRouter& commandRouter) {
+
+        const bool shapeSelection =
+            selectionMode_ == ModelCollisionSelectionMode::CollisionShapes &&
+            !selectedShapeIds_.empty();
+        const bool sourceSelection =
+            selectionMode_ == ModelCollisionSelectionMode::SourceNodes &&
+            !selectedSourceNodes_.empty();
+        commandRouter.Bind(
+            EditorCommandId::DuplicateSelection,
+            "Duplicate Collision Shape",
+            shapeSelection,
+            [this]() { DuplicateSelectedShapes(); });
+        commandRouter.Bind(
+            EditorCommandId::DeleteSelection,
+            "Delete Collision Shape",
+            shapeSelection,
+            [this]() { DeleteSelectedShapes(); });
+        commandRouter.Bind(
+            EditorCommandId::FocusSelection,
+            "Focus Collision Selection",
+            shapeSelection || sourceSelection,
+            [this]() { FocusSelection(); });
+    }
+
     bool ModelCollisionWorkspaceController::SaveDocument(
         DocumentSceneBase& scene,
         std::string& outMessage) {
@@ -121,6 +147,29 @@ namespace HIKARI::EDITOR {
         ++editRevision_;
         outMessage = "collision edit redone";
         return true;
+    }
+
+    void ModelCollisionWorkspaceController::BindDocumentCommands(
+        EditorCommandRouter& commandRouter,
+        DocumentSceneBase& scene) {
+
+        commandRouter.Bind(
+            EditorCommandId::SaveDocument,
+            "Save Model Collision",
+            IsEditingModel(),
+            [this, &scene]() {
+                (void)SaveDocument(scene, statusMessage_);
+            });
+        commandRouter.Bind(
+            EditorCommandId::Undo,
+            "Undo Model Collision Edit",
+            CanUndo(),
+            [this]() { (void)Undo(statusMessage_); });
+        commandRouter.Bind(
+            EditorCommandId::Redo,
+            "Redo Model Collision Edit",
+            CanRedo(),
+            [this]() { (void)Redo(statusMessage_); });
     }
 
     bool ModelCollisionWorkspaceController::OpenModel(

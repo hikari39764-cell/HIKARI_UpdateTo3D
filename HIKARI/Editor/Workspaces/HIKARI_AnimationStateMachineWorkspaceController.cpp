@@ -89,6 +89,27 @@ namespace HIKARI::EDITOR {
         return true;
     }
 
+    void AnimationStateMachineWorkspaceController::BindDocumentCommands(
+        EditorCommandRouter& commandRouter,
+        DocumentSceneBase& scene) {
+
+        commandRouter.Bind(
+            EditorCommandId::SaveDocument,
+            "Save Animation State Machine",
+            IsDocumentOpen(),
+            [this, &scene]() { (void)Save(scene, statusMessage_); });
+        commandRouter.Bind(
+            EditorCommandId::Undo,
+            "Undo Animation State Machine Edit",
+            CanUndo(),
+            [this]() { (void)Undo(statusMessage_); });
+        commandRouter.Bind(
+            EditorCommandId::Redo,
+            "Redo Animation State Machine Edit",
+            CanRedo(),
+            [this]() { (void)Redo(statusMessage_); });
+    }
+
     void AnimationStateMachineWorkspaceController::AddState() {
         const auto& definition = document_.Definition();
         AddStateAt(

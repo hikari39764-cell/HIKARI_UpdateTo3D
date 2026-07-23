@@ -6,6 +6,7 @@
 #include <unordered_set>
 #include <utility>
 
+#include "Editor/Authoring/HIKARI_EditorObjectState.h"
 #include "Editor/HIKARI_EditorContext.h"
 #include "Editor/HIKARI_SelectionSyncService.h"
 #include "Scene/HIKARI_ComponentRegistry.h"
@@ -19,6 +20,8 @@ namespace HIKARI::EDITOR {
             { "Rename", "F2" },
             { "Duplicate", "Ctrl+D" },
             { "Delete", "Delete" },
+            { "Lock Selected", "" },
+            { "Unlock Selected", "" },
             { "Save as Prefab...", "" },
             { "Instantiate Prefab", "" },
             { "Add Component...", "" },
@@ -73,12 +76,64 @@ namespace HIKARI::EDITOR {
             return ids;
         }
 
+        std::vector<SceneObjectId> CollectSelectedRootIds(
+            const SceneDocument& document,
+            const EditorSelection& selection) {
+
+            std::unordered_set<uint64_t> selectedIds{};
+            for (SceneObjectId objectId :
+                selection.GetSelectedObjectIds()) {
+                if (objectId.value != 0u) {
+                    selectedIds.insert(objectId.value);
+                }
+            }
+
+            std::unordered_map<uint64_t, SceneObjectId> parents{};
+            parents.reserve(document.objects.size());
+            for (const SceneObjectData& object : document.objects) {
+                if (object.parent) {
+                    parents.emplace(object.id.value, *object.parent);
+                }
+            }
+
+            std::vector<SceneObjectId> roots{};
+            roots.reserve(selectedIds.size());
+            for (SceneObjectId objectId :
+                selection.GetSelectedObjectIds()) {
+                bool hasSelectedAncestor = false;
+                SceneObjectId ancestor = objectId;
+                std::unordered_set<uint64_t> visitedAncestors{
+                    objectId.value
+                };
+                while (true) {
+                    const auto found = parents.find(ancestor.value);
+                    if (found == parents.end()) {
+                        break;
+                    }
+                    ancestor = found->second;
+                    if (!visitedAncestors.insert(
+                            ancestor.value).second) {
+                        break;
+                    }
+                    if (selectedIds.contains(ancestor.value)) {
+                        hasSelectedAncestor = true;
+                        break;
+                    }
+                }
+                if (!hasSelectedAncestor) {
+                    roots.push_back(objectId);
+                }
+            }
+            return roots;
+        }
+
         SceneObjectAuthoringHistoryRequest MakeHistory(
             std::string label,
             std::vector<SceneObjectData> beforeObjects,
             SceneCameraSettings beforeCamera,
             bool dirtyBefore,
-            const DocumentSceneBase& scene) {
+            const DocumentSceneBase& scene,
+            bool runtimeWorldAffected = true) {
 
             return SceneObjectAuthoringHistoryRequest{
                 std::move(label),
@@ -86,7 +141,8 @@ namespace HIKARI::EDITOR {
                 scene.GetSceneDocument().objects,
                 std::move(beforeCamera),
                 scene.GetSceneDocument().camera,
-                dirtyBefore
+                dirtyBefore,
+                runtimeWorldAffected
             };
         }
     }
@@ -99,19 +155,39 @@ namespace HIKARI::EDITOR {
 
     bool SceneObjectCommandService::CanExecute(
         SceneObjectCommandId command,
-        const DocumentSceneBase&,
+        const DocumentSceneBase& scene,
         const EditorContext& context,
         std::string_view argument) const {
 
+        const std::vector<SceneObjectId>& selectedIds =
+            context.selection.GetSelectedObjectIds();
         switch (command) {
         case SceneObjectCommandId::InstantiatePrefab:
             return !argument.empty();
-        case SceneObjectCommandId::Rename:
+        case SceneObjectCommandId::Lock:
+            return HasSelectedObjectWithEditorLock(
+                scene.GetSceneDocument(),
+                selectedIds,
+                false);
+        case SceneObjectCommandId::Unlock:
+            return HasSelectedObjectWithEditorLock(
+                scene.GetSceneDocument(),
+                selectedIds,
+                true);
         case SceneObjectCommandId::Duplicate:
         case SceneObjectCommandId::Delete:
+            return context.selection.GetSelectedObjectCount() != 0u &&
+                !HasSelectedObjectWithEditorLock(
+                    scene.GetSceneDocument(),
+                    selectedIds,
+                    true);
+        case SceneObjectCommandId::Rename:
         case SceneObjectCommandId::SaveAsPrefab:
         case SceneObjectCommandId::AddComponent:
             return context.selection.selectedObject != nullptr &&
+                !IsObjectEditorLocked(
+                    scene.GetSceneDocument(),
+                    context.selection.GetActiveObjectId()) &&
                 (command != SceneObjectCommandId::AddComponent ||
                     !argument.empty());
         }
@@ -166,11 +242,27 @@ namespace HIKARI::EDITOR {
             return true;
         }
         case SceneObjectCommandId::Duplicate: {
-            const SceneObjectId sourceRootId = target->id;
-            const std::unordered_set<uint64_t> subtreeIds =
-                CollectObjectSubtreeIds(
+            const std::vector<SceneObjectId> sourceRootIds =
+                CollectSelectedRootIds(
                     scene.GetSceneDocument(),
-                    sourceRootId);
+                    context.selection);
+            if (sourceRootIds.empty()) {
+                SetStatus(
+                    "The selected objects no longer exist.",
+                    true);
+                return false;
+            }
+
+            std::unordered_set<uint64_t> sourceRootIdValues{};
+            std::unordered_set<uint64_t> subtreeIds{};
+            for (SceneObjectId sourceRootId : sourceRootIds) {
+                sourceRootIdValues.insert(sourceRootId.value);
+                const std::unordered_set<uint64_t> subtree =
+                    CollectObjectSubtreeIds(
+                        scene.GetSceneDocument(),
+                        sourceRootId);
+                subtreeIds.insert(subtree.begin(), subtree.end());
+            }
             std::unordered_map<uint64_t, SceneObjectId> remappedIds{};
             remappedIds.reserve(subtreeIds.size());
             for (const SceneObjectData& object : beforeObjects) {
@@ -180,8 +272,6 @@ namespace HIKARI::EDITOR {
                         SceneObjectId{ context.nextSceneObjectId++ });
                 }
             }
-            const SceneObjectId duplicateRootId =
-                remappedIds.at(sourceRootId.value);
             auto& objects = scene.GetSceneDocument().objects;
             objects.reserve(objects.size() + subtreeIds.size());
             for (const SceneObjectData& source : beforeObjects) {
@@ -190,7 +280,7 @@ namespace HIKARI::EDITOR {
                 }
                 SceneObjectData duplicate = source;
                 duplicate.id = remappedIds.at(source.id.value);
-                if (source.id == sourceRootId) {
+                if (sourceRootIdValues.contains(source.id.value)) {
                     duplicate.name += "_Copy";
                 }
                 if (duplicate.parent &&
@@ -200,29 +290,57 @@ namespace HIKARI::EDITOR {
                 }
                 objects.push_back(std::move(duplicate));
             }
+
+            std::vector<SceneObjectId> duplicateRootIds{};
+            duplicateRootIds.reserve(sourceRootIds.size());
+            for (SceneObjectId sourceRootId : sourceRootIds) {
+                duplicateRootIds.push_back(
+                    remappedIds.at(sourceRootId.value));
+            }
             context.sceneDirty = true;
             selectionSync.RebuildRuntimeWorldWithSelectionSync(
                 scene,
                 context.selection,
                 context.nextSceneObjectId);
-            context.selection.selectedObject =
-                selectionSync.FindRuntimeObjectByDocumentId(
-                    scene,
-                    duplicateRootId);
+            context.selection.SelectObjectIds(
+                scene.GetWorld(),
+                duplicateRootIds);
             historyRequest_ = MakeHistory(
-                "Duplicate Object",
+                sourceRootIds.size() == 1u
+                    ? "Duplicate Object"
+                    : "Duplicate Objects",
                 std::move(beforeObjects),
                 beforeCamera,
                 dirtyBefore,
                 scene);
-            SetStatus("Duplicated selected object hierarchy.", false);
+            SetStatus(
+                sourceRootIds.size() == 1u
+                    ? "Duplicated selected object hierarchy."
+                    : "Duplicated " +
+                        std::to_string(sourceRootIds.size()) +
+                        " selected object hierarchies.",
+                false);
             return true;
         }
         case SceneObjectCommandId::Delete: {
-            const std::unordered_set<uint64_t> deletedIds =
-                CollectObjectSubtreeIds(
+            const std::vector<SceneObjectId> sourceRootIds =
+                CollectSelectedRootIds(
                     scene.GetSceneDocument(),
-                    target->id);
+                    context.selection);
+            std::unordered_set<uint64_t> deletedIds{};
+            for (SceneObjectId sourceRootId : sourceRootIds) {
+                const std::unordered_set<uint64_t> subtree =
+                    CollectObjectSubtreeIds(
+                        scene.GetSceneDocument(),
+                        sourceRootId);
+                deletedIds.insert(subtree.begin(), subtree.end());
+            }
+            if (deletedIds.empty()) {
+                SetStatus(
+                    "The selected objects no longer exist.",
+                    true);
+                return false;
+            }
             const std::optional<SceneObjectId>& defaultCamera =
                 scene.GetSceneDocument().camera.defaultCameraObjectId;
             if (defaultCamera &&
@@ -240,22 +358,57 @@ namespace HIKARI::EDITOR {
                 [&deletedIds](const SceneObjectData& object) {
                     return deletedIds.contains(object.id.value);
                 });
-            context.selection.selectedObject = nullptr;
-            context.selection.selectedAsset = nullptr;
-            context.selection.selectedAssetGuid.clear();
-            context.selection.selectedAssetPath.clear();
+            context.selection.ClearObjects();
+            context.selection.ClearAsset();
             context.sceneDirty = true;
             selectionSync.RebuildRuntimeWorldWithSelectionSync(
                 scene,
                 context.selection,
                 context.nextSceneObjectId);
             historyRequest_ = MakeHistory(
-                "Delete Object",
+                sourceRootIds.size() == 1u
+                    ? "Delete Object"
+                    : "Delete Objects",
                 std::move(beforeObjects),
                 beforeCamera,
                 dirtyBefore,
                 scene);
-            SetStatus("Deleted selected object hierarchy.", false);
+            SetStatus(
+                sourceRootIds.size() == 1u
+                    ? "Deleted selected object hierarchy."
+                    : "Deleted " +
+                        std::to_string(sourceRootIds.size()) +
+                        " selected object hierarchies.",
+                false);
+            return true;
+        }
+        case SceneObjectCommandId::Lock:
+        case SceneObjectCommandId::Unlock: {
+            const bool locked =
+                command == SceneObjectCommandId::Lock;
+            const std::size_t changedCount =
+                SetObjectsEditorLocked(
+                    scene.GetSceneDocument(),
+                    context.selection.GetSelectedObjectIds(),
+                    locked);
+            if (changedCount == 0u) {
+                return false;
+            }
+            context.sceneDirty = true;
+            historyRequest_ = MakeHistory(
+                locked ? "Lock Objects" : "Unlock Objects",
+                std::move(beforeObjects),
+                beforeCamera,
+                dirtyBefore,
+                scene,
+                false);
+            SetStatus(
+                std::string(locked ? "Locked " : "Unlocked ") +
+                    std::to_string(changedCount) +
+                    (changedCount == 1u
+                        ? " object."
+                        : " objects."),
+                false);
             return true;
         }
         case SceneObjectCommandId::SaveAsPrefab: {
@@ -266,6 +419,7 @@ namespace HIKARI::EDITOR {
             prefab.rootObject = *target;
             prefab.rootObject.parent.reset();
             prefab.rootObject.sourcePrefabId.clear();
+            prefab.rootObject.editorLocked = false;
             const bool saved = prefabRegistry_.Save(
                 prefabId,
                 prefab,
@@ -301,10 +455,11 @@ namespace HIKARI::EDITOR {
                 scene,
                 context.selection,
                 context.nextSceneObjectId);
-            context.selection.selectedObject =
+            context.selection.SelectObject(
+                scene.GetWorld(),
                 selectionSync.FindRuntimeObjectByDocumentId(
                     scene,
-                    instanceId);
+                    instanceId));
             historyRequest_ = MakeHistory(
                 "Instantiate Prefab",
                 std::move(beforeObjects),

@@ -16,7 +16,8 @@ namespace HIKARI::EDITOR {
     void AnimationStateMachineWorkspaceController::DrawGraphMenuBar(
         DocumentSceneBase& scene,
         AnimationStateMachineWorkspaceResult& result,
-        GraphMenuRequests& requests) {
+        GraphMenuRequests& requests,
+        EditorCommandRouter& commandRouter) {
 #if defined(HIKARI_WITH_EDITOR)
         if (!ImGui::BeginMenuBar()) return;
 
@@ -55,8 +56,15 @@ namespace HIKARI::EDITOR {
                 ImGui::EndMenu();
             }
             ImGui::Separator();
-            if (ImGui::MenuItem("Save", "Ctrl+S")) {
-                (void)Save(scene, statusMessage_);
+            if (ImGui::MenuItem(
+                    "Save",
+                    EditorCommandRouter::Shortcut(
+                        EditorCommandId::SaveDocument),
+                    false,
+                    commandRouter.CanExecute(
+                        EditorCommandId::SaveDocument))) {
+                (void)commandRouter.Execute(
+                    EditorCommandId::SaveDocument);
             }
             ImGui::BeginDisabled(!document_.GetAssetGuid().IsValid());
             if (ImGui::MenuItem("Revert Saved Asset")) {
@@ -78,14 +86,20 @@ namespace HIKARI::EDITOR {
         }
 
         if (ImGui::BeginMenu("Edit")) {
-            ImGui::BeginDisabled(!CanUndo());
-            if (ImGui::MenuItem("Undo", "Ctrl+Z")) {
-                (void)Undo(statusMessage_);
+            ImGui::BeginDisabled(!commandRouter.CanExecute(
+                EditorCommandId::Undo));
+            if (ImGui::MenuItem(
+                    "Undo",
+                    EditorCommandRouter::Shortcut(EditorCommandId::Undo))) {
+                (void)commandRouter.Execute(EditorCommandId::Undo);
             }
             ImGui::EndDisabled();
-            ImGui::BeginDisabled(!CanRedo());
-            if (ImGui::MenuItem("Redo", "Ctrl+Y")) {
-                (void)Redo(statusMessage_);
+            ImGui::BeginDisabled(!commandRouter.CanExecute(
+                EditorCommandId::Redo));
+            if (ImGui::MenuItem(
+                    "Redo",
+                    EditorCommandRouter::Shortcut(EditorCommandId::Redo))) {
+                (void)commandRouter.Execute(EditorCommandId::Redo);
             }
             ImGui::EndDisabled();
             ImGui::Separator();
@@ -146,6 +160,8 @@ namespace HIKARI::EDITOR {
                 PendingDocumentAction::NewDocument);
         }
         ImGui::SameLine();
+        ImGui::BeginDisabled(!commandRouter.CanExecute(
+            EditorCommandId::SaveDocument));
         if (IconButton(
                 EditorGlyph::Save,
                 "AnimationSmSave",
@@ -154,28 +170,31 @@ namespace HIKARI::EDITOR {
                     : EditorButtonTone::Quiet,
                 kQuickActionSize,
                 "Save state machine (Ctrl+S)")) {
-            (void)Save(scene, statusMessage_);
+            (void)commandRouter.Execute(EditorCommandId::SaveDocument);
         }
+        ImGui::EndDisabled();
         ImGui::SameLine();
-        ImGui::BeginDisabled(!CanUndo());
+        ImGui::BeginDisabled(!commandRouter.CanExecute(
+            EditorCommandId::Undo));
         if (IconButton(
                 EditorGlyph::Undo,
                 "AnimationSmUndo",
                 EditorButtonTone::Quiet,
                 kQuickActionSize,
                 "Undo (Ctrl+Z)")) {
-            (void)Undo(statusMessage_);
+            (void)commandRouter.Execute(EditorCommandId::Undo);
         }
         ImGui::EndDisabled();
         ImGui::SameLine();
-        ImGui::BeginDisabled(!CanRedo());
+        ImGui::BeginDisabled(!commandRouter.CanExecute(
+            EditorCommandId::Redo));
         if (IconButton(
                 EditorGlyph::Redo,
                 "AnimationSmRedo",
                 EditorButtonTone::Quiet,
                 kQuickActionSize,
                 "Redo (Ctrl+Y)")) {
-            (void)Redo(statusMessage_);
+            (void)commandRouter.Execute(EditorCommandId::Redo);
         }
         ImGui::EndDisabled();
         ImGui::SameLine();

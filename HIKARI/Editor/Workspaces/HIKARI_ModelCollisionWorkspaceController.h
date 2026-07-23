@@ -11,6 +11,7 @@
 #include "Assets/Collision/HIKARI_ModelCollisionGenerator.h"
 #include "Assets/Collision/HIKARI_ModelCollisionSetup.h"
 #include "Assets/HIKARI_AssetGuid.h"
+#include "Editor/Commands/HIKARI_EditorCommandRouter.h"
 #include "Editor/Gizmos/HIKARI_EditorTransformGizmo.h"
 #include "Editor/Views/HIKARI_EditorDirectorCameraController.h"
 #include "Editor/Views/HIKARI_EditorViewInputRouter.h"
@@ -55,7 +56,8 @@ namespace HIKARI::EDITOR {
         void DrawDockSpace(bool resetDefaultDockLayout) const;
         ModelCollisionWorkspaceResult Draw(
             DocumentSceneBase& scene,
-            EditorWorkspaceHost& workspaceHost);
+            EditorWorkspaceHost& workspaceHost,
+            EditorCommandRouter& commandRouter);
 
         bool IsEditingModel() const noexcept;
         bool IsDocumentDirty() const noexcept;
@@ -64,6 +66,9 @@ namespace HIKARI::EDITOR {
         bool SaveDocument(DocumentSceneBase& scene, std::string& outMessage);
         bool Undo(std::string& outMessage);
         bool Redo(std::string& outMessage);
+        void BindDocumentCommands(
+            EditorCommandRouter& commandRouter,
+            DocumentSceneBase& scene);
 
     private:
         struct CollisionGenerationTaskOutput {
@@ -111,10 +116,13 @@ namespace HIKARI::EDITOR {
         void DrawPreviewWindow(
             DocumentSceneBase& scene,
             EditorWorkspaceHost& workspaceHost,
-            ModelCollisionWorkspaceResult& result);
+            ModelCollisionWorkspaceResult& result,
+            EditorCommandRouter& commandRouter);
         void DrawPreviewToolbar(
             DocumentSceneBase& scene,
-            ModelCollisionWorkspaceResult& result);
+            ModelCollisionWorkspaceResult& result,
+            EditorCommandRouter& commandRouter);
+        void BindSelectionCommands(EditorCommandRouter& commandRouter);
         void DrawShapeListWindow();
         void DrawShapeDetailsWindow();
         void DrawSourceModelWindow();

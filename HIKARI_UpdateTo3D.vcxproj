@@ -550,6 +550,7 @@
     <ClCompile Include="HIKARI\Editor\Authoring\HIKARI_SequencePreviewBindingResolver.cpp" />
     <ClCompile Include="HIKARI\Editor\Authoring\HIKARI_SequenceAssetAuthoringService.cpp" />
     <ClCompile Include="HIKARI\Editor\Authoring\HIKARI_AnimationStateMachineAssetAuthoringService.cpp" />
+    <ClCompile Include="HIKARI\Editor\Authoring\HIKARI_EditorObjectState.cpp" />
     <ClCompile Include="HIKARI\Editor\Documents\HIKARI_SequenceEditorDocument.cpp" />
     <ClCompile Include="HIKARI\Editor\Documents\HIKARI_AnimationStateMachineEditorDocument.cpp" />
     <ClCompile Include="HIKARI\Editor\Documents\HIKARI_SequenceEditorDocumentController.cpp" />
@@ -571,7 +572,11 @@
     <ClCompile Include="HIKARI\Editor\Panels\HIKARI_LightingBakePanel.cpp" />
     <ClCompile Include="HIKARI\Editor\HIKARI_DebugCameraPanel.cpp" />
     <ClCompile Include="HIKARI\Editor\Controllers\HIKARI_DocumentSceneEditorController.cpp" />
+    <ClCompile Include="HIKARI\Editor\Controllers\HIKARI_DocumentSceneEditorCommands.cpp" />
+    <ClCompile Include="HIKARI\Editor\Commands\HIKARI_EditorCommandRouter.cpp" />
     <ClCompile Include="HIKARI\Editor\Commands\HIKARI_SceneObjectCommandService.cpp" />
+    <ClCompile Include="HIKARI\Editor\Selection\HIKARI_EditorSelection.cpp" />
+    <ClCompile Include="HIKARI\Editor\Selection\HIKARI_SceneSelectionTransform.cpp" />
     <ClCompile Include="HIKARI\Editor\Panels\HIKARI_SceneCreationPanel.cpp" />
     <ClCompile Include="HIKARI\Editor\Panels\HIKARI_SceneInspectorPanel.cpp" />
     <ClCompile Include="HIKARI\Editor\Viewport\HIKARI_SceneViewportSelectionService.cpp" />
@@ -1158,8 +1163,12 @@
     <ClInclude Include="HIKARI\Editor\Panels\HIKARI_QualityPanel.h" />
     <ClInclude Include="HIKARI\Editor\Export\HIKARI_NativeRuntimeDeployment.h" />
     <ClInclude Include="HIKARI\Editor\Play\HIKARI_EditorPlaySession.h" />
+    <ClInclude Include="HIKARI\Editor\Authoring\HIKARI_EditorObjectState.h" />
     <ClInclude Include="HIKARI\Editor\Controllers\HIKARI_DocumentSceneEditorController.h" />
+    <ClInclude Include="HIKARI\Editor\Commands\HIKARI_EditorCommandRouter.h" />
     <ClInclude Include="HIKARI\Editor\Commands\HIKARI_SceneObjectCommandService.h" />
+    <ClInclude Include="HIKARI\Editor\Selection\HIKARI_EditorSelection.h" />
+    <ClInclude Include="HIKARI\Editor\Selection\HIKARI_SceneSelectionTransform.h" />
     <ClInclude Include="HIKARI\Editor\Panels\HIKARI_SceneCreationPanel.h" />
     <ClInclude Include="HIKARI\Editor\Panels\HIKARI_SceneInspectorPanel.h" />
     <ClInclude Include="HIKARI\Editor\Viewport\HIKARI_SceneViewportSelectionService.h" />

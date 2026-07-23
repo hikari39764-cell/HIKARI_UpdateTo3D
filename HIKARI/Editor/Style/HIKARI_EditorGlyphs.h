@@ -48,6 +48,7 @@ namespace HIKARI::EDITOR {
         NewDocument,
         Duplicate,
         Focus,
+        Lock,
         Object,
         Exit,
         File,

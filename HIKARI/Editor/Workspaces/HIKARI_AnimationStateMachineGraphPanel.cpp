@@ -70,7 +70,8 @@ namespace HIKARI::EDITOR {
 
     void AnimationStateMachineWorkspaceController::DrawGraphWindow(
         DocumentSceneBase& scene,
-        AnimationStateMachineWorkspaceResult& result) {
+        AnimationStateMachineWorkspaceResult& result,
+        EditorCommandRouter& commandRouter) {
 #if defined(HIKARI_WITH_EDITOR)
         GraphMenuRequests requests{};
         constexpr ImGuiWindowFlags flags =
@@ -83,12 +84,14 @@ namespace HIKARI::EDITOR {
             return;
         }
 
-        DrawGraphMenuBar(scene, result, requests);
+        DrawGraphMenuBar(scene, result, requests, commandRouter);
 
         const bool graphFocused = ImGui::IsWindowFocused(
             ImGuiFocusedFlags_RootAndChildWindows);
         ImGuiIO& io = ImGui::GetIO();
-        if (graphFocused && !io.WantTextInput) {
+        if (CanUseEditorShortcut(
+                EditorShortcutScope::Editing,
+                graphFocused)) {
             if (ImGui::IsKeyPressed(ImGuiKey_F, false)) {
                 requests.frameSelection = true;
             }

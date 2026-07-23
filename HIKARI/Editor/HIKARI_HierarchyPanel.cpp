@@ -64,7 +64,9 @@ namespace HIKARI {
         World& world,
         EditorSelection& selection,
         const std::function<void(GameObject&)>&
-            drawObjectContextMenu) {
+            drawObjectContextMenu,
+        const std::function<bool(const GameObject&)>&
+            isObjectLocked) {
 #if defined(HIKARI_WITH_EDITOR)
         const auto& objects = world.GetObjects();
         EDITOR::SearchField(
@@ -89,6 +91,13 @@ namespace HIKARI {
                 : "%d of %d objects",
             static_cast<int>(filteredObjects.size()),
             static_cast<int>(objects.size()));
+        if (selection.GetSelectedObjectCount() > 1u) {
+            ImGui::SameLine();
+            ImGui::TextDisabled(
+                "| %d selected",
+                static_cast<int>(
+                    selection.GetSelectedObjectCount()));
+        }
 
         if (objects.empty()) {
             EDITOR::EmptyState(
@@ -115,7 +124,11 @@ namespace HIKARI {
                     static_cast<std::size_t>(index)];
                 ImGui::PushID(objectPtr);
                 const bool isSelected =
-                    selection.selectedObject == objectPtr;
+                    selection.IsObjectSelected(
+                        objectPtr->GetDocumentId());
+                const bool editorLocked =
+                    isObjectLocked &&
+                    isObjectLocked(*objectPtr);
                 const ImVec2 iconMin = ImGui::GetCursorScreenPos();
                 ImGui::Dummy(ImVec2(16.0f, metrics.rowHeight));
                 EDITOR::DrawEditorGlyph(
@@ -133,16 +146,33 @@ namespace HIKARI {
                         isSelected,
                         ImGuiSelectableFlags_None,
                         ImVec2(0.0f, metrics.rowHeight))) {
-                    selection.selectedObject = objectPtr;
-                    selection.selectedAsset = nullptr;
-                    selection.selectedAssetGuid.clear();
-                    selection.selectedAssetPath.clear();
+                    const ImGuiIO& io = ImGui::GetIO();
+                    const EditorObjectSelectionMode mode = io.KeyCtrl
+                        ? EditorObjectSelectionMode::Toggle
+                        : (io.KeyShift
+                            ? EditorObjectSelectionMode::Add
+                            : EditorObjectSelectionMode::Replace);
+                    selection.SelectObject(world, objectPtr, mode);
+                }
+                if (editorLocked) {
+                    const ImVec2 rowMin = ImGui::GetItemRectMin();
+                    const ImVec2 rowMax = ImGui::GetItemRectMax();
+                    EDITOR::DrawEditorGlyph(
+                        *ImGui::GetWindowDrawList(),
+                        EDITOR::EditorGlyph::Lock,
+                        ImVec2(
+                            rowMax.x - 10.0f,
+                            (rowMin.y + rowMax.y) * 0.5f),
+                        12.0f,
+                        ImGui::GetColorU32(
+                            EDITOR::GetEditorThemePalette().
+                                textMuted));
                 }
                 if (ImGui::IsItemClicked(ImGuiMouseButton_Right)) {
-                    selection.selectedObject = objectPtr;
-                    selection.selectedAsset = nullptr;
-                    selection.selectedAssetGuid.clear();
-                    selection.selectedAssetPath.clear();
+                    if (!selection.IsObjectSelected(
+                            objectPtr->GetDocumentId())) {
+                        selection.SelectObject(world, objectPtr);
+                    }
                 }
                 if (drawObjectContextMenu &&
                     ImGui::BeginPopupContextItem("ObjectContextMenu")) {

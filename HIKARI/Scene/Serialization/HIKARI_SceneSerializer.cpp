@@ -656,6 +656,9 @@ namespace HIKARI {
                 objectData.sourcePrefabId = node.value("sourcePrefabId", std::string{});
                 objectData.enabled = node.value("enabled", true);
                 objectData.editorVisible = node.value("editorVisible", true);
+                objectData.editorLocked = node.value(
+                    "editorLocked",
+                    false);
 
                 if (node.contains("parent") && node["parent"].is_number_unsigned()) {
                     objectData.parent = SceneObjectId{ node["parent"].get<uint64_t>() };
@@ -723,6 +726,7 @@ namespace HIKARI {
             }
             node["enabled"] = object.enabled;
             node["editorVisible"] = object.editorVisible;
+            node["editorLocked"] = object.editorLocked;
             node["transform"]["position"] = ToVec3(object.transform.position);
             node["transform"]["rotationEulerDeg"] = ToVec3(object.transform.rotationEulerDeg);
             node["transform"]["scale"] = ToVec3(object.transform.scale);

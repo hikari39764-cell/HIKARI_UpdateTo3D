@@ -5,6 +5,7 @@
 #include <string>
 
 #include "Editor/Views/HIKARI_DirectorViewPanel.h"
+#include "Editor/Commands/HIKARI_EditorCommandRouter.h"
 #include "Editor/Documents/HIKARI_SequenceEditorDocumentController.h"
 #include "Editor/Workspaces/HIKARI_CameraOverviewPanel.h"
 #include "Editor/Workspaces/HIKARI_CameraTimelinePanel.h"
@@ -65,6 +66,9 @@ namespace HIKARI {
                 std::string& outMessage);
             bool UndoSequenceDocument(std::string& outMessage);
             bool RedoSequenceDocument(std::string& outMessage);
+            void BindDocumentCommands(
+                EditorCommandRouter& commandRouter,
+                DocumentSceneBase& scene);
 
         private:
             void DrawDirectorViewWindow(

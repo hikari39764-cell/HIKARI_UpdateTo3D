@@ -22,6 +22,8 @@ namespace HIKARI {
             Rename,
             Duplicate,
             Delete,
+            Lock,
+            Unlock,
             SaveAsPrefab,
             InstantiatePrefab,
             AddComponent,
