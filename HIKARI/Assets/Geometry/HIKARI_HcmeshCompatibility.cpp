@@ -4,12 +4,16 @@
 #include <limits>
 #include <utility>
 
+#include "Core/Serialization/Binary/HIKARI_BinaryBuffer.h"
 #include "Render3D/Cluster/HIKARI_ClusterGpuData.h"
 #include "Render3D/Cluster/HIKARI_ClusteredGeometryAsset.h"
 
 namespace HIKARI::ASSETS::GEOMETRY::COMPATIBILITY {
 
     namespace {
+        using SERIALIZATION::BINARY::BUFFER::OverwriteTrivial;
+        using SERIALIZATION::BINARY::BUFFER::ReadTrivial;
+
         constexpr uint32_t kStaticGpuVersion = 11u;
 
         struct StaticGpuHeaderV11 {
@@ -74,7 +78,15 @@ namespace HIKARI::ASSETS::GEOMETRY::COMPATIBILITY {
             }
 
             StaticGpuHeaderV11 source{};
-            std::memcpy(&source, bytes.data(), sizeof(source));
+            size_t cursor = 0u;
+            if (!ReadTrivial(
+                std::span<const uint8_t>(bytes.data(), bytes.size()),
+                cursor,
+                source)) {
+                outMessage =
+                    "[HCMESH] compatible GPU chunk header is truncated";
+                return false;
+            }
             const uint32_t skinningFlag = static_cast<uint32_t>(ClusteredGeometryFlags::SkinningData);
             if (source.magic != RENDER3D::CLUSTER::kClusterGeometryGpuMagic ||
                 source.version != kStaticGpuVersion ||
@@ -127,7 +139,16 @@ namespace HIKARI::ASSETS::GEOMETRY::COMPATIBILITY {
             }
 
             std::vector<uint8_t> upgradedBytes(upgraded.byteSize);
-            std::memcpy(upgradedBytes.data(), &upgraded, sizeof(upgraded));
+            if (!OverwriteTrivial(
+                std::span<uint8_t>(
+                    upgradedBytes.data(),
+                    upgradedBytes.size()),
+                0u,
+                upgraded)) {
+                outMessage =
+                    "[HCMESH] failed to write upgraded GPU chunk header";
+                return false;
+            }
             std::memcpy(
                 upgradedBytes.data() + sizeof(upgraded),
                 bytes.data() + sizeof(source),

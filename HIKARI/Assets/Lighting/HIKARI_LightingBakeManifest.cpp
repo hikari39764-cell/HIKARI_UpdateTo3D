@@ -1,12 +1,12 @@
 #include "HIKARI_LightingBakeManifest.h"
 
 #include <algorithm>
-#include <fstream>
 #include <utility>
 
 #include <json.hpp>
 
 #include "Core/HIKARI_JsonRead.h"
+#include "Core/Serialization/Json/HIKARI_JsonFile.h"
 
 namespace HIKARI::ASSETS::LIGHTING {
 
@@ -158,14 +158,18 @@ namespace HIKARI::ASSETS::LIGHTING {
         LightingBakeManifest& outManifest,
         std::string* outMessage) {
 
-        std::ifstream ifs(path);
-        if (!ifs.is_open()) {
-            SetMessage(outMessage, "manifest not found: " + path.generic_string());
+        nlohmann::json root{};
+        std::string ioMessage{};
+        if (!SERIALIZATION::JSON::ReadJsonFile(
+                path,
+                root,
+                &ioMessage)) {
+            SetMessage(
+                outMessage,
+                "manifest could not be read: " + ioMessage);
             return false;
         }
-
-        nlohmann::json root = nlohmann::json::parse(ifs, nullptr, false);
-        if (root.is_discarded() || !root.is_object()) {
+        if (!root.is_object()) {
             SetMessage(outMessage, "manifest parse failed: " + path.generic_string());
             return false;
         }
@@ -197,13 +201,6 @@ namespace HIKARI::ASSETS::LIGHTING {
         const LightingBakeManifest& manifest,
         std::string* outMessage) {
 
-        std::error_code ec{};
-        std::filesystem::create_directories(path.parent_path(), ec);
-        if (ec) {
-            SetMessage(outMessage, "failed to create manifest directory: " + ec.message());
-            return false;
-        }
-
         nlohmann::json reflectionProbes = nlohmann::json::array();
         for (const ReflectionProbeBakeRecord& record : manifest.reflectionProbes) {
             reflectionProbes.push_back(ToJson(record));
@@ -231,13 +228,16 @@ namespace HIKARI::ASSETS::LIGHTING {
             { "lightmaps", lightmaps },
         };
 
-        std::ofstream ofs(path);
-        if (!ofs.is_open()) {
-            SetMessage(outMessage, "failed to write manifest: " + path.generic_string());
+        std::string ioMessage{};
+        if (!SERIALIZATION::JSON::WriteJsonFile(
+                path,
+                root,
+                &ioMessage)) {
+            SetMessage(
+                outMessage,
+                "failed to write manifest: " + ioMessage);
             return false;
         }
-
-        ofs << root.dump(2) << '\n';
         SetMessage(outMessage, "manifest saved");
         return true;
     }

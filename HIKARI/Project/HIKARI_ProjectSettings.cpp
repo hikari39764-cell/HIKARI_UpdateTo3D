@@ -1,7 +1,6 @@
 #include "HIKARI_ProjectSettings.h"
 
 #include <filesystem>
-#include <fstream>
 #include <algorithm>
 #include <iterator>
 #include <unordered_set>
@@ -10,6 +9,7 @@
 #include <json.hpp>
 
 #include "Core/HIKARI_Logger.h"
+#include "Core/Serialization/Json/HIKARI_JsonFile.h"
 
 namespace HIKARI {
 
@@ -24,20 +24,16 @@ namespace HIKARI {
         }
 
         settingsPath_ = projectRoot_ / "ProjectSettings" / "project_settings.json";
-        std::filesystem::create_directories(settingsPath_.parent_path(), ec);
-        if (ec) {
-            HIKARI_LOG_WARN("[ProjectSettings] failed to create settings directory: " + ec.message());
-            return false;
-        }
-
-        std::ifstream ifs(settingsPath_);
-        if (!ifs.is_open()) {
+        if (!std::filesystem::exists(settingsPath_, ec)) {
             settings_ = ProjectSettings{};
             return Save();
         }
 
-        nlohmann::json root = nlohmann::json::parse(ifs, nullptr, false);
-        if (root.is_discarded() || !root.is_object()) {
+        nlohmann::json root{};
+        if (!SERIALIZATION::JSON::ReadJsonFile(
+                settingsPath_,
+                root) ||
+            !root.is_object()) {
             HIKARI_LOG_WARN("[ProjectSettings] project_settings.json parse failed; defaults are used.");
             settings_ = ProjectSettings{};
             return false;
@@ -88,13 +84,6 @@ namespace HIKARI {
             return false;
         }
 
-        std::error_code ec{};
-        std::filesystem::create_directories(settingsPath_.parent_path(), ec);
-        if (ec) {
-            HIKARI_LOG_WARN("[ProjectSettings] failed to create settings directory: " + ec.message());
-            return false;
-        }
-
         // ProjectSettings は参照 GUID だけを保持し、Scene 本体は Asset 側に置く。
         const nlohmann::json root{
             { "version", settings_.version },
@@ -102,13 +91,17 @@ namespace HIKARI {
             { "enabledRuntimeFeatures", settings_.enabledRuntimeFeatures },
         };
 
-        std::ofstream ofs(settingsPath_);
-        if (!ofs.is_open()) {
-            HIKARI_LOG_WARN("[ProjectSettings] failed to write: " + settingsPath_.generic_string());
+        std::string writeMessage{};
+        if (!SERIALIZATION::JSON::WriteJsonFile(
+                settingsPath_,
+                root,
+                &writeMessage)) {
+            HIKARI_LOG_WARN(
+                "[ProjectSettings] failed to write: " +
+                writeMessage);
             return false;
         }
 
-        ofs << root.dump(2) << '\n';
         return true;
     }
 

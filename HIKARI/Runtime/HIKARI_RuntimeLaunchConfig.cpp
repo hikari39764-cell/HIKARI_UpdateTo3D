@@ -5,7 +5,6 @@
 
 #include <algorithm>
 #include <array>
-#include <fstream>
 #include <string_view>
 #include <system_error>
 #include <utility>
@@ -15,6 +14,7 @@
 
 #include "HIKARI_Services.h"
 #include "Core/HIKARI_Logger.h"
+#include "Core/Serialization/Json/HIKARI_JsonFile.h"
 #include "Render3D/Settings/HIKARI_RenderQualityProfileStore.h"
 #include "Render3D/Settings/HIKARI_RenderQualitySettings.h"
 #include "Render3D/Settings/HIKARI_RenderQualitySettingsJson.h"
@@ -159,13 +159,9 @@ namespace HIKARI {
 
     RuntimeLaunchConfig LoadRuntimeLaunchConfigFromFile(const std::filesystem::path& path) {
         RuntimeLaunchConfig cfg{};
-        std::ifstream ifs(path);
-        if (!ifs) {
-            return cfg;
-        }
-
-        nlohmann::json root = nlohmann::json::parse(ifs, nullptr, false);
-        if (root.is_discarded() || !root.is_object()) {
+        nlohmann::json root{};
+        if (!SERIALIZATION::JSON::ReadJsonFile(path, root) ||
+            !root.is_object()) {
             return cfg;
         }
 

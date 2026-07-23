@@ -4,8 +4,10 @@
 #include <array>
 #include <fstream>
 #include <limits>
-#include <type_traits>
 #include <unordered_map>
+
+#include "Core/IO/HIKARI_FileReplacementTransaction.h"
+#include "Core/Serialization/Binary/HIKARI_BinaryStream.h"
 
 namespace HIKARI::ASSETS::COLLISION {
     namespace {
@@ -17,23 +19,8 @@ namespace HIKARI::ASSETS::COLLISION {
         constexpr uint32_t kMaximumVerticesPerShape = 16u * 1024u * 1024u;
         constexpr uint32_t kMaximumIndicesPerShape = 48u * 1024u * 1024u;
 
-        template<class TValue>
-        bool WritePod(std::ostream& stream, const TValue& value) {
-            static_assert(std::is_trivially_copyable_v<TValue>);
-            stream.write(
-                reinterpret_cast<const char*>(&value),
-                static_cast<std::streamsize>(sizeof(TValue)));
-            return stream.good();
-        }
-
-        template<class TValue>
-        bool ReadPod(std::istream& stream, TValue& value) {
-            static_assert(std::is_trivially_copyable_v<TValue>);
-            stream.read(
-                reinterpret_cast<char*>(&value),
-                static_cast<std::streamsize>(sizeof(TValue)));
-            return stream.good();
-        }
+        using SERIALIZATION::BINARY::STREAM::ReadTrivial;
+        using SERIALIZATION::BINARY::STREAM::WriteTrivial;
 
         bool HasGeometry(const ModelCollisionShape& shape) noexcept {
             return !shape.vertices.empty() || !shape.indices.empty();
@@ -75,10 +62,9 @@ namespace HIKARI::ASSETS::COLLISION {
         std::array<char, 8> magic{};
         uint32_t version = 0u;
         uint32_t shapeCount = 0u;
-        stream.read(magic.data(), static_cast<std::streamsize>(magic.size()));
-        if (!stream.good() || magic != kMagic ||
-            !ReadPod(stream, version) || version != kVersion ||
-            !ReadPod(stream, shapeCount) ||
+        if (!ReadTrivial(stream, magic) || magic != kMagic ||
+            !ReadTrivial(stream, version) || version != kVersion ||
+            !ReadTrivial(stream, shapeCount) ||
             shapeCount > kMaximumGeometryShapes) {
             outMessage = "collision setup geometry sidecar is invalid";
             return false;
@@ -92,9 +78,9 @@ namespace HIKARI::ASSETS::COLLISION {
             uint64_t id = 0u;
             uint32_t vertexCount = 0u;
             uint32_t indexCount = 0u;
-            if (!ReadPod(stream, id) ||
-                !ReadPod(stream, vertexCount) ||
-                !ReadPod(stream, indexCount) ||
+            if (!ReadTrivial(stream, id) ||
+                !ReadTrivial(stream, vertexCount) ||
+                !ReadTrivial(stream, indexCount) ||
                 vertexCount > kMaximumVerticesPerShape ||
                 indexCount > kMaximumIndicesPerShape) {
                 outMessage = "collision setup geometry sidecar is truncated";
@@ -109,15 +95,15 @@ namespace HIKARI::ASSETS::COLLISION {
             shape.vertices.resize(vertexCount);
             shape.indices.resize(indexCount);
             for (MATH::Vec3& vertex : shape.vertices) {
-                if (!ReadPod(stream, vertex.x) ||
-                    !ReadPod(stream, vertex.y) ||
-                    !ReadPod(stream, vertex.z)) {
+                if (!ReadTrivial(stream, vertex.x) ||
+                    !ReadTrivial(stream, vertex.y) ||
+                    !ReadTrivial(stream, vertex.z)) {
                     outMessage = "collision setup geometry vertices are truncated";
                     return false;
                 }
             }
             for (uint32_t& index : shape.indices) {
-                if (!ReadPod(stream, index)) {
+                if (!ReadTrivial(stream, index)) {
                     outMessage = "collision setup geometry indices are truncated";
                     return false;
                 }
@@ -155,10 +141,9 @@ namespace HIKARI::ASSETS::COLLISION {
             outMessage = "failed to open collision setup geometry for write";
             return false;
         }
-        stream.write(kMagic.data(), static_cast<std::streamsize>(kMagic.size()));
-        bool ok = stream.good() &&
-            WritePod(stream, kVersion) &&
-            WritePod(stream, shapeCount);
+        bool ok = WriteTrivial(stream, kMagic) &&
+            WriteTrivial(stream, kVersion) &&
+            WriteTrivial(stream, shapeCount);
         for (const ModelCollisionShape& shape : setup.shapes) {
             if (!HasGeometry(shape)) {
                 continue;
@@ -178,16 +163,16 @@ namespace HIKARI::ASSETS::COLLISION {
                 shape.vertices.size());
             const uint32_t indexCount = static_cast<uint32_t>(
                 shape.indices.size());
-            ok = ok && WritePod(stream, shape.id) &&
-                WritePod(stream, vertexCount) &&
-                WritePod(stream, indexCount);
+            ok = ok && WriteTrivial(stream, shape.id) &&
+                WriteTrivial(stream, vertexCount) &&
+                WriteTrivial(stream, indexCount);
             for (const MATH::Vec3& vertex : shape.vertices) {
-                ok = ok && WritePod(stream, vertex.x) &&
-                    WritePod(stream, vertex.y) &&
-                    WritePod(stream, vertex.z);
+                ok = ok && WriteTrivial(stream, vertex.x) &&
+                    WriteTrivial(stream, vertex.y) &&
+                    WriteTrivial(stream, vertex.z);
             }
             for (uint32_t index : shape.indices) {
-                ok = ok && WritePod(stream, index);
+                ok = ok && WriteTrivial(stream, index);
             }
         }
         stream.flush();
@@ -199,14 +184,12 @@ namespace HIKARI::ASSETS::COLLISION {
         }
         stream.close();
 
-        std::error_code ec{};
-        std::filesystem::remove(path, ec);
-        ec.clear();
-        std::filesystem::rename(temporary, path, ec);
-        if (ec) {
-            std::filesystem::remove(temporary);
+        std::string commitMessage{};
+        if (!IO::CommitStagedFile(temporary, path, commitMessage)) {
+            std::error_code cleanupEc{};
+            std::filesystem::remove(temporary, cleanupEc);
             outMessage = "failed to replace collision setup geometry: " +
-                ec.message();
+                commitMessage;
             return false;
         }
         return true;

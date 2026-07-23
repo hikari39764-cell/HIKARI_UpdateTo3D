@@ -2,10 +2,10 @@
 
 #include <algorithm>
 #include <cmath>
-#include <fstream>
 #include <unordered_set>
 
 #include <json.hpp>
+#include "Core/Serialization/Json/HIKARI_JsonFile.h"
 
 namespace HIKARI::PHYSICS {
     namespace {
@@ -49,15 +49,13 @@ namespace HIKARI::PHYSICS {
             outMessage = "using built-in physics project settings";
             return true;
         }
-        std::ifstream stream(path);
-        if (!stream.is_open()) {
-            outMessage = "failed to open physics project settings";
+        nlohmann::json root{};
+        if (!SERIALIZATION::JSON::ReadJsonFile(
+                path,
+                root,
+                &outMessage)) {
             return false;
         }
-        const nlohmann::json root = nlohmann::json::parse(
-            stream,
-            nullptr,
-            false);
         if (!root.is_object()) {
             outMessage = "physics project settings JSON is invalid";
             return false;

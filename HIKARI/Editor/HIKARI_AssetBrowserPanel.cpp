@@ -9,7 +9,6 @@
 #include <cstdio>
 #include <exception>
 #include <filesystem>
-#include <fstream>
 #include <iterator>
 #include <string>
 #include <string_view>
@@ -27,6 +26,7 @@
 #include "Assets/HIKARI_AssetUsageAnalyzer.h"
 #include "Assets/Material/HIKARI_MaterialAssetData.h"
 #include "Core/HIKARI_Logger.h"
+#include "Core/Serialization/Json/HIKARI_JsonFile.h"
 #include "Editor/DragDrop/HIKARI_EditorAssetDragDrop.h"
 #include "Editor/Style/HIKARI_EditorAssetIcons.h"
 #include "Editor/Style/HIKARI_EditorGlyphs.h"
@@ -202,24 +202,6 @@ namespace HIKARI {
             return path.stem().string();
         }
 
-        bool LoadJsonFile(const std::filesystem::path& path, nlohmann::json& outRoot) {
-            std::ifstream ifs(path);
-            if (!ifs.is_open()) {
-                return false;
-            }
-            outRoot = nlohmann::json::parse(ifs, nullptr, false);
-            return !outRoot.is_discarded() && outRoot.is_object();
-        }
-
-        bool SaveJsonFile(const std::filesystem::path& path, const nlohmann::json& root) {
-            std::ofstream ofs(path);
-            if (!ofs.is_open()) {
-                return false;
-            }
-            ofs << root.dump(2) << '\n';
-            return true;
-        }
-
         bool IsScenesDirectoryPath(const std::filesystem::path& path) {
             const std::string generic = TEXT::ToLowerAsciiCopy(path.lexically_normal().generic_string());
             return generic == "assets/scenes" || generic.rfind("assets/scenes/", 0) == 0;
@@ -328,12 +310,15 @@ namespace HIKARI {
                 } },
             };
 
-            std::ofstream ofs(absoluteScenePath);
-            if (!ofs.is_open()) {
-                outError = "Failed to write scene file: " + absoluteScenePath.generic_string();
+            std::string writeMessage{};
+            if (!SERIALIZATION::JSON::WriteJsonFile(
+                absoluteScenePath,
+                sceneJson,
+                &writeMessage)) {
+                outError = "Failed to write scene file: " +
+                    writeMessage;
                 return false;
             }
-            ofs << sceneJson.dump(2) << '\n';
 
             outRelativePath = std::filesystem::relative(absoluteScenePath, assetDatabase.GetProjectRoot(), ec).lexically_normal();
             if (ec) {
@@ -1138,13 +1123,18 @@ namespace HIKARI {
             std::string& outError) {
 
             nlohmann::json root{};
-            if (!LoadJsonFile(scenePath, root)) {
+            if (!SERIALIZATION::JSON::ReadJsonFile(
+                    scenePath,
+                    root) ||
+                !root.is_object()) {
                 outError = "Scene JSON could not be read: " + scenePath.generic_string();
                 return false;
             }
 
             root["sceneName"] = std::string(sceneName);
-            if (!SaveJsonFile(scenePath, root)) {
+            if (!SERIALIZATION::JSON::WriteJsonFile(
+                scenePath,
+                root)) {
                 outError = "Scene JSON could not be written: " + scenePath.generic_string();
                 return false;
             }
@@ -1201,13 +1191,18 @@ namespace HIKARI {
                 sourcePath.parent_path() / (baseName + " Copy.scene.json"));
 
             nlohmann::json root{};
-            if (!LoadJsonFile(sourcePath, root)) {
+            if (!SERIALIZATION::JSON::ReadJsonFile(
+                    sourcePath,
+                    root) ||
+                !root.is_object()) {
                 outError = "Scene duplicate failed: source JSON could not be read";
                 return false;
             }
 
             root["sceneName"] = GetSceneAssetBaseName(targetPath);
-            if (!SaveJsonFile(targetPath, root)) {
+            if (!SERIALIZATION::JSON::WriteJsonFile(
+                targetPath,
+                root)) {
                 outError = "Scene duplicate failed: destination could not be written";
                 LogSceneAssetWarn("duplicate failed: " + outError);
                 return false;

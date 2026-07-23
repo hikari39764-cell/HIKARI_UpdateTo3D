@@ -1,11 +1,11 @@
 #include "HIKARI_MaterialAssetData.h"
 
 #include <algorithm>
-#include <fstream>
 
 #include <json.hpp>
 
 #include "Core/HIKARI_JsonRead.h"
+#include "Core/Serialization/Json/HIKARI_JsonFile.h"
 
 namespace HIKARI {
 
@@ -124,14 +124,14 @@ namespace HIKARI {
         PbrMaterialAssetData& outData,
         std::string& outError) {
 
-        std::ifstream ifs(path);
-        if (!ifs.is_open()) {
-            outError = "failed to open material file: " + path.generic_string();
+        nlohmann::json root{};
+        if (!SERIALIZATION::JSON::ReadJsonFile(
+                path,
+                root,
+                &outError)) {
             return false;
         }
-
-        nlohmann::json root = nlohmann::json::parse(ifs, nullptr, false);
-        if (root.is_discarded() || !root.is_object()) {
+        if (!root.is_object()) {
             outError = "invalid material JSON: " + path.generic_string();
             return false;
         }
@@ -146,21 +146,10 @@ namespace HIKARI {
         const PbrMaterialAssetData& data,
         std::string& outError) {
 
-        std::error_code ec{};
-        std::filesystem::create_directories(path.parent_path(), ec);
-        if (ec) {
-            outError = "failed to create material directory: " + ec.message();
-            return false;
-        }
-
-        std::ofstream ofs(path);
-        if (!ofs.is_open()) {
-            outError = "failed to write material file: " + path.generic_string();
-            return false;
-        }
-
-        ofs << ToJson(data).dump(2) << '\n';
-        return true;
+        return SERIALIZATION::JSON::WriteJsonFile(
+            path,
+            ToJson(data),
+            &outError);
     }
 
 } // namespace HIKARI

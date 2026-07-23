@@ -9,6 +9,7 @@
 
 #include "Assets/Collision/HIKARI_ModelCollisionSetupGeometry.h"
 #include "Core/IO/HIKARI_FileReplacementTransaction.h"
+#include "Core/Serialization/Json/HIKARI_JsonFile.h"
 #include "Core/Math/HIKARI_MathValidation.h"
 
 namespace HIKARI::ASSETS::COLLISION {
@@ -221,12 +222,13 @@ namespace HIKARI::ASSETS::COLLISION {
             return result;
         }
 
-        std::ifstream stream(path);
-        if (!stream.is_open()) {
-            result.message = "failed to open collision setup";
+        nlohmann::json root{};
+        if (!SERIALIZATION::JSON::ReadJsonFile(
+                path,
+                root,
+                &result.message)) {
             return result;
         }
-        nlohmann::json root = nlohmann::json::parse(stream, nullptr, false);
         if (!root.is_object()) {
             result.message = "collision setup JSON is invalid";
             return result;

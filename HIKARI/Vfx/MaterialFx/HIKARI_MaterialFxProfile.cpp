@@ -1,10 +1,10 @@
 #include "Vfx/MaterialFx/HIKARI_MaterialFxProfile.h"
 
 #include <algorithm>
-#include <fstream>
 #include <unordered_map>
 
 #include <json.hpp>
+#include "Core/Serialization/Json/HIKARI_JsonFile.h"
 
 namespace HIKARI {
 
@@ -158,13 +158,11 @@ bool MaterialFxProfile::LoadFromJson(const std::string& path) {
         return false;
     }
 
-    std::ifstream ifs(path);
-    if (!ifs.is_open()) {
-        return false;
-    }
-
-    nlohmann::json root = nlohmann::json::parse(ifs, nullptr, false);
-    if (root.is_discarded() || !root.is_object()) {
+    nlohmann::json root{};
+    if (!SERIALIZATION::JSON::ReadJsonFile(
+            std::filesystem::path(path),
+            root) ||
+        !root.is_object()) {
         return false;
     }
 

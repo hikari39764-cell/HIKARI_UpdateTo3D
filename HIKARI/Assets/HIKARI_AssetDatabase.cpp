@@ -5,7 +5,6 @@
 #include <cctype>
 #include <exception>
 #include <filesystem>
-#include <fstream>
 #include <sstream>
 #include <unordered_set>
 
@@ -17,6 +16,7 @@
 #include "Assets/Semantics/HIKARI_AssetArtifactSemantics.h"
 #include "Assets/Semantics/HIKARI_AssetSourceSemantics.h"
 #include "Core/HIKARI_Logger.h"
+#include "Core/Serialization/Json/HIKARI_JsonFile.h"
 #include "Project/Paths/HIKARI_ProjectPath.h"
 #include "Importers/HIKARI_MaterialImporter.h"
 #include "Importers/HIKARI_ModelImporter.h"
@@ -145,16 +145,6 @@ namespace HIKARI {
             }
         }
 
-        bool ReadJsonFile(const std::filesystem::path& path, nlohmann::json& outRoot) {
-            std::ifstream ifs(path);
-            if (!ifs.is_open()) {
-                return false;
-            }
-
-            outRoot = nlohmann::json::parse(ifs, nullptr, false);
-            return !outRoot.is_discarded() && outRoot.is_object();
-        }
-
         int ImportPriority(AssetType type) {
             switch (type) {
             case AssetType::Texture:
@@ -194,7 +184,9 @@ namespace HIKARI {
 
         nlohmann::json pipelineSettings{};
         const std::filesystem::path settingsPath = projectSettingsRoot_ / "asset_pipeline.json";
-        (void)ReadJsonFile(settingsPath, pipelineSettings);
+        (void)SERIALIZATION::JSON::ReadJsonFile(
+            settingsPath,
+            pipelineSettings);
 
         const auto resolvePipelinePath =
             [this, &pipelineSettings](const char* key, const char* fallback) {
@@ -800,13 +792,6 @@ namespace HIKARI {
             return false;
         }
 
-        std::error_code ec{};
-        std::filesystem::create_directories(record.metaPath.parent_path(), ec);
-        if (ec) {
-            HIKARI_LOG_ERROR("[AssetDatabase] failed to create meta directory: " + record.metaPath.parent_path().generic_string());
-            return false;
-        }
-
         nlohmann::json settings = nlohmann::json::parse(record.meta.importSettingsJson, nullptr, false);
         if (!settings.is_object()) {
             settings = nlohmann::json::object();
@@ -823,12 +808,16 @@ namespace HIKARI {
             { "importSettings", settings },
         };
 
-        std::ofstream ofs(record.metaPath);
-        if (!ofs.is_open()) {
-            HIKARI_LOG_ERROR("[AssetDatabase] failed to open meta for write: " + record.metaPath.generic_string());
+        std::string writeMessage{};
+        if (!SERIALIZATION::JSON::WriteJsonFile(
+            record.metaPath,
+            root,
+            &writeMessage)) {
+            HIKARI_LOG_ERROR(
+                "[AssetDatabase] failed to write meta: " +
+                writeMessage);
             return false;
         }
-        ofs << root.dump(2) << '\n';
         return true;
     }
 
@@ -836,7 +825,10 @@ namespace HIKARI {
         const std::filesystem::path absoluteMetaPath = PROJECT_PATHS::ResolveProjectPath(projectRoot_, metaPath);
 
         nlohmann::json root;
-        if (!ReadJsonFile(absoluteMetaPath, root)) {
+        if (!SERIALIZATION::JSON::ReadJsonFile(
+                absoluteMetaPath,
+                root) ||
+            !root.is_object()) {
             HIKARI_LOG_ERROR("[AssetDatabase] meta JSON parse failed: " + absoluteMetaPath.generic_string());
             return false;
         }
@@ -1155,10 +1147,9 @@ namespace HIKARI {
                 { "sourceMetaRoot", "ProjectSettings/AssetMeta" },
             };
 
-            std::ofstream ofs(settingsPath);
-            if (ofs.is_open()) {
-                ofs << settings.dump(2) << '\n';
-            }
+            (void)SERIALIZATION::JSON::WriteJsonFile(
+                settingsPath,
+                settings);
         }
     }
 
@@ -1281,7 +1272,9 @@ namespace HIKARI {
 
         const std::filesystem::path reportPath = record.importedDirectory / "import_report.json";
         nlohmann::json report;
-        if (!record.importedDirectory.empty() && ReadJsonFile(reportPath, report)) {
+        if (!record.importedDirectory.empty() &&
+            SERIALIZATION::JSON::ReadJsonFile(reportPath, report) &&
+            report.is_object()) {
             record.lastImportSucceeded = report.value("success", false);
             record.lastImportMessage = report.value("message", record.lastImportMessage);
         }
@@ -1294,7 +1287,10 @@ namespace HIKARI {
         const std::filesystem::path absoluteManifestPath = PROJECT_PATHS::ResolveProjectPath(projectRoot_, manifestPath);
 
         nlohmann::json root;
-        if (!ReadJsonFile(absoluteManifestPath, root)) {
+        if (!SERIALIZATION::JSON::ReadJsonFile(
+                absoluteManifestPath,
+                root) ||
+            !root.is_object()) {
             return false;
         }
 
@@ -1331,14 +1327,6 @@ namespace HIKARI {
             return false;
         }
 
-        std::error_code ec{};
-        std::filesystem::create_directories(record.artifactManifestPath.parent_path(), ec);
-        if (ec) {
-            HIKARI_LOG_ERROR("[AssetDatabase] failed to create artifact manifest directory: " +
-                record.artifactManifestPath.parent_path().generic_string());
-            return false;
-        }
-
         nlohmann::json root{
             { "manifestVersion", kArtifactManifestVersion },
             { "guid", record.guid.value },
@@ -1360,25 +1348,21 @@ namespace HIKARI {
             }
         }
 
-        std::ofstream ofs(record.artifactManifestPath);
-        if (!ofs.is_open()) {
-            HIKARI_LOG_ERROR("[AssetDatabase] failed to write artifact manifest: " +
-                record.artifactManifestPath.generic_string());
+        std::string writeMessage{};
+        if (!SERIALIZATION::JSON::WriteJsonFile(
+            record.artifactManifestPath,
+            root,
+            &writeMessage)) {
+            HIKARI_LOG_ERROR(
+                "[AssetDatabase] failed to write artifact manifest: " +
+                writeMessage);
             return false;
         }
-        ofs << root.dump(2) << '\n';
         return true;
     }
 
     bool AssetDatabase::WriteImportReport(const AssetRecord& record, const AssetImportResult& result) const {
         if (record.importedDirectory.empty()) {
-            return false;
-        }
-
-        std::error_code ec{};
-        std::filesystem::create_directories(record.importedDirectory, ec);
-        if (ec) {
-            HIKARI_LOG_ERROR("[AssetDatabase] failed to create import report directory: " + record.importedDirectory.generic_string());
             return false;
         }
 
@@ -1403,12 +1387,16 @@ namespace HIKARI {
         }
 
         const std::filesystem::path reportPath = record.importedDirectory / "import_report.json";
-        std::ofstream ofs(reportPath);
-        if (!ofs.is_open()) {
-            HIKARI_LOG_ERROR("[AssetDatabase] failed to write import report: " + reportPath.generic_string());
+        std::string writeMessage{};
+        if (!SERIALIZATION::JSON::WriteJsonFile(
+            reportPath,
+            root,
+            &writeMessage)) {
+            HIKARI_LOG_ERROR(
+                "[AssetDatabase] failed to write import report: " +
+                writeMessage);
             return false;
         }
-        ofs << root.dump(2) << '\n';
         return true;
     }
 

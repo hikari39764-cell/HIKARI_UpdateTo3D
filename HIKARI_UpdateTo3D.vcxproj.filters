@@ -55,6 +55,15 @@
     <Filter Include="Header Files\Core\IO">
       <UniqueIdentifier>{B7A1D620-6C9E-4B31-8D70-94E2F1A50001}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Header Files\Core\Serialization">
+      <UniqueIdentifier>{B7A1D620-6C9E-4B31-8D70-94E2F1A50006}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\Core\Serialization\Binary">
+      <UniqueIdentifier>{B7A1D620-6C9E-4B31-8D70-94E2F1A50007}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\Core\Serialization\Json">
+      <UniqueIdentifier>{B7A1D620-6C9E-4B31-8D70-94E2F1A50008}</UniqueIdentifier>
+    </Filter>
     <Filter Include="Header Files\Core\Math">
       <UniqueIdentifier>{B7A1D620-6C9E-4B31-8D70-94E2F1A50002}</UniqueIdentifier>
     </Filter>
@@ -441,6 +450,12 @@
     </Filter>
     <Filter Include="Source Files\Core\IO">
       <UniqueIdentifier>{B7A1D620-6C9E-4B31-8D70-94E2F1A50011}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Core\Serialization">
+      <UniqueIdentifier>{B7A1D620-6C9E-4B31-8D70-94E2F1A50016}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Core\Serialization\Json">
+      <UniqueIdentifier>{B7A1D620-6C9E-4B31-8D70-94E2F1A50017}</UniqueIdentifier>
     </Filter>
     <Filter Include="Source Files\Core\Math">
       <UniqueIdentifier>{B7A1D620-6C9E-4B31-8D70-94E2F1A50012}</UniqueIdentifier>
@@ -1961,6 +1976,9 @@
     </ClCompile>
     <ClCompile Include="HIKARI\Core\IO\HIKARI_PathNormalization.cpp">
       <Filter>Source Files\Core\IO</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Core\Serialization\Json\HIKARI_JsonFile.cpp">
+      <Filter>Source Files\Core\Serialization\Json</Filter>
     </ClCompile>
     <ClCompile Include="HIKARI\Physics\HIKARI_PhysicsBodyValidator.cpp">
       <Filter>Source Files\Physics</Filter>
@@ -3519,6 +3537,15 @@
     </ClInclude>
     <ClInclude Include="HIKARI\Core\IO\HIKARI_PathNormalization.h">
       <Filter>Header Files\Core\IO</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Core\Serialization\Binary\HIKARI_BinaryBuffer.h">
+      <Filter>Header Files\Core\Serialization\Binary</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Core\Serialization\Binary\HIKARI_BinaryStream.h">
+      <Filter>Header Files\Core\Serialization\Binary</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Core\Serialization\Json\HIKARI_JsonFile.h">
+      <Filter>Header Files\Core\Serialization\Json</Filter>
     </ClInclude>
     <ClInclude Include="HIKARI\Physics\HIKARI_PhysicsSceneBridge.h">
       <Filter>Header Files\Physics</Filter>

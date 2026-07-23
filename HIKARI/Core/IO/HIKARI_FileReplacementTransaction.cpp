@@ -139,4 +139,18 @@ namespace HIKARI::IO {
         return true;
     }
 
+    bool CommitStagedFile(
+        const std::filesystem::path& stagedPath,
+        const std::filesystem::path& finalPath,
+        std::string& outMessage) {
+
+        const FileReplacementOperation operation{
+            .finalPath = finalPath,
+            .stagedPath = stagedPath,
+        };
+        return CommitFileReplacementTransaction(
+            std::span<const FileReplacementOperation>(&operation, 1u),
+            outMessage);
+    }
+
 } // namespace HIKARI::IO

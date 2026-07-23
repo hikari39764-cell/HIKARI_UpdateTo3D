@@ -6,6 +6,8 @@
 #include <new>
 #include <type_traits>
 
+#include "Core/Serialization/Binary/HIKARI_BinaryStream.h"
+
 namespace HIKARI::ASSETS::COLLISION {
     namespace {
         constexpr std::array<char, 8> kMagic{
@@ -28,34 +30,21 @@ namespace HIKARI::ASSETS::COLLISION {
         constexpr uint64_t kMaximumPayloadBytes = 2ull * 1024ull *
             1024ull * 1024ull;
 
-        template<class TValue>
-        bool WritePod(std::ostream& stream, const TValue& value) {
-            static_assert(std::is_trivially_copyable_v<TValue>);
-            stream.write(
-                reinterpret_cast<const char*>(&value),
-                static_cast<std::streamsize>(sizeof(TValue)));
-            return stream.good();
-        }
-
-        template<class TValue>
-        bool ReadPod(std::istream& stream, TValue& value) {
-            static_assert(std::is_trivially_copyable_v<TValue>);
-            stream.read(
-                reinterpret_cast<char*>(&value),
-                static_cast<std::streamsize>(sizeof(TValue)));
-            return stream.good();
-        }
+        using SERIALIZATION::BINARY::STREAM::ReadTrivial;
+        using SERIALIZATION::BINARY::STREAM::ReadTrivialArray;
+        using SERIALIZATION::BINARY::STREAM::WriteTrivial;
+        using SERIALIZATION::BINARY::STREAM::WriteTrivialArray;
 
         bool WriteVec3(std::ostream& stream, const MATH::Vec3& value) {
-            return WritePod(stream, value.x) &&
-                WritePod(stream, value.y) &&
-                WritePod(stream, value.z);
+            return WriteTrivial(stream, value.x) &&
+                WriteTrivial(stream, value.y) &&
+                WriteTrivial(stream, value.z);
         }
 
         bool ReadVec3(std::istream& stream, MATH::Vec3& value) {
-            return ReadPod(stream, value.x) &&
-                ReadPod(stream, value.y) &&
-                ReadPod(stream, value.z);
+            return ReadTrivial(stream, value.x) &&
+                ReadTrivial(stream, value.y) &&
+                ReadTrivial(stream, value.z);
         }
 
         bool WriteBounds(std::ostream& stream, const Bounds& bounds) {
@@ -119,18 +108,18 @@ namespace HIKARI::ASSETS::COLLISION {
 
             const uint8_t type = static_cast<uint8_t>(shape.type);
             const uint8_t reserved[7]{};
-            return WritePod(stream, shape.id) &&
-                WritePod(stream, type) &&
-                WritePod(stream, reserved) &&
+            return WriteTrivial(stream, shape.id) &&
+                WriteTrivial(stream, type) &&
+                WriteTrivial(stream, reserved) &&
                 WriteVec3(stream, shape.center) &&
                 WriteVec3(stream, shape.rotationEulerDegrees) &&
                 WriteVec3(stream, shape.size) &&
-                WritePod(stream, shape.radius) &&
-                WritePod(stream, shape.height) &&
-                WritePod(stream, shape.vertexOffset) &&
-                WritePod(stream, shape.vertexCount) &&
-                WritePod(stream, shape.indexOffset) &&
-                WritePod(stream, shape.indexCount);
+                WriteTrivial(stream, shape.radius) &&
+                WriteTrivial(stream, shape.height) &&
+                WriteTrivial(stream, shape.vertexOffset) &&
+                WriteTrivial(stream, shape.vertexCount) &&
+                WriteTrivial(stream, shape.indexOffset) &&
+                WriteTrivial(stream, shape.indexCount);
         }
 
         bool ReadShape(
@@ -139,18 +128,18 @@ namespace HIKARI::ASSETS::COLLISION {
 
             uint8_t type = 0u;
             uint8_t reserved[7]{};
-            if (!ReadPod(stream, shape.id) ||
-                !ReadPod(stream, type) ||
-                !ReadPod(stream, reserved) ||
+            if (!ReadTrivial(stream, shape.id) ||
+                !ReadTrivial(stream, type) ||
+                !ReadTrivial(stream, reserved) ||
                 !ReadVec3(stream, shape.center) ||
                 !ReadVec3(stream, shape.rotationEulerDegrees) ||
                 !ReadVec3(stream, shape.size) ||
-                !ReadPod(stream, shape.radius) ||
-                !ReadPod(stream, shape.height) ||
-                !ReadPod(stream, shape.vertexOffset) ||
-                !ReadPod(stream, shape.vertexCount) ||
-                !ReadPod(stream, shape.indexOffset) ||
-                !ReadPod(stream, shape.indexCount) ||
+                !ReadTrivial(stream, shape.radius) ||
+                !ReadTrivial(stream, shape.height) ||
+                !ReadTrivial(stream, shape.vertexOffset) ||
+                !ReadTrivial(stream, shape.vertexCount) ||
+                !ReadTrivial(stream, shape.indexOffset) ||
+                !ReadTrivial(stream, shape.indexCount) ||
                 type > static_cast<uint8_t>(
                     CollisionGeometryShapeType::TriangleMesh)) {
                 return false;
@@ -245,23 +234,20 @@ namespace HIKARI::ASSETS::COLLISION {
         const uint64_t contentHash =
             ComputeCollisionGeometryContentHash(asset);
 
-        stream.write(kMagic.data(), static_cast<std::streamsize>(kMagic.size()));
-        bool ok = stream.good() &&
-            WritePod(stream, kFormatVersion) &&
-            WritePod(stream, kEndianMarker) &&
-            WritePod(stream, asset.version) &&
-            WritePod(stream, guidBytes) &&
-            WritePod(stream, shapeCount) &&
-            WritePod(stream, vertexCount) &&
-            WritePod(stream, indexCount) &&
-            WritePod(stream, contentHash) &&
+        bool ok = WriteTrivial(stream, kMagic) &&
+            WriteTrivial(stream, kFormatVersion) &&
+            WriteTrivial(stream, kEndianMarker) &&
+            WriteTrivial(stream, asset.version) &&
+            WriteTrivial(stream, guidBytes) &&
+            WriteTrivial(stream, shapeCount) &&
+            WriteTrivial(stream, vertexCount) &&
+            WriteTrivial(stream, indexCount) &&
+            WriteTrivial(stream, contentHash) &&
             WriteBounds(stream, asset.localBounds);
-        if (guidBytes > 0u) {
-            stream.write(
-                asset.sourceAssetGuid.data(),
-                static_cast<std::streamsize>(guidBytes));
-            ok = ok && stream.good();
-        }
+        ok = ok && WriteTrivialArray(
+            stream,
+            asset.sourceAssetGuid.data(),
+            asset.sourceAssetGuid.size());
         for (const CollisionGeometryShape& shape : asset.shapes) {
             ok = ok && WriteShape(stream, shape);
         }
@@ -269,7 +255,7 @@ namespace HIKARI::ASSETS::COLLISION {
             ok = ok && WriteVec3(stream, vertex);
         }
         for (uint32_t index : asset.indices) {
-            ok = ok && WritePod(stream, index);
+            ok = ok && WriteTrivial(stream, index);
         }
         stream.flush();
         ok = ok && stream.good();
@@ -310,7 +296,6 @@ namespace HIKARI::ASSETS::COLLISION {
         stream.seekg(0, std::ios::beg);
 
         std::array<char, 8> magic{};
-        stream.read(magic.data(), static_cast<std::streamsize>(magic.size()));
         uint32_t formatVersion = 0u;
         uint32_t endianMarker = 0u;
         uint32_t guidBytes = 0u;
@@ -318,15 +303,15 @@ namespace HIKARI::ASSETS::COLLISION {
         uint32_t vertexCount = 0u;
         uint32_t indexCount = 0u;
         uint64_t storedHash = 0u;
-        bool ok = stream.good() && magic == kMagic &&
-            ReadPod(stream, formatVersion) &&
-            ReadPod(stream, endianMarker) &&
-            ReadPod(stream, outAsset.version) &&
-            ReadPod(stream, guidBytes) &&
-            ReadPod(stream, shapeCount) &&
-            ReadPod(stream, vertexCount) &&
-            ReadPod(stream, indexCount) &&
-            ReadPod(stream, storedHash) &&
+        bool ok = ReadTrivial(stream, magic) && magic == kMagic &&
+            ReadTrivial(stream, formatVersion) &&
+            ReadTrivial(stream, endianMarker) &&
+            ReadTrivial(stream, outAsset.version) &&
+            ReadTrivial(stream, guidBytes) &&
+            ReadTrivial(stream, shapeCount) &&
+            ReadTrivial(stream, vertexCount) &&
+            ReadTrivial(stream, indexCount) &&
+            ReadTrivial(stream, storedHash) &&
             ReadBounds(stream, outAsset.localBounds);
         if (!ok ||
             formatVersion != kFormatVersion ||
@@ -370,12 +355,10 @@ namespace HIKARI::ASSETS::COLLISION {
             outAsset = {};
             return false;
         }
-        if (guidBytes > 0u) {
-            stream.read(
-                outAsset.sourceAssetGuid.data(),
-                static_cast<std::streamsize>(guidBytes));
-            ok = stream.good();
-        }
+        ok = ok && ReadTrivialArray(
+            stream,
+            outAsset.sourceAssetGuid.data(),
+            outAsset.sourceAssetGuid.size());
         for (CollisionGeometryShape& shape : outAsset.shapes) {
             ok = ok && ReadShape(stream, shape);
         }
@@ -383,7 +366,7 @@ namespace HIKARI::ASSETS::COLLISION {
             ok = ok && ReadVec3(stream, vertex);
         }
         for (uint32_t& index : outAsset.indices) {
-            ok = ok && ReadPod(stream, index);
+            ok = ok && ReadTrivial(stream, index);
         }
         if (!ok ||
             ComputeCollisionGeometryContentHash(outAsset) != storedHash) {

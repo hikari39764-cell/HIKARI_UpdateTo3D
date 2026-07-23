@@ -19,6 +19,7 @@
 #include "Assets/Material/HIKARI_MaterialAssetData.h"
 #include "Assets/Semantics/HIKARI_AssetArtifactSemantics.h"
 #include "Assets/Semantics/HIKARI_AssetSourceSemantics.h"
+#include "Core/Serialization/Json/HIKARI_JsonFile.h"
 #include "Editor/Assets/HIKARI_AssetImportSettingsEditor.h"
 #include "Editor/HIKARI_EditorContext.h"
 #include "Editor/Widgets/HIKARI_MaterialTextureSlotWidget.h"
@@ -124,15 +125,6 @@ namespace HIKARI {
             return oss.str();
         }
 
-        bool ReadJsonFile(const std::filesystem::path& path, nlohmann::json& outJson) {
-            std::ifstream ifs(path);
-            if (!ifs.is_open()) {
-                return false;
-            }
-            outJson = nlohmann::json::parse(ifs, nullptr, false);
-            return !outJson.is_discarded() && outJson.is_object();
-        }
-
         void ShowInExplorer(const std::filesystem::path& path) {
             const std::wstring param = L"/select,\"" + path.wstring() + L"\"";
             ShellExecuteW(nullptr, L"open", L"explorer.exe", param.c_str(), nullptr, SW_SHOWNORMAL);
@@ -218,7 +210,10 @@ namespace HIKARI {
             DrawClusteredGeometryArtifactInfo(assetDatabase, record);
 
             nlohmann::json report;
-            if (!ReadJsonFile(record.importedDirectory / "import_report.json", report) ||
+            if (!SERIALIZATION::JSON::ReadJsonFile(
+                    record.importedDirectory / "import_report.json",
+                    report) ||
+                !report.is_object() ||
                 !report.contains("diagnostics") ||
                 !report["diagnostics"].is_object()) {
                 ImGui::TextDisabled("Model diagnostics are written after a successful HMODEL import");

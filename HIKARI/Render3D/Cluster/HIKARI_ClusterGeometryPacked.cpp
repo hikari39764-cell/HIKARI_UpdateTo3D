@@ -2,18 +2,20 @@
 
 #include <algorithm>
 #include <cmath>
-#include <cstring>
 #include <limits>
-#include <type_traits>
 
 #include <DirectXPackedVector.h>
 
 #include "Core/Numeric/HIKARI_IntegerConversion.h"
+#include "Core/Serialization/Binary/HIKARI_BinaryBuffer.h"
 #include "Render3D/Core/HIKARI_BoundsUtils.h"
 
 namespace HIKARI::RENDER3D::CLUSTER {
 
     namespace {
+        using SERIALIZATION::BINARY::BUFFER::AppendTrivial;
+        using SERIALIZATION::BINARY::BUFFER::OverwriteTrivial;
+
         static_assert(
             kHcmeshMaxVerticesPerMeshlet <= 256u,
             "Packed meshlet primitive indices require 8-bit local vertex indices.");
@@ -68,14 +70,6 @@ namespace HIKARI::RENDER3D::CLUSTER {
             return BOUNDS::IsUsable(section.lodMetricBounds)
                 ? section.lodMetricBounds
                 : section.localBounds;
-        }
-
-        template<class T>
-        void AppendPod(std::vector<uint8_t>& bytes, const T& value) {
-            static_assert(std::is_trivially_copyable_v<T>);
-            const size_t oldSize = bytes.size();
-            bytes.resize(oldSize + sizeof(T));
-            std::memcpy(bytes.data() + oldSize, &value, sizeof(T));
         }
 
         uint32_t AlignSection(std::vector<uint8_t>& bytes) {
@@ -391,50 +385,50 @@ namespace HIKARI::RENDER3D::CLUSTER {
         packed.surfaceRanges.reserve(asset.surfaces.size());
         for (size_t surfaceIndex = 0; surfaceIndex < asset.surfaces.size(); ++surfaceIndex) {
             const ClusterSurface& surface = asset.surfaces[surfaceIndex];
-            AppendPod(packed.metadataBytes, ToGpuSurface(surface));
+            AppendTrivial(packed.metadataBytes, ToGpuSurface(surface));
             packed.surfaceRanges.push_back(ToSurfaceRange(NUMERIC::SaturateToUint32(surfaceIndex), surface));
         }
 
         metadataHeader.surfaceLodRangeOffsetBytes = AlignSection(packed.metadataBytes);
         packed.surfaceLodRanges.reserve(asset.surfaceLodRanges.size());
         for (const ClusterSurfaceLodRange& lodRange : asset.surfaceLodRanges) {
-            AppendPod(packed.metadataBytes, ToGpuSurfaceLodRange(lodRange));
+            AppendTrivial(packed.metadataBytes, ToGpuSurfaceLodRange(lodRange));
             packed.surfaceLodRanges.push_back(ToSurfaceLodRange(lodRange));
         }
 
         metadataHeader.surfaceSectionOffsetBytes = AlignSection(packed.metadataBytes);
         packed.surfaceSections.reserve(asset.surfaceSections.size());
         for (const ClusterSurfaceSection& section : asset.surfaceSections) {
-            AppendPod(packed.metadataBytes, ToGpuSurfaceSection(section));
+            AppendTrivial(packed.metadataBytes, ToGpuSurfaceSection(section));
             packed.surfaceSections.push_back(ToSurfaceSection(section));
         }
 
         metadataHeader.clusterOffsetBytes = AlignSection(packed.metadataBytes);
         for (const MeshCluster& cluster : asset.clusters) {
-            AppendPod(packed.metadataBytes, ToGpuCluster(cluster));
+            AppendTrivial(packed.metadataBytes, ToGpuCluster(cluster));
         }
 
         metadataHeader.pageOffsetBytes = AlignSection(packed.metadataBytes);
         for (const ClusterPage& page : asset.pages) {
-            AppendPod(packed.metadataBytes, ToGpuPage(page));
+            AppendTrivial(packed.metadataBytes, ToGpuPage(page));
         }
 
         geometryHeader.vertexOffsetBytes = AlignSection(packed.geometryBytes);
         for (const ClusterVertex& vertex : asset.packedVertices) {
-            AppendPod(packed.geometryBytes, ToGpuVertexPosition(vertex));
+            AppendTrivial(packed.geometryBytes, ToGpuVertexPosition(vertex));
         }
 
         // 属性列は position 列の直後に隙間なく続ける。HLSL 側は
         // vertexOffsetBytes + vertexCount * POSITION_BYTES で属性先頭を導出する
         // (HikariClusterVertexAttributeOffset) ため、ここに padding を入れてはならない。
         for (const ClusterVertex& vertex : asset.packedVertices) {
-            AppendPod(packed.geometryBytes, ToGpuVertexAttributes(vertex));
+            AppendTrivial(packed.geometryBytes, ToGpuVertexAttributes(vertex));
         }
 
         if (hasSkinningData) {
             geometryHeader.skinVertexOffsetBytes = AlignSection(packed.geometryBytes);
             for (const ClusterSkinVertex& vertex : asset.packedSkinningVertices) {
-                AppendPod(packed.geometryBytes, ToGpuSkinVertex(vertex));
+                AppendTrivial(packed.geometryBytes, ToGpuSkinVertex(vertex));
             }
         }
 
@@ -453,18 +447,18 @@ namespace HIKARI::RENDER3D::CLUSTER {
                 }
             }
             for (const uint16_t index : gpuIndices) {
-                AppendPod(packed.geometryBytes, index);
+                AppendTrivial(packed.geometryBytes, index);
             }
         }
 
         geometryHeader.meshletPrimitiveOffsetBytes = AlignSection(packed.geometryBytes);
         for (const MeshletPrimitive& primitive : asset.meshletPrimitives) {
-            AppendPod(packed.geometryBytes, ToGpuMeshletPrimitive(primitive));
+            AppendTrivial(packed.geometryBytes, ToGpuMeshletPrimitive(primitive));
         }
 
         geometryHeader.materialSlotOffsetBytes = AlignSection(packed.geometryBytes);
         for (const uint32_t materialSlot : asset.materialSlotMapping) {
-            AppendPod(packed.geometryBytes, materialSlot);
+            AppendTrivial(packed.geometryBytes, materialSlot);
         }
 
         packed.metadataBytes.resize(AlignUp(
@@ -489,8 +483,24 @@ namespace HIKARI::RENDER3D::CLUSTER {
         geometryHeader.pageOffsetBytes = metadataHeader.pageOffsetBytes;
         geometryHeader.byteSize = NUMERIC::SaturateToUint32(packed.geometryBytes.size());
 
-        std::memcpy(packed.metadataBytes.data(), &metadataHeader, sizeof(metadataHeader));
-        std::memcpy(packed.geometryBytes.data(), &geometryHeader, sizeof(geometryHeader));
+        if (!OverwriteTrivial(
+            std::span<uint8_t>(
+                packed.metadataBytes.data(),
+                packed.metadataBytes.size()),
+            0u,
+            metadataHeader) ||
+            !OverwriteTrivial(
+                std::span<uint8_t>(
+                    packed.geometryBytes.data(),
+                    packed.geometryBytes.size()),
+                0u,
+                geometryHeader)) {
+            if (outMessage != nullptr) {
+                *outMessage =
+                    "[ClusterGeometryPack] failed to write packed headers";
+            }
+            return false;
+        }
 
         packed.layout.surfaceCount = metadataHeader.surfaceCount;
         packed.layout.surfaceLodRangeCount = metadataHeader.surfaceLodRangeCount;

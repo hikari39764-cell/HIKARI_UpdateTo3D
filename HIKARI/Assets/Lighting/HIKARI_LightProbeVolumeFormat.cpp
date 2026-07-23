@@ -2,14 +2,21 @@
 
 #include <array>
 #include <fstream>
+#include <iterator>
 #include <system_error>
 #include <utility>
 
 #include "Assets/Lighting/HIKARI_LightingBakeManifest.h"
+#include "Core/Serialization/Binary/HIKARI_BinaryStream.h"
 
 namespace HIKARI::ASSETS::LIGHTING {
 
     namespace {
+
+        using SERIALIZATION::BINARY::STREAM::ReadTrivial;
+        using SERIALIZATION::BINARY::STREAM::ReadTrivialArray;
+        using SERIALIZATION::BINARY::STREAM::WriteTrivial;
+        using SERIALIZATION::BINARY::STREAM::WriteTrivialArray;
 
         struct HlpvHeader {
             char magic[4] = { 'H', 'L', 'P', 'V' };
@@ -62,8 +69,7 @@ namespace HIKARI::ASSETS::LIGHTING {
         }
 
         HlpvHeader header{};
-        ifs.read(reinterpret_cast<char*>(&header), sizeof(header));
-        if (!ifs || !IsMagicValid(header)) {
+        if (!ReadTrivial(ifs, header) || !IsMagicValid(header)) {
             SetMessage(outMessage, "HLPV header is invalid: " + path.generic_string());
             return false;
         }
@@ -99,8 +105,7 @@ namespace HIKARI::ASSETS::LIGHTING {
         for (LightProbeSh9& probe : data.probes) {
             for (MATH::Vec3& coeff : probe.coeffs) {
                 float raw[3]{};
-                ifs.read(reinterpret_cast<char*>(raw), sizeof(raw));
-                if (!ifs) {
+                if (!ReadTrivialArray(ifs, raw, std::size(raw))) {
                     SetMessage(outMessage, "HLPV SH payload is truncated: " + path.generic_string());
                     return false;
                 }
@@ -152,15 +157,16 @@ namespace HIKARI::ASSETS::LIGHTING {
             return false;
         }
 
-        ofs.write(reinterpret_cast<const char*>(&header), sizeof(header));
+        bool writeSucceeded = WriteTrivial(ofs, header);
         for (const LightProbeSh9& probe : data.probes) {
             for (const MATH::Vec3& coeff : probe.coeffs) {
                 const float raw[3] = { coeff.x, coeff.y, coeff.z };
-                ofs.write(reinterpret_cast<const char*>(raw), sizeof(raw));
+                writeSucceeded = writeSucceeded &&
+                    WriteTrivialArray(ofs, raw, std::size(raw));
             }
         }
 
-        if (!ofs) {
+        if (!writeSucceeded || !ofs) {
             SetMessage(outMessage, "failed to flush HLPV: " + path.generic_string());
             return false;
         }

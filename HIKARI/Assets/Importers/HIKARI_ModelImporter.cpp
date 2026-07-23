@@ -1,11 +1,7 @@
 #include "HIKARI_ModelImporter.h"
 
-#include <Windows.h>
-
 #include <cmath>
 #include <filesystem>
-#include <fstream>
-#include <sstream>
 #include <unordered_set>
 #include <utility>
 #include <vector>
@@ -21,7 +17,9 @@
 #include "Assets/Semantics/HIKARI_AssetArtifactSemantics.h"
 #include "Assets/Semantics/HIKARI_AssetSourceSemantics.h"
 #include "Assets/Tasks/HIKARI_AssetTaskService.h"
+#include "Core/IO/HIKARI_FileReplacementTransaction.h"
 #include "Core/HIKARI_Logger.h"
+#include "Core/Serialization/Json/HIKARI_JsonFile.h"
 #include "Project/Paths/HIKARI_ProjectPath.h"
 #include "HIKARI_TextureImportBackend_DirectXTex.h"
 #include "Render3D/Core/HIKARI_ModelManager.h"
@@ -53,41 +51,6 @@ namespace HIKARI {
             return (libraryRoot / "AssetDatabase" / "Artifacts" / (guid + ".artifact.json")).lexically_normal();
         }
 
-        bool ReplaceFileWithTemp(
-            const std::filesystem::path& tempPath,
-            const std::filesystem::path& finalPath,
-            const char* artifactLabel,
-            std::string& outMessage) {
-
-            const BOOL moved = MoveFileExW(
-                tempPath.wstring().c_str(),
-                finalPath.wstring().c_str(),
-                MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH);
-            if (!moved) {
-                const DWORD error = GetLastError();
-                std::error_code removeEc{};
-                std::filesystem::remove(tempPath, removeEc);
-
-                std::ostringstream oss;
-                oss << "[AssetImporter] failed to replace " << artifactLabel << " artifact. error=" << error
-                    << " temp=" << tempPath.generic_string()
-                    << " final=" << finalPath.generic_string();
-                outMessage = oss.str();
-                HIKARI_LOG_ERROR(outMessage);
-                return false;
-            }
-            return true;
-        }
-
-        bool ReadJsonFile(const std::filesystem::path& path, nlohmann::json& outJson) {
-            std::ifstream ifs(path);
-            if (!ifs.is_open()) {
-                return false;
-            }
-            outJson = nlohmann::json::parse(ifs, nullptr, false);
-            return !outJson.is_discarded() && outJson.is_object();
-        }
-
         nlohmann::json ToJson(const MATH::Vec3& value) {
             return nlohmann::json::array({ value.x, value.y, value.z });
         }
@@ -115,7 +78,10 @@ namespace HIKARI {
             std::vector<AssetDependencyDesc>& dependencies) {
 
             nlohmann::json source{};
-            if (!ReadJsonFile(absoluteSource, source) ||
+            if (!SERIALIZATION::JSON::ReadJsonFile(
+                    absoluteSource,
+                    source) ||
+                !source.is_object() ||
                 !source.contains("buffers") ||
                 !source["buffers"].is_array()) {
                 return;
@@ -530,7 +496,10 @@ namespace HIKARI {
             const std::filesystem::path reportPath =
                 projectRoot / "Library" / "Imported" / textureGuid / "import_report.json";
             nlohmann::json report;
-            if (!ReadJsonFile(reportPath, report)) {
+            if (!SERIALIZATION::JSON::ReadJsonFile(
+                    reportPath,
+                    report) ||
+                !report.is_object()) {
                 return false;
             }
 
@@ -632,7 +601,10 @@ namespace HIKARI {
             }
 
             nlohmann::json metaJson;
-            if (!ReadJsonFile(metaPath, metaJson)) {
+            if (!SERIALIZATION::JSON::ReadJsonFile(
+                    metaPath,
+                    metaJson) ||
+                !metaJson.is_object()) {
                 return false;
             }
 
@@ -652,7 +624,11 @@ namespace HIKARI {
             }
             nlohmann::json manifestJson;
             const std::filesystem::path artifactManifestPath = MakeArtifactManifestPath(libraryRoot, guid);
-            if (artifactManifestPath.empty() || !ReadJsonFile(artifactManifestPath, manifestJson)) {
+            if (artifactManifestPath.empty() ||
+                !SERIALIZATION::JSON::ReadJsonFile(
+                    artifactManifestPath,
+                    manifestJson) ||
+                !manifestJson.is_object()) {
                 return false;
             }
 
@@ -1039,7 +1015,19 @@ namespace HIKARI {
             return result;
         }
 
-        if (!ReplaceFileWithTemp(tempPath, finalPath, "HMODEL", result.message)) {
+        std::string hmodelCommitMessage{};
+        if (!IO::CommitStagedFile(
+            tempPath,
+            finalPath,
+            hmodelCommitMessage)) {
+            std::error_code cleanupEc{};
+            std::filesystem::remove(tempPath, cleanupEc);
+            result.message =
+                "[AssetImporter] failed to replace HMODEL artifact. temp=" +
+                tempPath.generic_string() +
+                " final=" + finalPath.generic_string() +
+                " reason=" + hmodelCommitMessage;
+            HIKARI_LOG_ERROR(result.message);
             return result;
         }
 
@@ -1077,12 +1065,36 @@ namespace HIKARI {
                     if (removeHcmeshEc) {
                         hcmeshMessage = "[AssetImporter] failed to clear stale temporary HCMESH: " +
                             tempHcmeshPath.generic_string();
-                    } else if (ASSETS::GEOMETRY::WriteHcmeshFile(tempHcmeshPath, clusteredGeometry, hcmeshMessage) &&
-                        ReplaceFileWithTemp(tempHcmeshPath, finalHcmeshPath, "HCMESH", hcmeshMessage)) {
-                        hcmeshReady = true;
-                        result.artifacts.push_back(ASSETS::SEMANTICS::MakeAssetArtifact(
-                            ASSETS::SEMANTICS::AssetArtifactKind::ClusteredGeometry,
-                            PROJECT_PATHS::MakeProjectRelativeString(context.projectRoot, finalHcmeshPath)));
+                    } else if (ASSETS::GEOMETRY::WriteHcmeshFile(
+                        tempHcmeshPath,
+                        clusteredGeometry,
+                        hcmeshMessage)) {
+                        std::string commitMessage{};
+                        if (IO::CommitStagedFile(
+                            tempHcmeshPath,
+                            finalHcmeshPath,
+                            commitMessage)) {
+                            hcmeshReady = true;
+                            result.artifacts.push_back(
+                                ASSETS::SEMANTICS::MakeAssetArtifact(
+                                    ASSETS::SEMANTICS::AssetArtifactKind::
+                                        ClusteredGeometry,
+                                    PROJECT_PATHS::MakeProjectRelativeString(
+                                        context.projectRoot,
+                                        finalHcmeshPath)));
+                        } else {
+                            std::error_code cleanupEc{};
+                            std::filesystem::remove(
+                                tempHcmeshPath,
+                                cleanupEc);
+                            hcmeshMessage =
+                                "[AssetImporter] failed to replace HCMESH "
+                                "artifact. temp=" +
+                                tempHcmeshPath.generic_string() +
+                                " final=" +
+                                finalHcmeshPath.generic_string() +
+                                " reason=" + commitMessage;
+                        }
                     }
                 } else {
                     hcmeshMessage = clusteredValidation.messages.empty()

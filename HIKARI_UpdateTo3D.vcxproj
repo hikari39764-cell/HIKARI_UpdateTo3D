@@ -359,6 +359,7 @@
       <ClCompile Include="HIKARI\Physics\HIKARI_PhysicsSystemSynchronization.cpp" />
     <ClCompile Include="HIKARI\Core\IO\HIKARI_FileReplacementTransaction.cpp" />
     <ClCompile Include="HIKARI\Core\IO\HIKARI_PathNormalization.cpp" />
+    <ClCompile Include="HIKARI\Core\Serialization\Json\HIKARI_JsonFile.cpp" />
     <ClCompile Include="HIKARI\Core\Math\HIKARI_MathValidation.cpp" />
     <ClCompile Include="HIKARI\Core\Math\HIKARI_NormalMatrix.cpp" />
     <ClCompile Include="HIKARI\Core\Numeric\HIKARI_IntegerConversion.cpp" />
@@ -1385,6 +1386,9 @@
     <ClInclude Include="HIKARI\Physics\HIKARI_IPhysicsWorldBackend.h" />
     <ClInclude Include="HIKARI\Core\IO\HIKARI_FileReplacementTransaction.h" />
     <ClInclude Include="HIKARI\Core\IO\HIKARI_PathNormalization.h" />
+    <ClInclude Include="HIKARI\Core\Serialization\Binary\HIKARI_BinaryBuffer.h" />
+    <ClInclude Include="HIKARI\Core\Serialization\Binary\HIKARI_BinaryStream.h" />
+    <ClInclude Include="HIKARI\Core\Serialization\Json\HIKARI_JsonFile.h" />
     <ClInclude Include="HIKARI\Physics\HIKARI_PhysicsSceneBridge.h" />
     <ClInclude Include="HIKARI\Physics\HIKARI_PhysicsDefinitionScale.h" />
     <ClInclude Include="HIKARI\Physics\HIKARI_PhysicsPresentation.h" />

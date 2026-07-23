@@ -1,9 +1,10 @@
 #include "Assets/Sequence/HIKARI_SequenceAsset.h"
 
-#include <fstream>
+#include <utility>
 
 #include <json.hpp>
 
+#include "Core/Serialization/Json/HIKARI_JsonFile.h"
 #include "Scene/Sequencer/Serialization/HIKARI_CinematicSequenceJson.h"
 
 namespace HIKARI {
@@ -22,12 +23,17 @@ namespace HIKARI {
         SequenceAsset& outAsset,
         std::string* outError) {
 
-        std::ifstream input(path);
-        if (!input.is_open()) {
-            SetError(outError, "Unable to open sequence asset");
+        nlohmann::json root{};
+        std::string ioMessage{};
+        if (!SERIALIZATION::JSON::ReadJsonFile(
+                path,
+                root,
+                &ioMessage)) {
+            SetError(
+                outError,
+                "Unable to read sequence asset: " + ioMessage);
             return false;
         }
-        nlohmann::json root = nlohmann::json::parse(input, nullptr, false);
         if (!root.is_object()) {
             SetError(outError, "Invalid sequence asset JSON");
             return false;
@@ -65,12 +71,6 @@ namespace HIKARI {
         const SequenceAsset& asset,
         std::string* outError) {
 
-        std::error_code ec{};
-        std::filesystem::create_directories(path.parent_path(), ec);
-        if (ec) {
-            SetError(outError, "Unable to create sequence asset directory");
-            return false;
-        }
         CinematicSequence normalized = asset.sequence;
         NormalizeCinematicSequence(normalized);
         nlohmann::json sequenceJson{};
@@ -85,14 +85,14 @@ namespace HIKARI {
             { "sequence", std::move(sequenceJson) }
         };
 
-        std::ofstream output(path, std::ios::trunc);
-        if (!output.is_open()) {
-            SetError(outError, "Unable to write sequence asset");
-            return false;
-        }
-        output << root.dump(2) << '\n';
-        if (!output.good()) {
-            SetError(outError, "Failed while writing sequence asset");
+        std::string ioMessage{};
+        if (!SERIALIZATION::JSON::WriteJsonFile(
+                path,
+                root,
+                &ioMessage)) {
+            SetError(
+                outError,
+                "Unable to write sequence asset: " + ioMessage);
             return false;
         }
         if (outError != nullptr) {

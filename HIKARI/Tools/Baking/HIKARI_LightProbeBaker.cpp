@@ -2,16 +2,16 @@
 
 #include <algorithm>
 #include <cmath>
-#include <fstream>
 #include <numbers>
 #include <sstream>
-#include <system_error>
 #include <utility>
 
 #include <DirectXPackedVector.h>
 #include <DirectXTex.h>
+#include <json.hpp>
 
 #include "Core/HIKARI_Logger.h"
+#include "Core/Serialization/Json/HIKARI_JsonFile.h"
 #include "Project/Paths/HIKARI_ProjectPath.h"
 
 namespace HIKARI::TOOLS::BAKING {
@@ -183,38 +183,34 @@ namespace HIKARI::TOOLS::BAKING {
             const std::vector<std::filesystem::path>& capturePaths,
             std::string* outMessage) {
 
-            std::error_code ec{};
-            std::filesystem::create_directories(path.parent_path(), ec);
-            if (ec) {
-                if (outMessage) {
-                    *outMessage = "failed to create light probe debug folder: " + ec.message();
-                }
-                return false;
-            }
-
-            std::ofstream ofs(path);
-            if (!ofs.is_open()) {
-                if (outMessage) {
-                    *outMessage = "failed to write light probe debug json: " + path.generic_string();
-                }
-                return false;
-            }
-
             LightProbeVolumeSettings settings = request.settings;
             ClampLightProbeVolumeSettings(settings);
-            ofs << "{\n";
-            ofs << "  \"type\": \"VolumeGrid\",\n";
-            ofs << "  \"probeCount\": " << GetLightProbeVolumeProbeCount(settings) << ",\n";
-            ofs << "  \"captureResolution\": " << settings.captureResolution << ",\n";
-            ofs << "  \"shOrder\": " << settings.shOrder << ",\n";
-            ofs << "  \"capturePaths\": [\n";
-            for (size_t i = 0; i < capturePaths.size(); ++i) {
-                ofs << "    \"" << PROJECT_PATHS::MakeProjectRelativeString(request.projectRoot, capturePaths[i]) << "\"";
-                ofs << (i + 1 < capturePaths.size() ? "," : "") << "\n";
+            nlohmann::json serializedCapturePaths =
+                nlohmann::json::array();
+            for (const std::filesystem::path& capturePath :
+                    capturePaths) {
+                serializedCapturePaths.push_back(
+                    PROJECT_PATHS::MakeProjectRelativeString(
+                        request.projectRoot,
+                        capturePath));
             }
-            ofs << "  ]\n";
-            ofs << "}\n";
-            if (outMessage) {
+
+            const nlohmann::json root{
+                { "type", "VolumeGrid" },
+                { "probeCount",
+                    GetLightProbeVolumeProbeCount(settings) },
+                { "captureResolution", settings.captureResolution },
+                { "shOrder", settings.shOrder },
+                { "capturePaths",
+                    std::move(serializedCapturePaths) },
+            };
+            if (!SERIALIZATION::JSON::WriteJsonFile(
+                path,
+                root,
+                outMessage)) {
+                return false;
+            }
+            if (outMessage != nullptr) {
                 *outMessage = "light probe debug json saved: " + path.generic_string();
             }
             return true;

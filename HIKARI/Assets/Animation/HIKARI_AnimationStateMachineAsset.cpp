@@ -1,11 +1,11 @@
 #include "Assets/Animation/HIKARI_AnimationStateMachineAsset.h"
 
-#include <fstream>
 #include <utility>
 
 #include <json.hpp>
 
 #include "Animation/StateMachine/HIKARI_AnimationStateMachineJson.h"
+#include "Core/Serialization/Json/HIKARI_JsonFile.h"
 
 namespace HIKARI {
     namespace {
@@ -19,13 +19,18 @@ namespace HIKARI {
         const AssetGuid& authoritativeGuid,
         AnimationStateMachineAsset& outAsset,
         std::string* outError) {
-        std::ifstream input(path);
-        if (!input.is_open()) {
-            SetError(outError, "Unable to open animation state machine asset");
+        nlohmann::json root{};
+        std::string ioMessage{};
+        if (!SERIALIZATION::JSON::ReadJsonFile(
+                path,
+                root,
+                &ioMessage)) {
+            SetError(
+                outError,
+                "Unable to read animation state machine asset: " +
+                    ioMessage);
             return false;
         }
-        const nlohmann::json root = nlohmann::json::parse(
-            input, nullptr, false);
         if (!root.is_object()) {
             SetError(outError, "Invalid animation state machine JSON");
             return false;
@@ -66,12 +71,6 @@ namespace HIKARI {
         const std::filesystem::path& path,
         const AnimationStateMachineAsset& asset,
         std::string* outError) {
-        std::error_code errorCode{};
-        std::filesystem::create_directories(path.parent_path(), errorCode);
-        if (errorCode) {
-            SetError(outError, "Unable to create animation asset directory");
-            return false;
-        }
         ANIMATION::AnimationStateMachineDefinition normalized =
             asset.definition;
         ANIMATION::NormalizeAnimationStateMachine(normalized);
@@ -88,14 +87,15 @@ namespace HIKARI {
                 : asset.displayName },
             { "stateMachine", std::move(stateMachineJson) }
         };
-        std::ofstream output(path, std::ios::trunc);
-        if (!output.is_open()) {
-            SetError(outError, "Unable to write animation state machine asset");
-            return false;
-        }
-        output << root.dump(2) << '\n';
-        if (!output.good()) {
-            SetError(outError, "Failed while writing animation state machine asset");
+        std::string ioMessage{};
+        if (!SERIALIZATION::JSON::WriteJsonFile(
+                path,
+                root,
+                &ioMessage)) {
+            SetError(
+                outError,
+                "Unable to write animation state machine asset: " +
+                    ioMessage);
             return false;
         }
         if (outError != nullptr) outError->clear();

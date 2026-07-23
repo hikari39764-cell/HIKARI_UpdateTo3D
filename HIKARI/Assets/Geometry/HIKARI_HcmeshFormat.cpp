@@ -7,6 +7,8 @@
 #include <utility>
 
 #include "Assets/Geometry/HIKARI_HcmeshCompatibility.h"
+#include "Core/Serialization/Binary/HIKARI_BinaryBuffer.h"
+#include "Core/Serialization/Binary/HIKARI_BinaryStream.h"
 
 namespace HIKARI::ASSETS::GEOMETRY {
 
@@ -14,6 +16,14 @@ namespace HIKARI::ASSETS::GEOMETRY {
         constexpr uint32_t kMaxChunkCount = 32u;
         constexpr uint64_t kMaxChunkBytes = 2ull * 1024ull * 1024ull * 1024ull;
         constexpr uint32_t kMaxStringBytes = 16u * 1024u * 1024u;
+
+        using SERIALIZATION::BINARY::BUFFER::AppendTrivial;
+        using SERIALIZATION::BINARY::BUFFER::ReadTrivial;
+        using SERIALIZATION::BINARY::STREAM::ReadTrivial;
+        using SERIALIZATION::BINARY::STREAM::ReadTrivialArray;
+        using SERIALIZATION::BINARY::STREAM::WriteTrivial;
+        using SERIALIZATION::BINARY::STREAM::WriteTrivialArray;
+
         struct ChunkPayload {
             HcmeshChunkKind kind = HcmeshChunkKind::SourceInfo;
             uint32_t elementCount = 0;
@@ -29,32 +39,10 @@ namespace HIKARI::ASSETS::GEOMETRY {
             return (value + alignment - 1u) & ~(alignment - 1u);
         }
 
-        template<class T>
-        bool WritePod(std::ofstream& ofs, const T& value) {
-            static_assert(std::is_trivially_copyable_v<T>);
-            ofs.write(reinterpret_cast<const char*>(&value), sizeof(T));
-            return ofs.good();
-        }
-
-        template<class T>
-        bool ReadPod(std::ifstream& ifs, T& value) {
-            static_assert(std::is_trivially_copyable_v<T>);
-            ifs.read(reinterpret_cast<char*>(&value), sizeof(T));
-            return ifs.good();
-        }
-
-        template<class T>
-        void AppendPod(std::vector<uint8_t>& bytes, const T& value) {
-            static_assert(std::is_trivially_copyable_v<T>);
-            const size_t oldSize = bytes.size();
-            bytes.resize(oldSize + sizeof(T));
-            std::memcpy(bytes.data() + oldSize, &value, sizeof(T));
-        }
-
         void AppendString(std::vector<uint8_t>& bytes, const std::string& value) {
             const uint32_t size = static_cast<uint32_t>(
                 (std::min)(value.size(), static_cast<size_t>(kMaxStringBytes)));
-            AppendPod(bytes, size);
+            AppendTrivial(bytes, size);
             const size_t oldSize = bytes.size();
             bytes.resize(oldSize + size);
             if (size > 0u) {
@@ -68,12 +56,13 @@ namespace HIKARI::ASSETS::GEOMETRY {
             std::string& value) {
 
             value.clear();
-            if (cursor + sizeof(uint32_t) > bytes.size()) {
+            uint32_t size = 0;
+            if (!ReadTrivial(
+                std::span<const uint8_t>(bytes.data(), bytes.size()),
+                cursor,
+                size)) {
                 return false;
             }
-            uint32_t size = 0;
-            std::memcpy(&size, bytes.data() + cursor, sizeof(size));
-            cursor += sizeof(size);
             if (size > kMaxStringBytes || cursor + size > bytes.size()) {
                 return false;
             }
@@ -148,12 +137,10 @@ namespace HIKARI::ASSETS::GEOMETRY {
             if (!ifs.good()) {
                 return false;
             }
-            if (!outBytes.empty()) {
-                ifs.read(
-                    reinterpret_cast<char*>(outBytes.data()),
-                    static_cast<std::streamsize>(outBytes.size()));
-            }
-            return ifs.good();
+            return ReadTrivialArray(
+                ifs,
+                outBytes.data(),
+                outBytes.size());
         }
 
         template<class T>
@@ -232,7 +219,7 @@ namespace HIKARI::ASSETS::GEOMETRY {
             std::vector<HcmeshChunkDesc>& chunks,
             std::string& outMessage) {
 
-            if (!ReadPod(ifs, header) || !ValidateHeader(header, outMessage)) {
+            if (!ReadTrivial(ifs, header) || !ValidateHeader(header, outMessage)) {
                 if (outMessage.empty()) {
                     outMessage = "[HCMESH] failed to read header";
                 }
@@ -245,7 +232,7 @@ namespace HIKARI::ASSETS::GEOMETRY {
                 sizeof(HcmeshChunkDesc) * static_cast<uint64_t>(header.chunkCount),
                 kHcmeshChunkAlignment);
             for (HcmeshChunkDesc& chunk : chunks) {
-                if (!ReadPod(ifs, chunk)) {
+                if (!ReadTrivial(ifs, chunk)) {
                     outMessage = "[HCMESH] failed to read chunk table";
                     return false;
                 }
@@ -295,8 +282,23 @@ namespace HIKARI::ASSETS::GEOMETRY {
 
             ClusterGeometryGpuHeader geometryHeader{};
             ClusterGeometryGpuHeader metadataHeader{};
-            std::memcpy(&geometryHeader, geometryBytes.data(), sizeof(geometryHeader));
-            std::memcpy(&metadataHeader, metadataBytes.data(), sizeof(metadataHeader));
+            size_t geometryCursor = 0u;
+            size_t metadataCursor = 0u;
+            if (!ReadTrivial(
+                std::span<const uint8_t>(
+                    geometryBytes.data(),
+                    geometryBytes.size()),
+                geometryCursor,
+                geometryHeader) ||
+                !ReadTrivial(
+                    std::span<const uint8_t>(
+                        metadataBytes.data(),
+                        metadataBytes.size()),
+                    metadataCursor,
+                    metadataHeader)) {
+                outMessage = "[HCMESH] packed buffer headers are truncated";
+                return false;
+            }
             if (geometryHeader.magic != RENDER3D::CLUSTER::kClusterGeometryGpuMagic ||
                 metadataHeader.magic != RENDER3D::CLUSTER::kClusterGeometryGpuMagic ||
                 geometryHeader.version != RENDER3D::CLUSTER::kClusterGeometryGpuVersion ||
@@ -412,12 +414,12 @@ namespace HIKARI::ASSETS::GEOMETRY {
             return false;
         }
 
-        if (!WritePod(ofs, header)) {
+        if (!WriteTrivial(ofs, header)) {
             outMessage = "[HCMESH] failed while writing header: " + path.generic_string();
             return false;
         }
         for (const HcmeshChunkDesc& chunk : chunks) {
-            if (!WritePod(ofs, chunk)) {
+            if (!WriteTrivial(ofs, chunk)) {
                 outMessage = "[HCMESH] failed while writing chunk table: " + path.generic_string();
                 return false;
             }
@@ -432,12 +434,21 @@ namespace HIKARI::ASSETS::GEOMETRY {
             }
             const uint64_t current = static_cast<uint64_t>(currentPos);
             for (uint64_t pad = current; pad < chunks[i].offset; ++pad) {
-                ofs.write(&zero, 1);
+                if (!WriteTrivial(ofs, zero)) {
+                    outMessage =
+                        "[HCMESH] failed while writing chunk alignment: " +
+                        path.generic_string();
+                    return false;
+                }
             }
-            if (!payloads[i].bytes.empty()) {
-                ofs.write(
-                    reinterpret_cast<const char*>(payloads[i].bytes.data()),
-                    static_cast<std::streamsize>(payloads[i].bytes.size()));
+            if (!WriteTrivialArray(
+                ofs,
+                payloads[i].bytes.data(),
+                payloads[i].bytes.size())) {
+                outMessage =
+                    "[HCMESH] failed while writing chunk payload: " +
+                    path.generic_string();
+                return false;
             }
             const std::streamoff afterPayloadPos = static_cast<std::streamoff>(ofs.tellp());
             if (afterPayloadPos < 0) {
@@ -447,7 +458,12 @@ namespace HIKARI::ASSETS::GEOMETRY {
             const uint64_t afterPayload = static_cast<uint64_t>(afterPayloadPos);
             const uint64_t alignedEnd = AlignUp(afterPayload, kHcmeshChunkAlignment);
             for (uint64_t pad = afterPayload; pad < alignedEnd; ++pad) {
-                ofs.write(&zero, 1);
+                if (!WriteTrivial(ofs, zero)) {
+                    outMessage =
+                        "[HCMESH] failed while writing chunk alignment: " +
+                        path.generic_string();
+                    return false;
+                }
             }
         }
 

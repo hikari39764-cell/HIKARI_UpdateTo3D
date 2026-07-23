@@ -2,9 +2,9 @@
 
 #include <algorithm>
 #include <fstream>
-#include <limits>
-#include <type_traits>
 #include <utility>
+
+#include "Core/Serialization/Binary/HIKARI_BinaryStream.h"
 
 namespace HIKARI {
 
@@ -21,93 +21,16 @@ namespace HIKARI {
             uint32_t reserved = 0;
         };
 
-        template<class T>
-        bool WritePod(std::ofstream& ofs, const T& value) {
-            static_assert(std::is_trivially_copyable_v<T>);
-            ofs.write(reinterpret_cast<const char*>(&value), sizeof(T));
-            return ofs.good();
-        }
-
-        template<class T>
-        bool ReadPod(std::ifstream& ifs, T& value) {
-            static_assert(std::is_trivially_copyable_v<T>);
-            ifs.read(reinterpret_cast<char*>(&value), sizeof(T));
-            return ifs.good();
-        }
-
-        bool WriteBool(std::ofstream& ofs, bool value) {
-            const uint8_t stored = value ? 1u : 0u;
-            return WritePod(ofs, stored);
-        }
-
-        bool ReadBool(std::ifstream& ifs, bool& value) {
-            uint8_t stored = 0;
-            if (!ReadPod(ifs, stored)) {
-                return false;
-            }
-            value = stored != 0;
-            return true;
-        }
-
-        bool WriteString(std::ofstream& ofs, const std::string& value) {
-            if (value.size() > kMaxStringBytes) {
-                return false;
-            }
-            const uint32_t size = static_cast<uint32_t>(value.size());
-            if (!WritePod(ofs, size)) {
-                return false;
-            }
-            if (size > 0) {
-                ofs.write(value.data(), static_cast<std::streamsize>(size));
-            }
-            return ofs.good();
-        }
-
-        bool ReadString(std::ifstream& ifs, std::string& value) {
-            uint32_t size = 0;
-            if (!ReadPod(ifs, size) || size > kMaxStringBytes) {
-                return false;
-            }
-            value.resize(size);
-            if (size > 0) {
-                ifs.read(value.data(), static_cast<std::streamsize>(size));
-            }
-            return ifs.good();
-        }
-
-        template<class T>
-        bool WritePodVector(std::ofstream& ofs, const std::vector<T>& values) {
-            static_assert(std::is_trivially_copyable_v<T>);
-            if (values.size() > kMaxVectorCount) {
-                return false;
-            }
-            const uint32_t count = static_cast<uint32_t>(values.size());
-            if (!WritePod(ofs, count)) {
-                return false;
-            }
-            if (!values.empty()) {
-                ofs.write(
-                    reinterpret_cast<const char*>(values.data()),
-                    static_cast<std::streamsize>(values.size() * sizeof(T)));
-            }
-            return ofs.good();
-        }
-
-        template<class T>
-        bool ReadPodVector(std::ifstream& ifs, std::vector<T>& values) {
-            static_assert(std::is_trivially_copyable_v<T>);
-            uint32_t count = 0;
-            if (!ReadPod(ifs, count) || count > kMaxVectorCount) {
-                return false;
-            }
-            values.resize(count);
-            if (!values.empty()) {
-                ifs.read(
-                    reinterpret_cast<char*>(values.data()),
-                    static_cast<std::streamsize>(values.size() * sizeof(T)));
-            }
-            return ifs.good();
-        }
+        using SERIALIZATION::BINARY::STREAM::ReadBoolean8;
+        using SERIALIZATION::BINARY::STREAM::ReadLengthPrefixedString32;
+        using SERIALIZATION::BINARY::STREAM::
+            ReadLengthPrefixedTrivialVector32;
+        using SERIALIZATION::BINARY::STREAM::ReadTrivial;
+        using SERIALIZATION::BINARY::STREAM::WriteBoolean8;
+        using SERIALIZATION::BINARY::STREAM::WriteLengthPrefixedString32;
+        using SERIALIZATION::BINARY::STREAM::
+            WriteLengthPrefixedTrivialVector32;
+        using SERIALIZATION::BINARY::STREAM::WriteTrivial;
 
         template<class T>
         struct LegacyAnimationKeyframe {
@@ -121,12 +44,12 @@ namespace HIKARI {
             const std::vector<AnimationKeyframe<T>>& keys) {
             if (keys.size() > kMaxVectorCount) return false;
             const uint32_t count = static_cast<uint32_t>(keys.size());
-            if (!WritePod(ofs, count)) return false;
+            if (!WriteTrivial(ofs, count)) return false;
             for (const AnimationKeyframe<T>& key : keys) {
-                if (!WritePod(ofs, key.timeSec) ||
-                    !WritePod(ofs, key.value) ||
-                    !WritePod(ofs, key.inTangent) ||
-                    !WritePod(ofs, key.outTangent)) {
+                if (!WriteTrivial(ofs, key.timeSec) ||
+                    !WriteTrivial(ofs, key.value) ||
+                    !WriteTrivial(ofs, key.inTangent) ||
+                    !WriteTrivial(ofs, key.outTangent)) {
                     return false;
                 }
             }
@@ -140,7 +63,7 @@ namespace HIKARI {
             std::vector<AnimationKeyframe<T>>& keys) {
             if (version < 4u) {
                 std::vector<LegacyAnimationKeyframe<T>> legacy{};
-                if (!ReadPodVector(ifs, legacy)) return false;
+                if (!ReadLengthPrefixedTrivialVector32<kMaxVectorCount>(ifs, legacy)) return false;
                 keys.resize(legacy.size());
                 for (size_t index = 0u; index < legacy.size(); ++index) {
                     keys[index].timeSec = legacy[index].timeSec;
@@ -150,15 +73,15 @@ namespace HIKARI {
             }
 
             uint32_t count = 0u;
-            if (!ReadPod(ifs, count) || count > kMaxVectorCount) {
+            if (!ReadTrivial(ifs, count) || count > kMaxVectorCount) {
                 return false;
             }
             keys.resize(count);
             for (AnimationKeyframe<T>& key : keys) {
-                if (!ReadPod(ifs, key.timeSec) ||
-                    !ReadPod(ifs, key.value) ||
-                    !ReadPod(ifs, key.inTangent) ||
-                    !ReadPod(ifs, key.outTangent)) {
+                if (!ReadTrivial(ifs, key.timeSec) ||
+                    !ReadTrivial(ifs, key.value) ||
+                    !ReadTrivial(ifs, key.inTangent) ||
+                    !ReadTrivial(ifs, key.outTangent)) {
                     return false;
                 }
             }
@@ -166,40 +89,40 @@ namespace HIKARI {
         }
 
         bool WriteTextureSlot(std::ofstream& ofs, const TextureSlot& slot) {
-            return WritePod(ofs, slot.textureIndex) &&
-                WritePod(ofs, slot.texCoord) &&
-                WritePod(ofs, slot.uvScale) &&
-                WritePod(ofs, slot.uvOffset) &&
-                WritePod(ofs, slot.uvRotation) &&
-                WritePod(ofs, slot.scale) &&
-                WritePod(ofs, slot.strength);
+            return WriteTrivial(ofs, slot.textureIndex) &&
+                WriteTrivial(ofs, slot.texCoord) &&
+                WriteTrivial(ofs, slot.uvScale) &&
+                WriteTrivial(ofs, slot.uvOffset) &&
+                WriteTrivial(ofs, slot.uvRotation) &&
+                WriteTrivial(ofs, slot.scale) &&
+                WriteTrivial(ofs, slot.strength);
         }
 
         bool ReadTextureSlot(std::ifstream& ifs, TextureSlot& slot, uint32_t version) {
-            if (!ReadPod(ifs, slot.textureIndex) ||
-                !ReadPod(ifs, slot.texCoord)) {
+            if (!ReadTrivial(ifs, slot.textureIndex) ||
+                !ReadTrivial(ifs, slot.texCoord)) {
                 return false;
             }
             slot.texCoord = std::clamp(slot.texCoord, 0, 1);
             if (version >= 3u &&
-                (!ReadPod(ifs, slot.uvScale) ||
-                 !ReadPod(ifs, slot.uvOffset) ||
-                 !ReadPod(ifs, slot.uvRotation))) {
+                (!ReadTrivial(ifs, slot.uvScale) ||
+                 !ReadTrivial(ifs, slot.uvOffset) ||
+                 !ReadTrivial(ifs, slot.uvRotation))) {
                 return false;
             }
-            return ReadPod(ifs, slot.scale) &&
-                ReadPod(ifs, slot.strength);
+            return ReadTrivial(ifs, slot.scale) &&
+                ReadTrivial(ifs, slot.strength);
         }
 
         bool WriteMaterial(std::ofstream& ofs, const MaterialAsset& material) {
-            return WriteString(ofs, material.name) &&
-                WritePod(ofs, material.baseColorFactor) &&
-                WritePod(ofs, material.metallicFactor) &&
-                WritePod(ofs, material.roughnessFactor) &&
-                WritePod(ofs, material.specularFactor) &&
-                WritePod(ofs, material.specularColorFactor) &&
-                WritePod(ofs, material.emissiveFactor) &&
-                WritePod(ofs, material.emissiveStrength) &&
+            return WriteLengthPrefixedString32<kMaxStringBytes>(ofs, material.name) &&
+                WriteTrivial(ofs, material.baseColorFactor) &&
+                WriteTrivial(ofs, material.metallicFactor) &&
+                WriteTrivial(ofs, material.roughnessFactor) &&
+                WriteTrivial(ofs, material.specularFactor) &&
+                WriteTrivial(ofs, material.specularColorFactor) &&
+                WriteTrivial(ofs, material.emissiveFactor) &&
+                WriteTrivial(ofs, material.emissiveStrength) &&
                 WriteTextureSlot(ofs, material.baseColorTexture) &&
                 WriteTextureSlot(ofs, material.normalTexture) &&
                 WriteTextureSlot(ofs, material.metallicRoughnessTexture) &&
@@ -207,30 +130,30 @@ namespace HIKARI {
                 WriteTextureSlot(ofs, material.emissiveTexture) &&
                 WriteTextureSlot(ofs, material.specularTexture) &&
                 WriteTextureSlot(ofs, material.specularColorTexture) &&
-                WritePod(ofs, material.alphaMode) &&
-                WritePod(ofs, material.alphaCutoff) &&
-                WriteBool(ofs, material.doubleSided) &&
-                WriteString(ofs, material.shaderProfileId) &&
-                WriteString(ofs, material.defaultMaterialFxProfileId) &&
-                WritePod(ofs, material.featureBits);
+                WriteTrivial(ofs, material.alphaMode) &&
+                WriteTrivial(ofs, material.alphaCutoff) &&
+                WriteBoolean8(ofs, material.doubleSided) &&
+                WriteLengthPrefixedString32<kMaxStringBytes>(ofs, material.shaderProfileId) &&
+                WriteLengthPrefixedString32<kMaxStringBytes>(ofs, material.defaultMaterialFxProfileId) &&
+                WriteTrivial(ofs, material.featureBits);
         }
 
         bool ReadMaterial(std::ifstream& ifs, MaterialAsset& material, uint32_t version) {
-            if (!ReadString(ifs, material.name) ||
-                !ReadPod(ifs, material.baseColorFactor) ||
-                !ReadPod(ifs, material.metallicFactor) ||
-                !ReadPod(ifs, material.roughnessFactor)) {
+            if (!ReadLengthPrefixedString32<kMaxStringBytes>(ifs, material.name) ||
+                !ReadTrivial(ifs, material.baseColorFactor) ||
+                !ReadTrivial(ifs, material.metallicFactor) ||
+                !ReadTrivial(ifs, material.roughnessFactor)) {
                 return false;
             }
 
             if (version >= 2u &&
-                (!ReadPod(ifs, material.specularFactor) ||
-                 !ReadPod(ifs, material.specularColorFactor))) {
+                (!ReadTrivial(ifs, material.specularFactor) ||
+                 !ReadTrivial(ifs, material.specularColorFactor))) {
                 return false;
             }
 
-            return ReadPod(ifs, material.emissiveFactor) &&
-                ReadPod(ifs, material.emissiveStrength) &&
+            return ReadTrivial(ifs, material.emissiveFactor) &&
+                ReadTrivial(ifs, material.emissiveStrength) &&
                 ReadTextureSlot(ifs, material.baseColorTexture, version) &&
                 ReadTextureSlot(ifs, material.normalTexture, version) &&
                 ReadTextureSlot(ifs, material.metallicRoughnessTexture, version) &&
@@ -238,43 +161,43 @@ namespace HIKARI {
                 ReadTextureSlot(ifs, material.emissiveTexture, version) &&
                 (version < 2u || ReadTextureSlot(ifs, material.specularTexture, version)) &&
                 (version < 2u || ReadTextureSlot(ifs, material.specularColorTexture, version)) &&
-                ReadPod(ifs, material.alphaMode) &&
-                ReadPod(ifs, material.alphaCutoff) &&
-                ReadBool(ifs, material.doubleSided) &&
-                ReadString(ifs, material.shaderProfileId) &&
-                ReadString(ifs, material.defaultMaterialFxProfileId) &&
-                ReadPod(ifs, material.featureBits);
+                ReadTrivial(ifs, material.alphaMode) &&
+                ReadTrivial(ifs, material.alphaCutoff) &&
+                ReadBoolean8(ifs, material.doubleSided) &&
+                ReadLengthPrefixedString32<kMaxStringBytes>(ifs, material.shaderProfileId) &&
+                ReadLengthPrefixedString32<kMaxStringBytes>(ifs, material.defaultMaterialFxProfileId) &&
+                ReadTrivial(ifs, material.featureBits);
         }
 
         bool WritePrimitive(std::ofstream& ofs, const MeshPrimitive& primitive) {
-            return WriteString(ofs, primitive.name) &&
-                WritePod(ofs, primitive.layout) &&
-                WritePodVector(ofs, primitive.staticVertices) &&
-                WritePodVector(ofs, primitive.skinnedVertices) &&
-                WritePodVector(ofs, primitive.indices) &&
-                WritePod(ofs, primitive.materialIndex) &&
-                WritePod(ofs, primitive.bounds);
+            return WriteLengthPrefixedString32<kMaxStringBytes>(ofs, primitive.name) &&
+                WriteTrivial(ofs, primitive.layout) &&
+                WriteLengthPrefixedTrivialVector32<kMaxVectorCount>(ofs, primitive.staticVertices) &&
+                WriteLengthPrefixedTrivialVector32<kMaxVectorCount>(ofs, primitive.skinnedVertices) &&
+                WriteLengthPrefixedTrivialVector32<kMaxVectorCount>(ofs, primitive.indices) &&
+                WriteTrivial(ofs, primitive.materialIndex) &&
+                WriteTrivial(ofs, primitive.bounds);
         }
 
         bool ReadPrimitive(std::ifstream& ifs, MeshPrimitive& primitive) {
-            return ReadString(ifs, primitive.name) &&
-                ReadPod(ifs, primitive.layout) &&
-                ReadPodVector(ifs, primitive.staticVertices) &&
-                ReadPodVector(ifs, primitive.skinnedVertices) &&
-                ReadPodVector(ifs, primitive.indices) &&
-                ReadPod(ifs, primitive.materialIndex) &&
-                ReadPod(ifs, primitive.bounds);
+            return ReadLengthPrefixedString32<kMaxStringBytes>(ifs, primitive.name) &&
+                ReadTrivial(ifs, primitive.layout) &&
+                ReadLengthPrefixedTrivialVector32<kMaxVectorCount>(ifs, primitive.staticVertices) &&
+                ReadLengthPrefixedTrivialVector32<kMaxVectorCount>(ifs, primitive.skinnedVertices) &&
+                ReadLengthPrefixedTrivialVector32<kMaxVectorCount>(ifs, primitive.indices) &&
+                ReadTrivial(ifs, primitive.materialIndex) &&
+                ReadTrivial(ifs, primitive.bounds);
         }
 
         bool WriteMesh(std::ofstream& ofs, const MeshAsset& mesh) {
             if (mesh.primitives.size() > kMaxVectorCount) {
                 return false;
             }
-            if (!WriteString(ofs, mesh.name) || !WritePod(ofs, mesh.bounds)) {
+            if (!WriteLengthPrefixedString32<kMaxStringBytes>(ofs, mesh.name) || !WriteTrivial(ofs, mesh.bounds)) {
                 return false;
             }
             const uint32_t primitiveCount = static_cast<uint32_t>(mesh.primitives.size());
-            if (!WritePod(ofs, primitiveCount)) {
+            if (!WriteTrivial(ofs, primitiveCount)) {
                 return false;
             }
             for (const MeshPrimitive& primitive : mesh.primitives) {
@@ -287,9 +210,9 @@ namespace HIKARI {
 
         bool ReadMesh(std::ifstream& ifs, MeshAsset& mesh) {
             uint32_t primitiveCount = 0;
-            if (!ReadString(ifs, mesh.name) ||
-                !ReadPod(ifs, mesh.bounds) ||
-                !ReadPod(ifs, primitiveCount) ||
+            if (!ReadLengthPrefixedString32<kMaxStringBytes>(ifs, mesh.name) ||
+                !ReadTrivial(ifs, mesh.bounds) ||
+                !ReadTrivial(ifs, primitiveCount) ||
                 primitiveCount > kMaxVectorCount) {
                 return false;
             }
@@ -303,49 +226,49 @@ namespace HIKARI {
         }
 
         bool WriteNode(std::ofstream& ofs, const ModelNode& node) {
-            return WriteString(ofs, node.name) &&
-                WritePod(ofs, node.parent) &&
-                WritePodVector(ofs, node.children) &&
-                WritePod(ofs, node.localTransform.position) &&
-                WritePod(ofs, node.localTransform.rotation) &&
-                WritePod(ofs, node.localTransform.scale) &&
-                WriteBool(ofs, node.hasLocalMatrix) &&
-                WritePod(ofs, node.localMatrix) &&
-                WritePod(ofs, node.globalBindMatrix) &&
-                WritePod(ofs, node.meshIndex) &&
-                WritePod(ofs, node.skinIndex);
+            return WriteLengthPrefixedString32<kMaxStringBytes>(ofs, node.name) &&
+                WriteTrivial(ofs, node.parent) &&
+                WriteLengthPrefixedTrivialVector32<kMaxVectorCount>(ofs, node.children) &&
+                WriteTrivial(ofs, node.localTransform.position) &&
+                WriteTrivial(ofs, node.localTransform.rotation) &&
+                WriteTrivial(ofs, node.localTransform.scale) &&
+                WriteBoolean8(ofs, node.hasLocalMatrix) &&
+                WriteTrivial(ofs, node.localMatrix) &&
+                WriteTrivial(ofs, node.globalBindMatrix) &&
+                WriteTrivial(ofs, node.meshIndex) &&
+                WriteTrivial(ofs, node.skinIndex);
         }
 
         bool ReadNode(std::ifstream& ifs, ModelNode& node) {
-            return ReadString(ifs, node.name) &&
-                ReadPod(ifs, node.parent) &&
-                ReadPodVector(ifs, node.children) &&
-                ReadPod(ifs, node.localTransform.position) &&
-                ReadPod(ifs, node.localTransform.rotation) &&
-                ReadPod(ifs, node.localTransform.scale) &&
-                ReadBool(ifs, node.hasLocalMatrix) &&
-                ReadPod(ifs, node.localMatrix) &&
-                ReadPod(ifs, node.globalBindMatrix) &&
-                ReadPod(ifs, node.meshIndex) &&
-                ReadPod(ifs, node.skinIndex);
+            return ReadLengthPrefixedString32<kMaxStringBytes>(ifs, node.name) &&
+                ReadTrivial(ifs, node.parent) &&
+                ReadLengthPrefixedTrivialVector32<kMaxVectorCount>(ifs, node.children) &&
+                ReadTrivial(ifs, node.localTransform.position) &&
+                ReadTrivial(ifs, node.localTransform.rotation) &&
+                ReadTrivial(ifs, node.localTransform.scale) &&
+                ReadBoolean8(ifs, node.hasLocalMatrix) &&
+                ReadTrivial(ifs, node.localMatrix) &&
+                ReadTrivial(ifs, node.globalBindMatrix) &&
+                ReadTrivial(ifs, node.meshIndex) &&
+                ReadTrivial(ifs, node.skinIndex);
         }
 
         bool WriteSkin(std::ofstream& ofs, const SkeletonAsset& skin) {
             if (skin.joints.size() > kMaxVectorCount) {
                 return false;
             }
-            if (!WriteString(ofs, skin.name) || !WritePod(ofs, skin.skeletonRootNode)) {
+            if (!WriteLengthPrefixedString32<kMaxStringBytes>(ofs, skin.name) || !WriteTrivial(ofs, skin.skeletonRootNode)) {
                 return false;
             }
             const uint32_t jointCount = static_cast<uint32_t>(skin.joints.size());
-            if (!WritePod(ofs, jointCount)) {
+            if (!WriteTrivial(ofs, jointCount)) {
                 return false;
             }
             for (const SkeletonJoint& joint : skin.joints) {
-                if (!WriteString(ofs, joint.name) ||
-                    !WritePod(ofs, joint.nodeIndex) ||
-                    !WritePod(ofs, joint.parentJoint) ||
-                    !WritePod(ofs, joint.inverseBindMatrix)) {
+                if (!WriteLengthPrefixedString32<kMaxStringBytes>(ofs, joint.name) ||
+                    !WriteTrivial(ofs, joint.nodeIndex) ||
+                    !WriteTrivial(ofs, joint.parentJoint) ||
+                    !WriteTrivial(ofs, joint.inverseBindMatrix)) {
                     return false;
                 }
             }
@@ -354,18 +277,18 @@ namespace HIKARI {
 
         bool ReadSkin(std::ifstream& ifs, SkeletonAsset& skin) {
             uint32_t jointCount = 0;
-            if (!ReadString(ifs, skin.name) ||
-                !ReadPod(ifs, skin.skeletonRootNode) ||
-                !ReadPod(ifs, jointCount) ||
+            if (!ReadLengthPrefixedString32<kMaxStringBytes>(ifs, skin.name) ||
+                !ReadTrivial(ifs, skin.skeletonRootNode) ||
+                !ReadTrivial(ifs, jointCount) ||
                 jointCount > kMaxVectorCount) {
                 return false;
             }
             skin.joints.resize(jointCount);
             for (SkeletonJoint& joint : skin.joints) {
-                if (!ReadString(ifs, joint.name) ||
-                    !ReadPod(ifs, joint.nodeIndex) ||
-                    !ReadPod(ifs, joint.parentJoint) ||
-                    !ReadPod(ifs, joint.inverseBindMatrix)) {
+                if (!ReadLengthPrefixedString32<kMaxStringBytes>(ifs, joint.name) ||
+                    !ReadTrivial(ifs, joint.nodeIndex) ||
+                    !ReadTrivial(ifs, joint.parentJoint) ||
+                    !ReadTrivial(ifs, joint.inverseBindMatrix)) {
                     return false;
                 }
             }
@@ -376,17 +299,17 @@ namespace HIKARI {
             if (clip.channels.size() > kMaxVectorCount) {
                 return false;
             }
-            if (!WriteString(ofs, clip.name) || !WritePod(ofs, clip.durationSec)) {
+            if (!WriteLengthPrefixedString32<kMaxStringBytes>(ofs, clip.name) || !WriteTrivial(ofs, clip.durationSec)) {
                 return false;
             }
             const uint32_t channelCount = static_cast<uint32_t>(clip.channels.size());
-            if (!WritePod(ofs, channelCount)) {
+            if (!WriteTrivial(ofs, channelCount)) {
                 return false;
             }
             for (const NodeAnimationChannel& channel : clip.channels) {
-                if (!WritePod(ofs, channel.targetNode) ||
-                    !WritePod(ofs, channel.path) ||
-                    !WritePod(ofs, channel.interpolation) ||
+                if (!WriteTrivial(ofs, channel.targetNode) ||
+                    !WriteTrivial(ofs, channel.path) ||
+                    !WriteTrivial(ofs, channel.interpolation) ||
                     !WriteAnimationKeyframes(
                         ofs,
                         channel.vec3Keys) ||
@@ -404,17 +327,17 @@ namespace HIKARI {
             AnimationClip& clip,
             uint32_t version) {
             uint32_t channelCount = 0;
-            if (!ReadString(ifs, clip.name) ||
-                !ReadPod(ifs, clip.durationSec) ||
-                !ReadPod(ifs, channelCount) ||
+            if (!ReadLengthPrefixedString32<kMaxStringBytes>(ifs, clip.name) ||
+                !ReadTrivial(ifs, clip.durationSec) ||
+                !ReadTrivial(ifs, channelCount) ||
                 channelCount > kMaxVectorCount) {
                 return false;
             }
             clip.channels.resize(channelCount);
             for (NodeAnimationChannel& channel : clip.channels) {
-                if (!ReadPod(ifs, channel.targetNode) ||
-                    !ReadPod(ifs, channel.path) ||
-                    !ReadPod(ifs, channel.interpolation) ||
+                if (!ReadTrivial(ifs, channel.targetNode) ||
+                    !ReadTrivial(ifs, channel.path) ||
+                    !ReadTrivial(ifs, channel.interpolation) ||
                     !ReadAnimationKeyframes(
                         ifs,
                         version,
@@ -435,7 +358,7 @@ namespace HIKARI {
                 return false;
             }
             const uint32_t count = static_cast<uint32_t>(values.size());
-            if (!WritePod(ofs, count)) {
+            if (!WriteTrivial(ofs, count)) {
                 return false;
             }
             for (const T& value : values) {
@@ -449,7 +372,7 @@ namespace HIKARI {
         template<class T, class ReadFn>
         bool ReadObjectVector(std::ifstream& ifs, std::vector<T>& values, ReadFn readFn) {
             uint32_t count = 0;
-            if (!ReadPod(ifs, count) || count > kMaxVectorCount) {
+            if (!ReadTrivial(ifs, count) || count > kMaxVectorCount) {
                 return false;
             }
             values.resize(count);
@@ -486,11 +409,11 @@ namespace HIKARI {
         }
 
         const HmodelFileHeader header{};
-        if (!WritePod(ofs, header) ||
-            !WriteString(ofs, model.id.value) ||
-            !WriteString(ofs, model.sourcePath) ||
-            !WritePod(ofs, model.defaultSceneRootNode) ||
-            !WritePod(ofs, model.bounds)) {
+        if (!WriteTrivial(ofs, header) ||
+            !WriteLengthPrefixedString32<kMaxStringBytes>(ofs, model.id.value) ||
+            !WriteLengthPrefixedString32<kMaxStringBytes>(ofs, model.sourcePath) ||
+            !WriteTrivial(ofs, model.defaultSceneRootNode) ||
+            !WriteTrivial(ofs, model.bounds)) {
             outMessage = "[HMODEL] failed while writing header payload: " + path.generic_string();
             return false;
         }
@@ -501,7 +424,7 @@ namespace HIKARI {
             WriteObjectVector(ofs, model.meshes, WriteMesh) &&
             WriteObjectVector(ofs, model.materials, WriteMaterial) &&
             WriteObjectVector(ofs, model.textures, [](std::ofstream& stream, const TextureAsset3D& texture) {
-                return WriteString(stream, texture.name) && WriteString(stream, texture.sourcePath);
+                return WriteLengthPrefixedString32<kMaxStringBytes>(stream, texture.name) && WriteLengthPrefixedString32<kMaxStringBytes>(stream, texture.sourcePath);
             }) &&
             WriteObjectVector(ofs, model.skins, WriteSkin) &&
             WriteObjectVector(ofs, model.animations, WriteAnimation);
@@ -527,7 +450,7 @@ namespace HIKARI {
         }
 
         HmodelFileHeader header{};
-        if (!ReadPod(ifs, header) ||
+        if (!ReadTrivial(ifs, header) ||
             header.magic != kHmodelMagic ||
             header.version < 1u ||
             header.version > kHmodelVersion ||
@@ -537,10 +460,10 @@ namespace HIKARI {
         }
 
         ModelAsset model{};
-        if (!ReadString(ifs, model.id.value) ||
-            !ReadString(ifs, model.sourcePath) ||
-            !ReadPod(ifs, model.defaultSceneRootNode) ||
-            !ReadPod(ifs, model.bounds)) {
+        if (!ReadLengthPrefixedString32<kMaxStringBytes>(ifs, model.id.value) ||
+            !ReadLengthPrefixedString32<kMaxStringBytes>(ifs, model.sourcePath) ||
+            !ReadTrivial(ifs, model.defaultSceneRootNode) ||
+            !ReadTrivial(ifs, model.bounds)) {
             outMessage = "[HMODEL] failed to read header payload: " + path.generic_string();
             return false;
         }
@@ -552,7 +475,7 @@ namespace HIKARI {
                 return ReadMaterial(stream, material, version);
             }) &&
             ReadObjectVector(ifs, model.textures, [](std::ifstream& stream, TextureAsset3D& texture) {
-                return ReadString(stream, texture.name) && ReadString(stream, texture.sourcePath);
+                return ReadLengthPrefixedString32<kMaxStringBytes>(stream, texture.name) && ReadLengthPrefixedString32<kMaxStringBytes>(stream, texture.sourcePath);
             }) &&
             ReadObjectVector(ifs, model.skins, ReadSkin) &&
             ReadObjectVector(

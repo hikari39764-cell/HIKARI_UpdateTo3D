@@ -1,13 +1,11 @@
 #include "HIKARI_SkyCubemapImporter.h"
 
-#include <Windows.h>
-
 #include <filesystem>
-#include <sstream>
 
 #include <json.hpp>
 
 #include "Assets/Semantics/HIKARI_AssetArtifactSemantics.h"
+#include "Core/IO/HIKARI_FileReplacementTransaction.h"
 #include "Core/HIKARI_Logger.h"
 #include "Project/Paths/HIKARI_ProjectPath.h"
 #include "HIKARI_IblBaker.h"
@@ -39,24 +37,6 @@ namespace HIKARI {
                 settings = MakeDefaultSettings();
             }
             return settings;
-        }
-
-        bool ReplaceFileWithTemp(
-            const std::filesystem::path& tempPath,
-            const std::filesystem::path& finalPath,
-            std::string& outMessage) {
-
-            const BOOL moved = MoveFileExW(
-                tempPath.wstring().c_str(),
-                finalPath.wstring().c_str(),
-                MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH);
-            if (!moved) {
-                std::ostringstream oss;
-                oss << "[SkyCubemapImporter] failed to replace output DDS. error=" << GetLastError();
-                outMessage = oss.str();
-                return false;
-            }
-            return true;
         }
 
         bool CopyFileToTemp(
@@ -153,7 +133,17 @@ namespace HIKARI {
             }
         }
 
-        if (!ReplaceFileWithTemp(tempPath, finalPath, result.message)) {
+        std::string commitMessage{};
+        if (!IO::CommitStagedFile(
+            tempPath,
+            finalPath,
+            commitMessage)) {
+            std::error_code cleanupEc{};
+            std::filesystem::remove(tempPath, cleanupEc);
+            result.message =
+                "[SkyCubemapImporter] failed to replace output DDS: " +
+                commitMessage;
+            HIKARI_LOG_ERROR(result.message);
             return result;
         }
 

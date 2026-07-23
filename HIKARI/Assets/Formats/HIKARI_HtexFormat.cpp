@@ -3,11 +3,18 @@
 #include <fstream>
 #include <limits>
 
+#include "Core/Serialization/Binary/HIKARI_BinaryStream.h"
+
 namespace HIKARI {
 
     namespace {
         constexpr uint32_t kHtexMagic = 0x58455448u; // 'HTEX'
         constexpr uint32_t kHtexVersion = 2;
+
+        using SERIALIZATION::BINARY::STREAM::ReadTrivial;
+        using SERIALIZATION::BINARY::STREAM::ReadTrivialArray;
+        using SERIALIZATION::BINARY::STREAM::WriteTrivial;
+        using SERIALIZATION::BINARY::STREAM::WriteTrivialArray;
 
         struct HtexFileHeader {
             uint32_t magic = kHtexMagic;
@@ -84,8 +91,7 @@ namespace HIKARI {
             }
 
             HtexFileHeader header{};
-            ifs.read(reinterpret_cast<char*>(&header), sizeof(header));
-            if (!ifs.good()) {
+            if (!ReadTrivial(ifs, header)) {
                 outMessage = "[HTEX] failed to read header: " + path.generic_string();
                 return false;
             }
@@ -122,10 +128,7 @@ namespace HIKARI {
 
             std::vector<HtexFileSubresource> table(header.subresourceCount);
             ifs.seekg(static_cast<std::streamoff>(header.subresourceTableOffset), std::ios::beg);
-            ifs.read(
-                reinterpret_cast<char*>(table.data()),
-                static_cast<std::streamsize>(table.size() * sizeof(HtexFileSubresource)));
-            if (!ifs.good()) {
+            if (!ReadTrivialArray(ifs, table.data(), table.size())) {
                 outMessage = "[HTEX] failed to read v2 subresource table: " + path.generic_string();
                 return false;
             }
@@ -251,19 +254,18 @@ namespace HIKARI {
             return false;
         }
 
-        ofs.write(reinterpret_cast<const char*>(&header), sizeof(header));
-        ofs.write(
-            reinterpret_cast<const char*>(table.data()),
-            static_cast<std::streamsize>(table.size() * sizeof(HtexFileSubresource)));
+        bool writeSucceeded =
+            WriteTrivial(ofs, header) &&
+            WriteTrivialArray(ofs, table.data(), table.size());
         for (const HtexSubresource& source : texture.subresources) {
-            if (!source.data.empty()) {
-                ofs.write(
-                    reinterpret_cast<const char*>(source.data.data()),
-                    static_cast<std::streamsize>(source.data.size()));
-            }
+            writeSucceeded = writeSucceeded &&
+                WriteTrivialArray(
+                    ofs,
+                    source.data.data(),
+                    source.data.size());
         }
 
-        if (!ofs.good()) {
+        if (!writeSucceeded || !ofs.good()) {
             outMessage = "[HTEX] failed while writing: " + path.generic_string();
             return false;
         }
@@ -336,14 +338,12 @@ namespace HIKARI {
             subresource.data.resize(static_cast<size_t>(entry.dataSize));
 
             ifs.seekg(static_cast<std::streamoff>(entry.dataOffset), std::ios::beg);
-            if (!subresource.data.empty()) {
-                ifs.read(
-                    reinterpret_cast<char*>(subresource.data.data()),
-                    static_cast<std::streamsize>(subresource.data.size()));
-                if (!ifs.good()) {
-                    outMessage = "[HTEX] failed to read v2 subresource payload: " + path.generic_string();
-                    return false;
-                }
+            if (!ReadTrivialArray(
+                ifs,
+                subresource.data.data(),
+                subresource.data.size())) {
+                outMessage = "[HTEX] failed to read v2 subresource payload: " + path.generic_string();
+                return false;
             }
 
             texture.subresources.push_back(std::move(subresource));

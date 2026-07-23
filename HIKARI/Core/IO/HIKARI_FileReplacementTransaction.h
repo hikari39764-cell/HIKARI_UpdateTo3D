@@ -18,4 +18,10 @@ namespace HIKARI::IO {
         std::span<const FileReplacementOperation> operations,
         std::string& outMessage);
 
+    // Commits one staged file through the same backup and rollback path.
+    bool CommitStagedFile(
+        const std::filesystem::path& stagedPath,
+        const std::filesystem::path& finalPath,
+        std::string& outMessage);
+
 } // namespace HIKARI::IO
