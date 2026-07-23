@@ -4,6 +4,7 @@
 #include <bit>
 #include <cmath>
 
+#include "Core/Math/HIKARI_MathValidation.h"
 #include "Scene/Components/HIKARI_ColliderComponent.h"
 #include "Scene/Components/HIKARI_PhysicsBodyComponent.h"
 #include "Scene/HIKARI_GameObject.h"
@@ -162,9 +163,7 @@ namespace HIKARI::PHYSICS {
                 "object world transform cannot be decomposed";
             return result;
         }
-        if (!std::isfinite(outWorldScale.x) ||
-            !std::isfinite(outWorldScale.y) ||
-            !std::isfinite(outWorldScale.z) ||
+        if (!MATH::IsFinite(outWorldScale) ||
             outWorldScale.x <= 0.0f ||
             outWorldScale.y <= 0.0f ||
             outWorldScale.z <= 0.0f) {

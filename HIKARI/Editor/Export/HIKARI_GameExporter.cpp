@@ -1,4 +1,6 @@
 #include "HIKARI_GameExporter.h"
+#include "Core/Text/HIKARI_AsciiCase.h"
+#include "Core/Text/HIKARI_AsciiCase.h"
 
 #include <algorithm>
 #include <cctype>
@@ -69,15 +71,9 @@ namespace HIKARI::EDITOR {
             }
         }
 
-        std::string ToLowerCopy(std::string value) {
-            std::transform(value.begin(), value.end(), value.begin(), [](unsigned char ch) {
-                return static_cast<char>(std::tolower(ch));
-            });
-            return value;
-        }
 
         std::string RelativeFileKey(const std::filesystem::path& path) {
-            return ToLowerCopy(path.lexically_normal().generic_string());
+            return TEXT::ToLowerAsciiCopy(path.lexically_normal().generic_string());
         }
 
         bool LooksLikeProjectRoot(const std::filesystem::path& path) {
@@ -322,7 +318,7 @@ namespace HIKARI::EDITOR {
                 }
 
                 if (generatedRuntimeOnly) {
-                    const std::string genericPath = ToLowerCopy(relativePath.generic_string());
+                    const std::string genericPath = TEXT::ToLowerAsciiCopy(relativePath.generic_string());
                     if (genericPath.find("/captures/") != std::string::npos ||
                         genericPath.ends_with("_capture.dds")) {
                         continue;
@@ -639,12 +635,12 @@ namespace HIKARI::EDITOR {
                 return false;
             }
 
-            const std::string role = ToLowerCopy(artifact.role);
+            const std::string role = TEXT::ToLowerAsciiCopy(artifact.role);
             if (role == "debugdds") {
                 return false;
             }
 
-            const std::string path = ToLowerCopy(artifact.path);
+            const std::string path = TEXT::ToLowerAsciiCopy(artifact.path);
             if (path.find("/captures/") != std::string::npos ||
                 path.ends_with("_capture.dds")) {
                 return false;

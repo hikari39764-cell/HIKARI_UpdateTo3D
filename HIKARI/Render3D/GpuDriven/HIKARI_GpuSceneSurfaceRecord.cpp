@@ -6,6 +6,8 @@
 #include <limits>
 #include <string_view>
 
+#include "Core/Math/HIKARI_NormalMatrix.h"
+#include "Core/Numeric/HIKARI_IntegerConversion.h"
 #include "Render3D/Core/HIKARI_BoundsUtils.h"
 #include "Render3D/Core/HIKARI_Material.h"
 #include "Render3D/Resources/HIKARI_ClusterGeometryResourceSystem.h"
@@ -16,11 +18,6 @@
 namespace HIKARI::RENDER3D::GPUDRIVEN {
 
     namespace {
-        uint32_t ClampToUint32(size_t value) {
-            return static_cast<uint32_t>(
-                (std::min)(value, static_cast<size_t>((std::numeric_limits<uint32_t>::max)())));
-        }
-
         uint32_t ToInstanceFlag(RUNTIME::SurfaceGpuSceneInstanceFlags flag) {
             return static_cast<uint32_t>(flag);
         }
@@ -500,39 +497,6 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
             return { center.x, center.y, center.z, radius };
         }
 
-        MATH::Mat4 BuildNormalMatrixFromWorld(const MATH::Mat4& world) {
-            const float a00 = world.m[0][0];
-            const float a01 = world.m[1][0];
-            const float a02 = world.m[2][0];
-            const float a10 = world.m[0][1];
-            const float a11 = world.m[1][1];
-            const float a12 = world.m[2][1];
-            const float a20 = world.m[0][2];
-            const float a21 = world.m[1][2];
-            const float a22 = world.m[2][2];
-
-            const float det =
-                a00 * (a11 * a22 - a12 * a21) -
-                a01 * (a10 * a22 - a12 * a20) +
-                a02 * (a10 * a21 - a11 * a20);
-            if (std::abs(det) <= 1e-6f) {
-                return MATH::Mat4::Identity();
-            }
-
-            const float invDet = 1.0f / det;
-            MATH::Mat4 normalMatrix = MATH::Mat4::Identity();
-            normalMatrix.m[0][0] = (a11 * a22 - a12 * a21) * invDet;
-            normalMatrix.m[0][1] = (a02 * a21 - a01 * a22) * invDet;
-            normalMatrix.m[0][2] = (a01 * a12 - a02 * a11) * invDet;
-            normalMatrix.m[1][0] = (a12 * a20 - a10 * a22) * invDet;
-            normalMatrix.m[1][1] = (a00 * a22 - a02 * a20) * invDet;
-            normalMatrix.m[1][2] = (a02 * a10 - a00 * a12) * invDet;
-            normalMatrix.m[2][0] = (a10 * a21 - a11 * a20) * invDet;
-            normalMatrix.m[2][1] = (a01 * a20 - a00 * a21) * invDet;
-            normalMatrix.m[2][2] = (a00 * a11 - a01 * a10) * invDet;
-            return normalMatrix;
-        }
-
         uint32_t BuildInstanceFlags(const GpuSceneSurfaceRecord& record) {
             uint32_t flags = 0;
             const bool staticGeometry =
@@ -684,12 +648,12 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
 
             RUNTIME::SurfaceGpuSceneInstance instance{};
             instance.world = record.drawWorldMatrix;
-            instance.normalMatrix = BuildNormalMatrixFromWorld(record.drawWorldMatrix);
+            instance.normalMatrix = MATH::BuildNormalMatrixFromWorld(record.drawWorldMatrix);
             // HCMESH は node global めEbake 済みなので、cluster draw では object world だけを渡す、E
             instance.clusterWorld = record.skinned
                 ? record.drawWorldMatrix
                 : record.objectWorldTransform.GetWorldMatrix();
-            instance.clusterNormalMatrix = BuildNormalMatrixFromWorld(instance.clusterWorld);
+            instance.clusterNormalMatrix = MATH::BuildNormalMatrixFromWorld(instance.clusterWorld);
             instance.boundsCenterRadius = BuildBoundsCenterRadius(record.worldBounds);
             instance.sourceRecordIndex = sourceRecordIndex;
             instance.sourceSurfaceInstanceIndex = record.sourceSurfaceInstanceIndex;
@@ -971,7 +935,7 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
                 (std::max)(stats.maxCommandInstanceCount, 1u);
         }
 
-        stats.commandCount = ClampToUint32(outInstances.size());
+        stats.commandCount = NUMERIC::SaturateToUint32(outInstances.size());
         return stats;
     }
 

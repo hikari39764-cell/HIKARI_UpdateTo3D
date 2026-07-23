@@ -8,14 +8,11 @@
 #include <limits>
 #include <unordered_set>
 
+#include "Core/Numeric/HIKARI_IntegerConversion.h"
+
 namespace HIKARI::RENDER3D::GPUDRIVEN {
 
     namespace {
-        uint32_t ClampToUint32(size_t value) {
-            return static_cast<uint32_t>(
-                (std::min)(value, static_cast<size_t>((std::numeric_limits<uint32_t>::max)())));
-        }
-
         void AccumulateSurfaceGpuSceneStats(
             RUNTIME::SurfaceGpuSceneBuildStats& dst,
             const RUNTIME::SurfaceGpuSceneBuildStats& src) {
@@ -48,7 +45,7 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
             pass.gpuSceneBaseIndex = gpuSceneBaseIndex;
             pass.gpuSceneInstanceCount =
                 instances != nullptr
-                    ? ClampToUint32(instances->size())
+                    ? NUMERIC::SaturateToUint32(instances->size())
                     : 0u;
             pass.preferredBackend = backend;
             pass.clusterEligible = clusterEligible;
@@ -267,7 +264,7 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
                         return a.recordIndex < b.recordIndex;
                     });
                 stats.depthPrepassBudgetClippedRecordCount =
-                    ClampToUint32(
+                    NUMERIC::SaturateToUint32(
                         candidates.size() - kDepthVisibilityMaxOccluderRecords);
                 candidates.resize(kDepthVisibilityMaxOccluderRecords);
                 std::sort(
@@ -289,7 +286,7 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
                 outOccluders.push_back(largestFallbackRecord);
             }
             stats.depthPrepassOccluderRecordCount =
-                ClampToUint32(outOccluders.size());
+                NUMERIC::SaturateToUint32(outOccluders.size());
         }
 
         void AppendDirtyRange(
@@ -465,7 +462,7 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
             bool allowReorder) {
 
             GpuSceneStaticBatchStats stats{};
-            stats.recordCount = ClampToUint32(recordIndices.size());
+            stats.recordCount = NUMERIC::SaturateToUint32(recordIndices.size());
             for (uint32_t recordIndex : recordIndices) {
                 if (recordIndex >= records.size()) {
                     continue;
@@ -564,7 +561,7 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
                 return args;
             }
             args.indexCountPerInstance =
-                ClampToUint32(mesh.primitives[record.primitiveIndex].indices.size());
+                NUMERIC::SaturateToUint32(mesh.primitives[record.primitiveIndex].indices.size());
             args.instanceCount = 1u;
             return args;
         }
@@ -638,7 +635,7 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
             for (size_t i = 0; i < stream.bucketVariants.size(); ++i) {
                 if (stream.bucketVariants[i] == variant) {
                     command.traditionalVariant = variant;
-                    command.traditionalBucketIndex = ClampToUint32(i);
+                    command.traditionalBucketIndex = NUMERIC::SaturateToUint32(i);
                     return true;
                 }
             }
@@ -650,7 +647,7 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
 
             command.traditionalVariant = variant;
             command.traditionalBucketIndex =
-                ClampToUint32(stream.bucketVariants.size());
+                NUMERIC::SaturateToUint32(stream.bucketVariants.size());
             stream.bucketVariants.push_back(variant);
             return true;
         }
@@ -751,7 +748,7 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
             }
 
             const uint32_t streamInstanceIndex =
-                ClampToUint32(stream.instances.size());
+                NUMERIC::SaturateToUint32(stream.instances.size());
             singleMaterial.front().localGpuSceneInstanceIndex = streamInstanceIndex;
             // Material residency is indexed by the global scene record table.
             // The command stream has its own local record index; mixing the two
@@ -779,11 +776,11 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
                 return;
             }
 
-            const uint32_t recordIndexInStream = ClampToUint32(stream.records.size());
+            const uint32_t recordIndexInStream = NUMERIC::SaturateToUint32(stream.records.size());
             const uint32_t executableIndex =
-                ClampToUint32(stream.executableRecordIndices.size());
+                NUMERIC::SaturateToUint32(stream.executableRecordIndices.size());
             const uint32_t gpuSceneInstanceIndex =
-                ClampToUint32(stream.instances.size());
+                NUMERIC::SaturateToUint32(stream.instances.size());
 
             stream.records.push_back(record);
             stream.executableRecordIndices.push_back(recordIndexInStream);
@@ -842,11 +839,11 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
                 return;
             }
 
-            const uint32_t recordIndexInStream = ClampToUint32(stream.records.size());
+            const uint32_t recordIndexInStream = NUMERIC::SaturateToUint32(stream.records.size());
             const uint32_t executableIndex =
-                ClampToUint32(stream.executableRecordIndices.size());
+                NUMERIC::SaturateToUint32(stream.executableRecordIndices.size());
             const uint32_t gpuSceneInstanceIndex =
-                ClampToUint32(stream.instances.size());
+                NUMERIC::SaturateToUint32(stream.instances.size());
 
             stream.records.push_back(record);
             stream.executableRecordIndices.push_back(recordIndexInStream);
@@ -904,7 +901,7 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
             pass.traditionalIndirect.bucketVariants = &stream.bucketVariants;
             pass.traditionalIndirect.gpuSceneBaseIndex = gpuSceneBaseIndex;
             pass.traditionalIndirect.gpuSceneInstanceCount =
-                ClampToUint32(stream.instances.size());
+                NUMERIC::SaturateToUint32(stream.instances.size());
             pass.traditionalIndirect.staticCommandCount =
                 stream.staticCommandCount;
             pass.traditionalIndirect.skinnedCommandCount =
@@ -1074,7 +1071,7 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
         const uint64_t routingVersion = input.sceneCache->GetSurfaceRoutingVersion();
         const uint64_t dataVersion = input.sceneCache->GetSurfaceDataVersion();
         const uint32_t surfaceCount =
-            ClampToUint32(input.sceneCache->GetSurfaceInstances().size());
+            NUMERIC::SaturateToUint32(input.sceneCache->GetSurfaceInstances().size());
 
         const bool layoutChanged =
             layoutVersion_ != layoutVersion ||
@@ -1156,10 +1153,10 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
             }
             meshShaderJointPalettes_[recordIndex] = *palette;
             record.jointPaletteSlot = recordIndex;
-            record.jointPaletteMatrixCount = ClampToUint32(palette->size());
+            record.jointPaletteMatrixCount = NUMERIC::SaturateToUint32(palette->size());
         }
 
-        stats_.sourceRecordCount = ClampToUint32(surfaceRecords_.size());
+        stats_.sourceRecordCount = NUMERIC::SaturateToUint32(surfaceRecords_.size());
 
         std::vector<uint32_t> routedRecordIndices{};
         routedRecordIndices.reserve(surfaceRecords_.size());
@@ -1195,7 +1192,7 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
                 routedRecordIndices.push_back(recordIndex);
             }
         }
-        stats_.forwardRoutedRecordCount = ClampToUint32(routedRecordIndices.size());
+        stats_.forwardRoutedRecordCount = NUMERIC::SaturateToUint32(routedRecordIndices.size());
 
         forwardOpaqueResidentRecordIndices_.reserve(routedRecordIndices.size());
         forwardDepthAwareResidentRecordIndices_.reserve(routedRecordIndices.size());
@@ -1269,21 +1266,21 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
             }
         }
         stats_.forwardOpaqueResidentRecordCount =
-            ClampToUint32(forwardOpaqueResidentRecordIndices_.size());
+            NUMERIC::SaturateToUint32(forwardOpaqueResidentRecordIndices_.size());
         stats_.forwardStaticTraditionalRecordCount =
-            ClampToUint32(
+            NUMERIC::SaturateToUint32(
                 forwardOpaqueStaticTraditionalRecordIndices_.size() +
                 forwardDepthAwareStaticTraditionalRecordIndices_.size() +
                 forwardTransparentStaticTraditionalRecordIndices_.size());
         stats_.shadowStaticTraditionalRecordCount =
-            ClampToUint32(shadowStaticTraditionalRecordIndices_.size());
+            NUMERIC::SaturateToUint32(shadowStaticTraditionalRecordIndices_.size());
         stats_.forwardSkinnedTraditionalRecordCount =
-            ClampToUint32(
+            NUMERIC::SaturateToUint32(
                 forwardOpaqueSkinnedRecordIndices_.size() +
                 forwardDepthAwareSkinnedRecordIndices_.size() +
                 forwardTransparentSkinnedRecordIndices_.size());
         stats_.shadowSkinnedTraditionalRecordCount =
-            ClampToUint32(shadowSkinnedRecordIndices_.size());
+            NUMERIC::SaturateToUint32(shadowSkinnedRecordIndices_.size());
         stats_.strictMainlineBlockedRecordCount =
             stats_.blockedForwardDepthAwareRecordCount +
             stats_.blockedForwardTransparentRecordCount +
@@ -1403,7 +1400,7 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
                     continue;
                 }
                 globalGpuSceneIndexByRecord_[recordIndex] =
-                    ClampToUint32(globalRecordIndices.size());
+                    NUMERIC::SaturateToUint32(globalRecordIndices.size());
                 globalRecordIndices.push_back(recordIndex);
             }
         };
@@ -1460,8 +1457,8 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
         const auto buildTraditionalStreamStats =
             [](const TraditionalIndirectStream& stream) {
             RUNTIME::SurfaceGpuSceneBuildStats streamStats{};
-            streamStats.commandCount = ClampToUint32(stream.commands.size());
-            streamStats.instanceCount = ClampToUint32(stream.instances.size());
+            streamStats.commandCount = NUMERIC::SaturateToUint32(stream.commands.size());
+            streamStats.instanceCount = NUMERIC::SaturateToUint32(stream.instances.size());
             streamStats.maxCommandInstanceCount = stream.instances.empty() ? 0u : 1u;
             for (const RUNTIME::SurfaceGpuSceneInstance& instance : stream.instances) {
                 if ((instance.resourceFlags &
@@ -1561,7 +1558,7 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
         layoutVersion_ = input.sceneCache->GetSurfaceVersion();
         routingVersion_ = input.sceneCache->GetSurfaceRoutingVersion();
         dataVersion_ = input.sceneCache->GetSurfaceDataVersion();
-        sourceSurfaceCount_ = ClampToUint32(surfaces.size());
+        sourceSurfaceCount_ = NUMERIC::SaturateToUint32(surfaces.size());
         SuppressCpuForwardViews(input);
         RebuildForwardSceneSource();
     }
@@ -1623,7 +1620,7 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
                     }
                     meshShaderJointPalettes_[surfaceIndex] = *palette;
                     newRecord.jointPaletteSlot = surfaceIndex;
-                    newRecord.jointPaletteMatrixCount = ClampToUint32(palette->size());
+                    newRecord.jointPaletteMatrixCount = NUMERIC::SaturateToUint32(palette->size());
                 }
             }
             const GpuSceneSurfaceRecord& oldRecord = surfaceRecords_[surfaceIndex];
@@ -1749,7 +1746,7 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
     void GpuSceneRegistry::RebuildForwardSceneSource() {
         sceneSource_.meshShaderJointPalettes = &meshShaderJointPalettes_;
         const uint32_t sharedPrimaryCount =
-            ClampToUint32(globalGpuSceneInstances_.size());
+            NUMERIC::SaturateToUint32(globalGpuSceneInstances_.size());
         uint32_t cursor = sharedPrimaryCount;
 
         const auto resetSharedPrimaryPass =
@@ -1787,7 +1784,7 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
             sceneSource_.GetPass(GpuDrivenPassKind::ForwardOpaque),
             forwardOpaqueTraditionalStream_,
             cursor);
-        cursor += ClampToUint32(forwardOpaqueTraditionalStream_.instances.size());
+        cursor += NUMERIC::SaturateToUint32(forwardOpaqueTraditionalStream_.instances.size());
 
         resetSharedPrimaryPass(
             GpuDrivenPassKind::DepthPrepass,
@@ -1804,7 +1801,7 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
             sceneSource_.GetPass(GpuDrivenPassKind::ForwardDepthAware),
             forwardDepthAwareTraditionalStream_,
             cursor);
-        cursor += ClampToUint32(forwardDepthAwareTraditionalStream_.instances.size());
+        cursor += NUMERIC::SaturateToUint32(forwardDepthAwareTraditionalStream_.instances.size());
 
         resetSharedPrimaryPass(
             GpuDrivenPassKind::ForwardTransparent,
@@ -1815,7 +1812,7 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
             sceneSource_.GetPass(GpuDrivenPassKind::ForwardTransparent),
             forwardTransparentTraditionalStream_,
             cursor);
-        cursor += ClampToUint32(forwardTransparentTraditionalStream_.instances.size());
+        cursor += NUMERIC::SaturateToUint32(forwardTransparentTraditionalStream_.instances.size());
 
         resetSharedPrimaryPass(
             GpuDrivenPassKind::Shadow,
@@ -1826,14 +1823,14 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
             sceneSource_.GetPass(GpuDrivenPassKind::Shadow),
             shadowTraditionalStream_,
             cursor);
-        cursor += ClampToUint32(shadowTraditionalStream_.instances.size());
+        cursor += NUMERIC::SaturateToUint32(shadowTraditionalStream_.instances.size());
 
         sceneSource_.layoutVersion =
             BuildSourceLayoutVersion(layoutVersion_, routingVersion_);
         sceneSource_.sourceVersion = dataVersion_;
         sceneSource_.dirtyBaseSourceVersion = dataVersion_;
         sceneSource_.sourceInstanceCount = cursor;
-        sceneSource_.sourceRecordCount = ClampToUint32(surfaceRecords_.size());
+        sceneSource_.sourceRecordCount = NUMERIC::SaturateToUint32(surfaceRecords_.size());
     }
 
     void GpuSceneRegistry::ClearFrameDirtyRanges() {

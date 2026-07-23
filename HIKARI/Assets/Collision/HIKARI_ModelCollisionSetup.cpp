@@ -9,6 +9,7 @@
 
 #include "Assets/Collision/HIKARI_ModelCollisionSetupGeometry.h"
 #include "Core/IO/HIKARI_FileReplacementTransaction.h"
+#include "Core/Math/HIKARI_MathValidation.h"
 
 namespace HIKARI::ASSETS::COLLISION {
     namespace {
@@ -64,18 +65,12 @@ namespace HIKARI::ASSETS::COLLISION {
             };
         }
 
-        bool IsFinite(const MATH::Vec3& value) noexcept {
-            return std::isfinite(value.x) &&
-                std::isfinite(value.y) &&
-                std::isfinite(value.z);
-        }
-
         bool IsShapeValid(const ModelCollisionShape& shape) noexcept {
             if (shape.id == 0u ||
                 shape.name.empty() ||
-                !IsFinite(shape.center) ||
-                !IsFinite(shape.rotationEulerDegrees) ||
-                !IsFinite(shape.size) ||
+                !MATH::IsFinite(shape.center) ||
+                !MATH::IsFinite(shape.rotationEulerDegrees) ||
+                !MATH::IsFinite(shape.size) ||
                 !std::isfinite(shape.radius) ||
                 !std::isfinite(shape.height) ||
                 !std::isfinite(shape.generationError) ||
@@ -83,7 +78,9 @@ namespace HIKARI::ASSETS::COLLISION {
                 !std::all_of(
                     shape.vertices.begin(),
                     shape.vertices.end(),
-                    IsFinite) ||
+                    [](const MATH::Vec3& vertex) {
+                        return MATH::IsFinite(vertex);
+                    }) ||
                 !std::all_of(
                     shape.sourceNodeIndices.begin(),
                     shape.sourceNodeIndices.end(),

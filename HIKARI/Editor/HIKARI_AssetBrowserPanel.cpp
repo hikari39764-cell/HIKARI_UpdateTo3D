@@ -1,4 +1,6 @@
 #include "HIKARI_AssetBrowserPanel.h"
+#include "Core/Text/HIKARI_AsciiCase.h"
+#include "Core/Text/HIKARI_AsciiCase.h"
 
 #include <algorithm>
 #include <array>
@@ -32,6 +34,7 @@
 #include "Editor/Style/HIKARI_EditorWidgets.h"
 #include "Editor/HIKARI_EditorContext.h"
 #include "Platform/HIKARI_Win32Window.h"
+#include "Project/Paths/HIKARI_ProjectPath.h"
 #include "Project/HIKARI_ProjectSettings.h"
 
 #if defined(HIKARI_WITH_EDITOR)
@@ -59,19 +62,13 @@ namespace HIKARI {
             }
         }
 
-        std::string ToLowerCopy(std::string value) {
-            std::transform(value.begin(), value.end(), value.begin(), [](unsigned char c) {
-                return static_cast<char>(std::tolower(c));
-            });
-            return value;
-        }
 
         bool EndsWithCaseInsensitive(const std::string& value, std::string_view suffix) {
             if (suffix.size() > value.size()) {
                 return false;
             }
-            const std::string tail = ToLowerCopy(value.substr(value.size() - suffix.size()));
-            return tail == ToLowerCopy(std::string(suffix));
+            const std::string tail = TEXT::ToLowerAsciiCopy(value.substr(value.size() - suffix.size()));
+            return tail == TEXT::ToLowerAsciiCopy(std::string(suffix));
         }
 
         void SelectRecord(const AssetRecord& record, EditorSelection& selection);
@@ -80,12 +77,12 @@ namespace HIKARI {
         std::filesystem::path MakeUniqueFolderPath(const std::filesystem::path& parentDirectory);
 
         bool IsAssetsRootPath(const std::filesystem::path& path) {
-            return ToLowerCopy(path.lexically_normal().generic_string()) == "assets";
+            return TEXT::ToLowerAsciiCopy(path.lexically_normal().generic_string()) == "assets";
         }
 
         bool IsSupportedImportSource(const std::filesystem::path& path) {
-            const std::string filename = ToLowerCopy(path.filename().string());
-            const std::string ext = ToLowerCopy(path.extension().string());
+            const std::string filename = TEXT::ToLowerAsciiCopy(path.filename().string());
+            const std::string ext = TEXT::ToLowerAsciiCopy(path.extension().string());
             return ext == ".png" ||
                 ext == ".jpg" ||
                 ext == ".jpeg" ||
@@ -112,8 +109,8 @@ namespace HIKARI {
                 return currentDirectory;
             }
 
-            const std::string filename = ToLowerCopy(sourcePath.filename().string());
-            const std::string ext = ToLowerCopy(sourcePath.extension().string());
+            const std::string filename = TEXT::ToLowerAsciiCopy(sourcePath.filename().string());
+            const std::string ext = TEXT::ToLowerAsciiCopy(sourcePath.extension().string());
             if (ext == ".gltf" || ext == ".fbx" || ext == ".obj") {
                 return "Assets/Models";
             }
@@ -209,7 +206,7 @@ namespace HIKARI {
 
         std::string GetSceneAssetBaseName(const std::filesystem::path& path) {
             std::string filename = path.filename().string();
-            const std::string lower = ToLowerCopy(filename);
+            const std::string lower = TEXT::ToLowerAsciiCopy(filename);
             constexpr std::string_view kSceneJsonSuffix = ".scene.json";
             const std::string suffix(kSceneJsonSuffix);
             if (lower.size() >= kSceneJsonSuffix.size() &&
@@ -239,12 +236,12 @@ namespace HIKARI {
         }
 
         bool IsScenesDirectoryPath(const std::filesystem::path& path) {
-            const std::string generic = ToLowerCopy(path.lexically_normal().generic_string());
+            const std::string generic = TEXT::ToLowerAsciiCopy(path.lexically_normal().generic_string());
             return generic == "assets/scenes" || generic.rfind("assets/scenes/", 0) == 0;
         }
 
         bool IsMaterialsDirectoryPath(const std::filesystem::path& path) {
-            const std::string generic = ToLowerCopy(path.lexically_normal().generic_string());
+            const std::string generic = TEXT::ToLowerAsciiCopy(path.lexically_normal().generic_string());
             return generic == "assets/materials" || generic.rfind("assets/materials/", 0) == 0;
         }
 
@@ -762,8 +759,8 @@ namespace HIKARI {
                 return true;
             }
 
-            const std::string needle = ToLowerCopy(searchText);
-            const std::string haystack = ToLowerCopy(
+            const std::string needle = TEXT::ToLowerAsciiCopy(searchText);
+            const std::string haystack = TEXT::ToLowerAsciiCopy(
                 record.displayName + " " +
                 record.guid.value + " " +
                 record.sourcePath.generic_string() + " " +
@@ -1157,25 +1154,13 @@ namespace HIKARI {
             return {};
         }
 
-        std::filesystem::path MakeProjectRelativePath(
-            const AssetDatabase& assetDatabase,
-            const std::filesystem::path& absolutePath) {
-
-            std::error_code ec{};
-            std::filesystem::path relative = std::filesystem::relative(
-                absolutePath.lexically_normal(),
-                assetDatabase.GetProjectRoot(),
-                ec);
-            return ec ? absolutePath.lexically_normal() : relative.lexically_normal();
-        }
-
         bool IsSameFilePath(
             const std::filesystem::path& lhs,
             const std::filesystem::path& rhs) {
 
             const std::filesystem::path normalizedLhs = lhs.lexically_normal();
             const std::filesystem::path normalizedRhs = rhs.lexically_normal();
-            if (ToLowerCopy(normalizedLhs.generic_string()) == ToLowerCopy(normalizedRhs.generic_string())) {
+            if (TEXT::ToLowerAsciiCopy(normalizedLhs.generic_string()) == TEXT::ToLowerAsciiCopy(normalizedRhs.generic_string())) {
                 return true;
             }
 
@@ -1350,7 +1335,10 @@ namespace HIKARI {
             }
 
             const std::filesystem::path newSource = MakeUniqueFilePath(desiredSource);
-            const std::filesystem::path newRelativeSource = MakeProjectRelativePath(assetDatabase, newSource);
+            const std::filesystem::path newRelativeSource =
+                PROJECT_PATHS::MakeProjectRelativePath(
+                    assetDatabase.GetProjectRoot(),
+                    newSource);
             const std::filesystem::path oldMetaPath = record.metaPath;
             const std::filesystem::path newMetaPath = assetDatabase.GetMetaPathForSource(newRelativeSource);
 
@@ -2516,7 +2504,7 @@ namespace HIKARI {
             if (!lhs || !rhs) {
                 return lhs < rhs;
             }
-            return ToLowerCopy(lhs->displayName) < ToLowerCopy(rhs->displayName);
+            return TEXT::ToLowerAsciiCopy(lhs->displayName) < TEXT::ToLowerAsciiCopy(rhs->displayName);
         });
 
         if (showFolderTree) {

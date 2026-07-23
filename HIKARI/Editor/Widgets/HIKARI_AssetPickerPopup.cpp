@@ -1,4 +1,5 @@
 #include "HIKARI_AssetPickerPopup.h"
+#include "Core/Text/HIKARI_AsciiCase.h"
 
 #include <algorithm>
 #include <cctype>
@@ -16,12 +17,6 @@
 namespace HIKARI::EDITOR {
 
     namespace {
-        std::string ToLowerCopy(std::string value) {
-            std::transform(value.begin(), value.end(), value.begin(), [](unsigned char c) {
-                return static_cast<char>(std::tolower(c));
-            });
-            return value;
-        }
 
         const char* ToAssetTypeText(AssetType type) {
             switch (type) {
@@ -72,7 +67,7 @@ namespace HIKARI::EDITOR {
                 std::string(ToAssetIcon(record.type)) + " " +
                 (name.empty() ? std::string("<unnamed>") : name) +
                 "  [" + ToString(state) + "]##" + record.guid.value;
-            entry.searchText = ToLowerCopy(
+            entry.searchText = TEXT::ToLowerAsciiCopy(
                 name + " " +
                 record.sourcePath.generic_string() + " " +
                 record.guid.value + " " +
@@ -119,10 +114,10 @@ namespace HIKARI::EDITOR {
         std::sort(entries.begin(), entries.end(), [](const PickerEntry& lhs, const PickerEntry& rhs) {
             const std::string lhsName = lhs.record ? lhs.record->displayName : std::string{};
             const std::string rhsName = rhs.record ? rhs.record->displayName : std::string{};
-            return ToLowerCopy(lhsName) < ToLowerCopy(rhsName);
+            return TEXT::ToLowerAsciiCopy(lhsName) < TEXT::ToLowerAsciiCopy(rhsName);
         });
 
-        const std::string search = ToLowerCopy(state.searchBuffer.data());
+        const std::string search = TEXT::ToLowerAsciiCopy(state.searchBuffer.data());
         int visibleCount = 0;
         if (ImGui::BeginChild("##AssetPickerList", ImVec2(520.0f, 310.0f), true)) {
             for (const PickerEntry& entry : entries) {

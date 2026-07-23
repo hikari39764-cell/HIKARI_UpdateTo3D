@@ -1,4 +1,5 @@
 #include "Editor/Inspectors/HIKARI_ImGuiInspectorBuilder.h"
+#include "Core/Text/HIKARI_AsciiCase.h"
 
 #include <algorithm>
 #include <cctype>
@@ -25,12 +26,6 @@
 namespace HIKARI {
 
     namespace {
-        std::string ToLowerCopy(std::string value) {
-            std::transform(value.begin(), value.end(), value.begin(), [](unsigned char c) {
-                return static_cast<char>(std::tolower(c));
-            });
-            return value;
-        }
 
         std::string ShortGuid(std::string_view guid) {
             if (guid.size() <= 8) {
@@ -76,7 +71,7 @@ namespace HIKARI {
             }
 
             entry.label = entry.name + "  [" + entry.state + "]##" + entry.id;
-            entry.searchText = ToLowerCopy(entry.name + " " + entry.path + " " + entry.id + " " + entry.state);
+            entry.searchText = TEXT::ToLowerAsciiCopy(entry.name + " " + entry.path + " " + entry.id + " " + entry.state);
             return entry;
         }
     }
@@ -313,7 +308,7 @@ namespace HIKARI {
             }
         }
         std::sort(entries.begin(), entries.end(), [](const AssetPickerEntry& lhs, const AssetPickerEntry& rhs) {
-            return ToLowerCopy(lhs.name) < ToLowerCopy(rhs.name);
+            return TEXT::ToLowerAsciiCopy(lhs.name) < TEXT::ToLowerAsciiCopy(rhs.name);
         });
 
         const AssetPickerEntry* current = nullptr;
@@ -338,7 +333,7 @@ namespace HIKARI {
             static char searchBuffer[128]{};
             ImGui::SetNextItemWidth(-1.0f);
             ImGui::InputText("Search##AssetPicker", searchBuffer, sizeof(searchBuffer));
-            const std::string search = ToLowerCopy(searchBuffer);
+            const std::string search = TEXT::ToLowerAsciiCopy(searchBuffer);
 
             const bool isNoneSelected = value.empty();
             if (ImGui::Selectable("<none>", isNoneSelected)) {

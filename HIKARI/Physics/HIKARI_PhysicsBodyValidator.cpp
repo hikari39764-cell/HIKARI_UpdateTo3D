@@ -3,21 +3,10 @@
 #include <algorithm>
 #include <cmath>
 
+#include "Core/Math/HIKARI_MathValidation.h"
+
 namespace HIKARI::PHYSICS {
     namespace {
-
-        bool IsFinite(const MATH::Vec3& value) noexcept {
-            return std::isfinite(value.x) &&
-                std::isfinite(value.y) &&
-                std::isfinite(value.z);
-        }
-
-        bool IsFinite(const MATH::Quat& value) noexcept {
-            return std::isfinite(value.x) &&
-                std::isfinite(value.y) &&
-                std::isfinite(value.z) &&
-                std::isfinite(value.w);
-        }
 
         bool GeometryRangeIsValid(
             const PhysicsShapeDesc& shape) noexcept {
@@ -61,10 +50,10 @@ namespace HIKARI::PHYSICS {
                 "body has no enabled collision shapes");
         }
         if (!createInfo.body.object.IsValid() ||
-            !IsFinite(createInfo.initialPose.position) ||
-            !IsFinite(createInfo.initialPose.rotation) ||
-            !IsFinite(createInfo.initialLinearVelocity) ||
-            !IsFinite(createInfo.initialAngularVelocity) ||
+            !MATH::IsFinite(createInfo.initialPose.position) ||
+            !MATH::IsFinite(createInfo.initialPose.rotation) ||
+            !MATH::IsFinite(createInfo.initialLinearVelocity) ||
+            !MATH::IsFinite(createInfo.initialAngularVelocity) ||
             !std::isfinite(createInfo.body.mass) ||
             !std::isfinite(createInfo.body.gravityScale) ||
             !std::isfinite(createInfo.body.linearDamping) ||
@@ -93,10 +82,10 @@ namespace HIKARI::PHYSICS {
 
         PhysicsBodyValidationResult result{};
         for (const PhysicsShapeDesc& shape : createInfo.shapes) {
-            if (!IsFinite(shape.localCenter) ||
-                !IsFinite(shape.localRotation) ||
-                !IsFinite(shape.halfExtents) ||
-                !IsFinite(shape.localScale) ||
+            if (!MATH::IsFinite(shape.localCenter) ||
+                !MATH::IsFinite(shape.localRotation) ||
+                !MATH::IsFinite(shape.halfExtents) ||
+                !MATH::IsFinite(shape.localScale) ||
                 !std::isfinite(shape.radius) ||
                 !std::isfinite(shape.height) ||
                 !std::isfinite(shape.material.friction) ||

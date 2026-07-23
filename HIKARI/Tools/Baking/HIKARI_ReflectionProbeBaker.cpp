@@ -6,6 +6,7 @@
 
 #include "Assets/Importers/HIKARI_IblBaker.h"
 #include "Core/HIKARI_Logger.h"
+#include "Project/Paths/HIKARI_ProjectPath.h"
 #include "Scene/Scenes/HIKARI_DocumentSceneBase.h"
 #include "Tools/Baking/HIKARI_ReflectionProbeCaptureValidator.h"
 
@@ -56,31 +57,6 @@ namespace HIKARI::TOOLS::BAKING {
                 validation.errors.end());
         }
 
-        std::filesystem::path MakeAbsoluteNormalized(
-            const std::filesystem::path& projectRoot,
-            const std::filesystem::path& path) {
-
-            if (path.empty()) {
-                return {};
-            }
-            if (path.is_absolute()) {
-                return path.lexically_normal();
-            }
-            return (projectRoot / path).lexically_normal();
-        }
-
-        std::string MakeProjectRelativeString(
-            const std::filesystem::path& projectRoot,
-            const std::filesystem::path& path) {
-
-            std::error_code ec{};
-            const std::filesystem::path relative = std::filesystem::relative(path, projectRoot, ec);
-            if (ec) {
-                return path.lexically_normal().generic_string();
-            }
-            return relative.lexically_normal().generic_string();
-        }
-
         std::filesystem::path ReflectionProbeOutputDirectory(
             const std::filesystem::path& projectRoot,
             const std::string& sceneGuid) {
@@ -118,7 +94,7 @@ namespace HIKARI::TOOLS::BAKING {
         }
 
         const std::filesystem::path sourceCubemap =
-            MakeAbsoluteNormalized(request.projectRoot, request.sourceCubemapPath);
+            PROJECT_PATHS::ResolveProjectPath(request.projectRoot, request.sourceCubemapPath);
 
         std::error_code ec{};
         if (!std::filesystem::exists(sourceCubemap, ec)) {
@@ -182,7 +158,7 @@ namespace HIKARI::TOOLS::BAKING {
             return result;
         }
 
-        result.capturePath = MakeAbsoluteNormalized(request.projectRoot, capturePath);
+        result.capturePath = PROJECT_PATHS::ResolveProjectPath(request.projectRoot, capturePath);
         std::error_code ec{};
         if (!std::filesystem::exists(result.capturePath, ec)) {
             AddError(result, "Reflection probe capture DDS does not exist: " +
@@ -275,11 +251,11 @@ namespace HIKARI::TOOLS::BAKING {
         result.record.blendDistance = request.blendDistance;
         result.record.priority = request.priority;
         result.record.captureCubemapPath =
-            MakeProjectRelativeString(request.projectRoot, result.capturePath);
+            PROJECT_PATHS::MakeProjectRelativeString(request.projectRoot, result.capturePath);
         result.record.prefilteredCubemapPath =
-            MakeProjectRelativeString(request.projectRoot, result.prefilteredPath);
+            PROJECT_PATHS::MakeProjectRelativeString(request.projectRoot, result.prefilteredPath);
         result.record.brdfLutPath =
-            MakeProjectRelativeString(request.projectRoot, result.brdfLutPath);
+            PROJECT_PATHS::MakeProjectRelativeString(request.projectRoot, result.brdfLutPath);
         result.record.prefilteredMipCount = mipCount;
         result.messages.push_back("Reflection probe influenceShape=" + result.record.influenceShape);
         result.messages.push_back("Reflection probe projectionShape=" + result.record.projectionShape);

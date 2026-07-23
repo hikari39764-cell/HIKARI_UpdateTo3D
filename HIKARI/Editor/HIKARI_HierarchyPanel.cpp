@@ -1,4 +1,6 @@
 #include "HIKARI_HierarchyPanel.h"
+#include "Core/Text/HIKARI_AsciiCase.h"
+#include "Core/Text/HIKARI_AsciiCase.h"
 #include <algorithm>
 #include <cctype>
 #include <string>
@@ -17,17 +19,6 @@
 
 namespace HIKARI {
     namespace {
-        std::string LowerCopy(std::string_view value) {
-            std::string result(value);
-            std::transform(
-                result.begin(),
-                result.end(),
-                result.begin(),
-                [](unsigned char ch) {
-                    return static_cast<char>(std::tolower(ch));
-                });
-            return result;
-        }
 
         bool MatchesSearch(
             const GameObject& object,
@@ -35,7 +26,7 @@ namespace HIKARI {
             if (lowerSearch.empty()) {
                 return true;
             }
-            return LowerCopy(object.GetName()).find(lowerSearch) !=
+            return TEXT::ToLowerAsciiCopy(object.GetName()).find(lowerSearch) !=
                 std::string::npos;
         }
     }
@@ -77,7 +68,7 @@ namespace HIKARI {
 
         std::vector<GameObject*> filteredObjects{};
         filteredObjects.reserve(objects.size());
-        const std::string lowerSearch = LowerCopy(searchBuffer_.data());
+        const std::string lowerSearch = TEXT::ToLowerAsciiCopy(searchBuffer_.data());
         for (const auto& object : objects) {
             if (object != nullptr &&
                 MatchesSearch(*object, lowerSearch)) {

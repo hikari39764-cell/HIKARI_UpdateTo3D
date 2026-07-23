@@ -1,4 +1,5 @@
 #include "HIKARI_DocumentSceneBase.h"
+#include "Core/Text/HIKARI_AsciiCase.h"
 
 #include <array>
 #include <cmath>
@@ -21,8 +22,10 @@
 #include "HIKARI_Services.h"
 #include "Assets/HIKARI_AssetRegistryBuilder.h"
 #include "Core/HIKARI_Logger.h"
+#include "Core/Math/HIKARI_MathValidation.h"
 #include "Core/HIKARI_TimeService.h"
 #include "Physics/Backends/Jolt/HIKARI_JoltPhysicsBackend.h"
+#include "Project/Paths/HIKARI_ProjectPath.h"
 #include "Project/HIKARI_ProjectSettings.h"
 #include "Render3D/HIKARI_LightDebugDraw.h"
 #include "Render3D/Core/HIKARI_Material.h"
@@ -68,10 +71,7 @@ namespace HIKARI {
             const MATH::Vec4 clip{ x, y, z, 1.0f };
             const MATH::Vec4 world = invViewProj.TransformPoint(clip);
             if (std::abs(world.w) < 1.0e-6f ||
-                !std::isfinite(world.x) ||
-                !std::isfinite(world.y) ||
-                !std::isfinite(world.z) ||
-                !std::isfinite(world.w)) {
+                !MATH::IsFinite(world)) {
                 return false;
             }
 
@@ -148,12 +148,6 @@ namespace HIKARI {
             }
         }
 
-        std::string ToLowerCopy(std::string value) {
-            for (char& ch : value) {
-                ch = static_cast<char>(std::tolower(static_cast<unsigned char>(ch)));
-            }
-            return value;
-        }
 
         bool HasMissingAssetDescriptors(
             const AssetRegistry& registry,
@@ -198,12 +192,12 @@ namespace HIKARI {
         }
 
         bool IsCookedTextureRuntimePath(const std::filesystem::path& path) {
-            const std::string ext = ToLowerCopy(path.extension().string());
+            const std::string ext = TEXT::ToLowerAsciiCopy(path.extension().string());
             if (ext == ".htex") {
                 return true;
             }
 
-            const std::string generic = ToLowerCopy(path.generic_string());
+            const std::string generic = TEXT::ToLowerAsciiCopy(path.generic_string());
             return generic.find("library/imported/") != std::string::npos;
         }
 
@@ -342,18 +336,6 @@ namespace HIKARI {
                 filename.str()).lexically_normal();
         }
 
-        std::string MakeProjectRelativeString(
-            const std::filesystem::path& projectRoot,
-            const std::filesystem::path& path) {
-
-            std::error_code ec{};
-            const std::filesystem::path relative = std::filesystem::relative(path, projectRoot, ec);
-            if (ec) {
-                return path.lexically_normal().generic_string();
-            }
-            return relative.lexically_normal().generic_string();
-        }
-
         std::string MakeBakeGuid() {
             const auto now = std::chrono::system_clock::now();
             const std::time_t time = std::chrono::system_clock::to_time_t(now);
@@ -390,7 +372,7 @@ namespace HIKARI {
                 manifest.bakeGuid = MakeBakeGuid();
             }
             manifest.bakeVersion = 1;
-            manifest.generatedRoot = MakeProjectRelativeString(
+            manifest.generatedRoot = PROJECT_PATHS::MakeProjectRelativeString(
                 projectRoot,
                 ASSETS::LIGHTING::BuildLightingBakeRoot(projectRoot, sceneGuid));
             return manifest;
@@ -998,7 +980,7 @@ namespace HIKARI {
             return nullptr;
         }
 
-        const std::string target = ToLowerCopy(filename);
+        const std::string target = TEXT::ToLowerAsciiCopy(filename);
         const AssetRecord* matchedRecord = nullptr;
         int matchCount = 0;
 
@@ -1007,7 +989,7 @@ namespace HIKARI {
                 continue;
             }
 
-            const std::string recordFilename = ToLowerCopy(record->sourcePath.filename().string());
+            const std::string recordFilename = TEXT::ToLowerAsciiCopy(record->sourcePath.filename().string());
             if (recordFilename != target) {
                 continue;
             }

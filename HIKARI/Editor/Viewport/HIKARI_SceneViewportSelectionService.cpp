@@ -120,6 +120,35 @@ namespace HIKARI::EDITOR {
             return farDistance >= 0.0f;
         }
 
+        MATH::Vec3 NormalizePointInBounds(
+            const MATH::Vec3& point,
+            const Bounds& bounds) {
+
+            const auto normalizeAxis = [](float value, float minimum, float maximum) {
+                const float extent = maximum - minimum;
+                if (std::fabs(extent) <= kRayEpsilon) {
+                    return 0.5f;
+                }
+                return std::clamp((value - minimum) / extent, 0.0f, 1.0f);
+            };
+            return {
+                normalizeAxis(point.x, bounds.min.x, bounds.max.x),
+                normalizeAxis(point.y, bounds.min.y, bounds.max.y),
+                normalizeAxis(point.z, bounds.min.z, bounds.max.z),
+            };
+        }
+
+        MATH::Vec3 DenormalizePointInBounds(
+            const MATH::Vec3& normalized,
+            const Bounds& bounds) {
+
+            return {
+                bounds.min.x + (bounds.max.x - bounds.min.x) * normalized.x,
+                bounds.min.y + (bounds.max.y - bounds.min.y) * normalized.y,
+                bounds.min.z + (bounds.max.z - bounds.min.z) * normalized.z,
+            };
+        }
+
 #if defined(HIKARI_WITH_EDITOR)
         bool ProjectPoint(
             const Camera3D& camera,
@@ -150,35 +179,6 @@ namespace HIKARI::EDITOR {
             outScreenPosition.y =
                 viewport.y + (-ndcY * 0.5f + 0.5f) * viewport.height;
             return true;
-        }
-
-        MATH::Vec3 NormalizePointInBounds(
-            const MATH::Vec3& point,
-            const Bounds& bounds) {
-
-            const auto normalizeAxis = [](float value, float minimum, float maximum) {
-                const float extent = maximum - minimum;
-                if (std::fabs(extent) <= kRayEpsilon) {
-                    return 0.5f;
-                }
-                return std::clamp((value - minimum) / extent, 0.0f, 1.0f);
-            };
-            return {
-                normalizeAxis(point.x, bounds.min.x, bounds.max.x),
-                normalizeAxis(point.y, bounds.min.y, bounds.max.y),
-                normalizeAxis(point.z, bounds.min.z, bounds.max.z),
-            };
-        }
-
-        MATH::Vec3 DenormalizePointInBounds(
-            const MATH::Vec3& normalized,
-            const Bounds& bounds) {
-
-            return {
-                bounds.min.x + (bounds.max.x - bounds.min.x) * normalized.x,
-                bounds.min.y + (bounds.max.y - bounds.min.y) * normalized.y,
-                bounds.min.z + (bounds.max.z - bounds.min.z) * normalized.z,
-            };
         }
 
         float Cross2D(

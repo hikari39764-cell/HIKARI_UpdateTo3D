@@ -1,4 +1,6 @@
 #include "HIKARI_AssetDatabase.h"
+#include "Core/Text/HIKARI_AsciiCase.h"
+#include "Core/Text/HIKARI_AsciiCase.h"
 
 #include <algorithm>
 #include <cctype>
@@ -14,6 +16,7 @@
 #include "Assets/Geometry/HIKARI_HcmeshFormat.h"
 #include "Assets/HIKARI_AssetSourcePolicy.h"
 #include "Core/HIKARI_Logger.h"
+#include "Project/Paths/HIKARI_ProjectPath.h"
 #include "Importers/HIKARI_MaterialImporter.h"
 #include "Importers/HIKARI_ModelImporter.h"
 #include "Importers/HIKARI_AnimationStateMachineAssetImporter.h"
@@ -32,12 +35,6 @@ namespace HIKARI {
         constexpr uint32_t kArtifactManifestVersion = 1;
 
 
-        std::string ToLowerCopy(std::string value) {
-            std::transform(value.begin(), value.end(), value.begin(), [](unsigned char c) {
-                return static_cast<char>(std::tolower(c));
-            });
-            return value;
-        }
 
         bool EndsWith(std::string_view text, std::string_view suffix) {
             return text.size() >= suffix.size() &&
@@ -45,7 +42,7 @@ namespace HIKARI {
         }
 
         bool IsIgnoredDirectoryName(const std::string& name) {
-            const std::string lower = ToLowerCopy(name);
+            const std::string lower = TEXT::ToLowerAsciiCopy(name);
             return lower == ".git" ||
                 lower == "library" ||
                 lower == "projectsettings" ||
@@ -54,7 +51,7 @@ namespace HIKARI {
         }
 
         bool IsMetaPath(const std::filesystem::path& path) {
-            return EndsWith(ToLowerCopy(path.filename().string()), kSourceMetaSuffix);
+            return EndsWith(TEXT::ToLowerAsciiCopy(path.filename().string()), kSourceMetaSuffix);
         }
 
         std::filesystem::path MakeSourceMetaPath(
@@ -72,7 +69,7 @@ namespace HIKARI {
 
         bool IsSkyFolderPath(const std::filesystem::path& path) {
             for (const std::filesystem::path& part : path) {
-                const std::string lower = ToLowerCopy(part.string());
+                const std::string lower = TEXT::ToLowerAsciiCopy(part.string());
                 if (lower == "skies" || lower == "sky") {
                     return true;
                 }
@@ -95,9 +92,9 @@ namespace HIKARI {
         }
 
         bool IsScenePath(const std::filesystem::path& path) {
-            const std::string filename = ToLowerCopy(path.filename().string());
-            const std::string ext = ToLowerCopy(path.extension().string());
-            const std::string generic = ToLowerCopy(path.generic_string());
+            const std::string filename = TEXT::ToLowerAsciiCopy(path.filename().string());
+            const std::string ext = TEXT::ToLowerAsciiCopy(path.extension().string());
+            const std::string generic = TEXT::ToLowerAsciiCopy(path.generic_string());
             return ext == ".hscene" ||
                 EndsWith(filename, ".scene.json") ||
                 (ext == ".json" && generic.find("assets/scenes/") != std::string::npos);
@@ -211,19 +208,6 @@ namespace HIKARI {
             }
         }
 
-        std::filesystem::path ResolveProjectPath(
-            const std::filesystem::path& projectRoot,
-            const std::filesystem::path& path) {
-
-            if (path.empty()) {
-                return {};
-            }
-            if (path.is_absolute()) {
-                return path.lexically_normal();
-            }
-            return (projectRoot / path).lexically_normal();
-        }
-
         bool ReadJsonFile(const std::filesystem::path& path, nlohmann::json& outRoot) {
             std::ifstream ifs(path);
             if (!ifs.is_open()) {
@@ -321,7 +305,7 @@ namespace HIKARI {
                 const std::string value = pipelineSettings.is_object()
                     ? pipelineSettings.value(key, std::string(fallback))
                     : std::string(fallback);
-                return ResolveProjectPath(projectRoot_, value);
+                return PROJECT_PATHS::ResolveProjectPath(projectRoot_, value);
             };
 
         assetsRoot_ = resolvePipelinePath("assetsRoot", "Assets");
@@ -951,7 +935,7 @@ namespace HIKARI {
     }
 
     bool AssetDatabase::ReadMeta(const std::filesystem::path& metaPath, AssetMeta& outMeta) const {
-        const std::filesystem::path absoluteMetaPath = ResolveProjectPath(projectRoot_, metaPath);
+        const std::filesystem::path absoluteMetaPath = PROJECT_PATHS::ResolveProjectPath(projectRoot_, metaPath);
 
         nlohmann::json root;
         if (!ReadJsonFile(absoluteMetaPath, root)) {
@@ -1055,7 +1039,7 @@ namespace HIKARI {
             return info;
         }
 
-        const std::filesystem::path hcmeshPath = ResolveProjectPath(projectRoot_, artifact->path);
+        const std::filesystem::path hcmeshPath = PROJECT_PATHS::ResolveProjectPath(projectRoot_, artifact->path);
         info.path = hcmeshPath;
         std::error_code ec{};
         if (!std::filesystem::exists(hcmeshPath, ec) || ec) {
@@ -1087,7 +1071,7 @@ namespace HIKARI {
 
         bool sourceNewerThanArtifact = false;
         if (record.sourceExists) {
-            const std::filesystem::path sourcePath = ResolveProjectPath(projectRoot_, record.sourcePath);
+            const std::filesystem::path sourcePath = PROJECT_PATHS::ResolveProjectPath(projectRoot_, record.sourcePath);
             const auto sourceTime = std::filesystem::last_write_time(sourcePath, ec);
             if (!ec) {
                 const auto hcmeshTime = std::filesystem::last_write_time(hcmeshPath, ec);
@@ -1120,7 +1104,7 @@ namespace HIKARI {
 
     AssetRecord AssetDatabase::BuildRecordForSource(const std::filesystem::path& sourcePath, bool createMissingMeta) {
         const std::filesystem::path normalizedSource = NormalizeProjectPath(sourcePath);
-        const std::filesystem::path absoluteSource = ResolveProjectPath(projectRoot_, normalizedSource);
+        const std::filesystem::path absoluteSource = PROJECT_PATHS::ResolveProjectPath(projectRoot_, normalizedSource);
 
         AssetRecord record{};
         record.sourcePath = normalizedSource;
@@ -1198,8 +1182,8 @@ namespace HIKARI {
     }
 
     AssetType AssetDatabase::GuessAssetTypeFromPath(const std::filesystem::path& sourcePath) const {
-        const std::string ext = ToLowerCopy(sourcePath.extension().string());
-        const std::string generic = ToLowerCopy(sourcePath.generic_string());
+        const std::string ext = TEXT::ToLowerAsciiCopy(sourcePath.extension().string());
+        const std::string generic = TEXT::ToLowerAsciiCopy(sourcePath.generic_string());
 
         if (ext == ".dds" && IsSkyFolderPath(sourcePath)) {
             return AssetType::Sky;
@@ -1346,7 +1330,7 @@ namespace HIKARI {
     }
 
     void AssetDatabase::RefreshRecordState(AssetRecord& record) const {
-        const std::filesystem::path absoluteSource = ResolveProjectPath(projectRoot_, record.sourcePath);
+        const std::filesystem::path absoluteSource = PROJECT_PATHS::ResolveProjectPath(projectRoot_, record.sourcePath);
         record.sourceExists = std::filesystem::exists(absoluteSource);
         record.metaExists = std::filesystem::exists(record.metaPath);
         record.importerMissing = !record.meta.importerId.empty() &&
@@ -1361,7 +1345,7 @@ namespace HIKARI {
         std::filesystem::file_time_type oldestArtifactTime{};
         bool hasArtifactTime = false;
         for (const AssetArtifactDesc& artifact : record.artifactManifest.artifacts) {
-            const std::filesystem::path artifactPath = ResolveProjectPath(projectRoot_, artifact.path);
+            const std::filesystem::path artifactPath = PROJECT_PATHS::ResolveProjectPath(projectRoot_, artifact.path);
             if (!std::filesystem::exists(artifactPath)) {
                 artifactMissing = true;
                 continue;
@@ -1392,7 +1376,7 @@ namespace HIKARI {
                     continue;
                 }
                 const std::filesystem::path dependencyPath =
-                    ResolveProjectPath(
+                    PROJECT_PATHS::ResolveProjectPath(
                         projectRoot_,
                         dependency.path);
                 std::error_code dependencyEc{};
@@ -1445,7 +1429,7 @@ namespace HIKARI {
         const std::filesystem::path& manifestPath,
         AssetArtifactManifest& outManifest) const {
 
-        const std::filesystem::path absoluteManifestPath = ResolveProjectPath(projectRoot_, manifestPath);
+        const std::filesystem::path absoluteManifestPath = PROJECT_PATHS::ResolveProjectPath(projectRoot_, manifestPath);
 
         nlohmann::json root;
         if (!ReadJsonFile(absoluteManifestPath, root)) {
@@ -1583,7 +1567,7 @@ namespace HIKARI {
     }
 
     std::string AssetDatabase::MakePathKey(const std::filesystem::path& path) const {
-        return ToLowerCopy(NormalizeProjectPath(path).generic_string());
+        return TEXT::ToLowerAsciiCopy(NormalizeProjectPath(path).generic_string());
     }
 
     bool AssetDatabase::IsPathUnderDirectory(

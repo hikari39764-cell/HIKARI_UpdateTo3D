@@ -4,6 +4,7 @@
 #include <cstring>
 
 #include "Core/HIKARI_Logger.h"
+#include "Core/Numeric/HIKARI_IntegerConversion.h"
 #include "Render3D/GpuDriven/HIKARI_GpuDrivenSceneSource.h"
 #include "Render3D/GpuDriven/HIKARI_SurfaceGpuSceneFrameBuffer.h"
 #include "Render3D/GpuDriven/CommandStream/HIKARI_GpuTraditionalCommandStreamBuffer.h"
@@ -24,13 +25,6 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
                 }
             }
             return false;
-        }
-
-        uint32_t ClampToUint32(size_t value) {
-            return static_cast<uint32_t>(
-                (std::min)(
-                    value,
-                    static_cast<size_t>(UINT32_MAX)));
         }
 
         GpuDrivenPassKind PassFromIndex(size_t index) {
@@ -301,7 +295,7 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
             ++passIndex) {
 
             sceneUploadStats_.passInstanceCounts[passIndex] =
-                ClampToUint32(CountPassInstances(source.passes[passIndex]));
+                NUMERIC::SaturateToUint32(CountPassInstances(source.passes[passIndex]));
         }
 
         const uint64_t layoutVersion = source.layoutVersion;
@@ -385,7 +379,7 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
 
         frameContext_.stats.sourceInstanceCount = sourceInstanceCount;
         UploadSurfaceGpuSceneFrame(
-            ClampToUint32(sourceInstanceCount),
+            NUMERIC::SaturateToUint32(sourceInstanceCount),
             ResolvePassBaseIndex(
                 source.GetPass(GpuDrivenPassKind::ForwardOpaque)),
             ResolvePassBaseIndex(

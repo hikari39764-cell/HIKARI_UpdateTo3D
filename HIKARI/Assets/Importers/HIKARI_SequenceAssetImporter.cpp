@@ -6,22 +6,9 @@
 #include <json.hpp>
 
 #include "Assets/Sequence/HIKARI_SequenceAsset.h"
+#include "Core/Text/HIKARI_AsciiCase.h"
 
 namespace HIKARI {
-
-    namespace {
-        std::string LowerExtension(const std::filesystem::path& path) {
-            std::string value = path.extension().string();
-            std::transform(
-                value.begin(),
-                value.end(),
-                value.begin(),
-                [](unsigned char character) {
-                    return static_cast<char>(std::tolower(character));
-                });
-            return value;
-        }
-    }
 
     const char* SequenceAssetImporter::GetImporterId() const {
         return "SequenceAssetImporter";
@@ -34,7 +21,8 @@ namespace HIKARI {
     bool SequenceAssetImporter::CanImport(
         const std::filesystem::path& sourcePath) const {
 
-        return LowerExtension(sourcePath) == ".hsequence";
+        return TEXT::ToLowerAsciiCopy(sourcePath.extension().string()) ==
+            ".hsequence";
     }
 
     AssetMeta SequenceAssetImporter::CreateDefaultMeta(

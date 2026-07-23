@@ -5,6 +5,7 @@
 #include <unordered_set>
 
 #include "Core/HIKARI_FrameContext.h"
+#include "Core/Math/HIKARI_MathValidation.h"
 #include "Scene/Components/HIKARI_CameraActivationVolumeComponent.h"
 #include "Scene/Components/HIKARI_CameraComponent.h"
 #include "Scene/HIKARI_GameObject.h"
@@ -37,9 +38,7 @@ namespace HIKARI {
                 worldPoint.z,
                 1.0f
             });
-            return std::isfinite(local.x) &&
-                std::isfinite(local.y) &&
-                std::isfinite(local.z) &&
+            return MATH::IsFinite(local) &&
                 std::abs(local.x) <= halfExtents.x &&
                 std::abs(local.y) <= halfExtents.y &&
                 std::abs(local.z) <= halfExtents.z;

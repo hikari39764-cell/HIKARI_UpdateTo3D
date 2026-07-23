@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <cmath>
 
+#include "Core/Math/HIKARI_MathValidation.h"
 #include "Render3D/Core/HIKARI_Camera3D.h"
 
 namespace HIKARI::CAMERA {
@@ -11,12 +12,6 @@ namespace HIKARI::CAMERA {
         constexpr float kViewEpsilon = 1.0e-5f;
         constexpr float kMinVerticalFov = 1.0e-3f;
         constexpr float kMaxVerticalFov = 3.13f;
-
-        bool IsFinite(const MATH::Vec3& value) noexcept {
-            return std::isfinite(value.x) &&
-                std::isfinite(value.y) &&
-                std::isfinite(value.z);
-        }
 
         bool IsPreferred(
             int candidatePriority,
@@ -246,8 +241,8 @@ namespace HIKARI::CAMERA {
     bool CameraRigService::IsValidPose(
         const CameraRigPose& pose) noexcept {
 
-        if (!IsFinite(pose.eye) || !IsFinite(pose.target) ||
-            !IsFinite(pose.up) ||
+        if (!MATH::IsFinite(pose.eye) || !MATH::IsFinite(pose.target) ||
+            !MATH::IsFinite(pose.up) ||
             MATH::Length(pose.target - pose.eye) <= kViewEpsilon ||
             MATH::Length(pose.up) <= kViewEpsilon) {
             return false;
@@ -261,10 +256,10 @@ namespace HIKARI::CAMERA {
     bool CameraRigService::IsValidModifier(
         const CameraModifierSubmission& modifier) noexcept {
 
-        return IsFinite(modifier.worldPositionOffset) &&
-            IsFinite(modifier.localPositionOffset) &&
-            IsFinite(modifier.worldTargetOffset) &&
-            IsFinite(modifier.localTargetOffset) &&
+        return MATH::IsFinite(modifier.worldPositionOffset) &&
+            MATH::IsFinite(modifier.localPositionOffset) &&
+            MATH::IsFinite(modifier.worldTargetOffset) &&
+            MATH::IsFinite(modifier.localTargetOffset) &&
             std::isfinite(modifier.verticalFovOffsetRadians) &&
             std::isfinite(modifier.weight);
     }

@@ -1,4 +1,6 @@
 #include "HIKARI_AssetRegistryBuilder.h"
+#include "Core/Text/HIKARI_AsciiCase.h"
+#include "Core/Text/HIKARI_AsciiCase.h"
 
 #include <algorithm>
 #include <cctype>
@@ -15,12 +17,6 @@
 namespace HIKARI {
 
     namespace {
-        std::string ToLowerCopy(std::string value) {
-            std::transform(value.begin(), value.end(), value.begin(), [](unsigned char c) {
-                return static_cast<char>(std::tolower(c));
-            });
-            return value;
-        }
 
         TextureUsage ParseTextureUsage(const nlohmann::json& settings) {
             const std::string value = settings.value("usage", "");
@@ -151,7 +147,7 @@ namespace HIKARI {
         }
 
         ModelImporterKind GuessModelImporter(const std::filesystem::path& sourcePath) {
-            const std::string ext = ToLowerCopy(sourcePath.extension().string());
+            const std::string ext = TEXT::ToLowerAsciiCopy(sourcePath.extension().string());
             if (ext == ".gltf") {
                 return ModelImporterKind::Gltf;
             }

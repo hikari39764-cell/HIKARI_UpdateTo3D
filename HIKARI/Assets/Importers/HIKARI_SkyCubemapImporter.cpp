@@ -1,4 +1,6 @@
 #include "HIKARI_SkyCubemapImporter.h"
+#include "Core/Text/HIKARI_AsciiCase.h"
+#include "Core/Text/HIKARI_AsciiCase.h"
 
 #include <Windows.h>
 
@@ -9,21 +11,16 @@
 #include <json.hpp>
 
 #include "Core/HIKARI_Logger.h"
+#include "Project/Paths/HIKARI_ProjectPath.h"
 #include "HIKARI_IblBaker.h"
 
 namespace HIKARI {
 
     namespace {
-        std::string ToLowerCopy(std::string value) {
-            std::transform(value.begin(), value.end(), value.begin(), [](unsigned char c) {
-                return static_cast<char>(std::tolower(c));
-            });
-            return value;
-        }
 
         bool IsSkyPath(const std::filesystem::path& path) {
             for (const std::filesystem::path& part : path) {
-                const std::string name = ToLowerCopy(part.string());
+                const std::string name = TEXT::ToLowerAsciiCopy(part.string());
                 if (name == "skies" || name == "sky") {
                     return true;
                 }
@@ -54,18 +51,6 @@ namespace HIKARI {
                 settings = MakeDefaultSettings();
             }
             return settings;
-        }
-
-        std::filesystem::path MakeProjectRelative(
-            const std::filesystem::path& projectRoot,
-            const std::filesystem::path& path) {
-
-            std::error_code ec{};
-            std::filesystem::path relative = std::filesystem::relative(path, projectRoot, ec);
-            if (ec) {
-                return path.lexically_normal();
-            }
-            return relative.lexically_normal();
         }
 
         bool ReplaceFileWithTemp(
@@ -124,7 +109,7 @@ namespace HIKARI {
     }
 
     bool SkyCubemapImporter::CanImport(const std::filesystem::path& sourcePath) const {
-        return IsSkyPath(sourcePath) && ToLowerCopy(sourcePath.extension().string()) == ".dds";
+        return IsSkyPath(sourcePath) && TEXT::ToLowerAsciiCopy(sourcePath.extension().string()) == ".dds";
     }
 
     AssetMeta SkyCubemapImporter::CreateDefaultMeta(
@@ -199,7 +184,7 @@ namespace HIKARI {
         result.message = "[SkyCubemapImporter] Imported sky cubemap";
         result.artifacts.push_back(AssetArtifactDesc{
             "SkyCubemap",
-            MakeProjectRelative(context.projectRoot, finalPath).generic_string(),
+            PROJECT_PATHS::MakeProjectRelativeString(context.projectRoot, finalPath),
             "DDS"
         });
 
@@ -222,17 +207,17 @@ namespace HIKARI {
             if (bake.success) {
                 result.artifacts.push_back(AssetArtifactDesc{
                     "IblIrradiance",
-                    MakeProjectRelative(context.projectRoot, bake.irradiancePath).generic_string(),
+                    PROJECT_PATHS::MakeProjectRelativeString(context.projectRoot, bake.irradiancePath),
                     "DDS"
                 });
                 result.artifacts.push_back(AssetArtifactDesc{
                     "IblPrefiltered",
-                    MakeProjectRelative(context.projectRoot, bake.prefilteredPath).generic_string(),
+                    PROJECT_PATHS::MakeProjectRelativeString(context.projectRoot, bake.prefilteredPath),
                     "DDS"
                 });
                 result.artifacts.push_back(AssetArtifactDesc{
                     "BrdfLut",
-                    MakeProjectRelative(context.projectRoot, bake.brdfLutPath).generic_string(),
+                    PROJECT_PATHS::MakeProjectRelativeString(context.projectRoot, bake.brdfLutPath),
                     "DDS"
                 });
                 result.message += "; IBL baked";

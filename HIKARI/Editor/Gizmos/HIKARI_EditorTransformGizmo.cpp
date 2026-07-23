@@ -6,6 +6,7 @@
 #endif
 
 #include "Core/HIKARI_Logger.h"
+#include "Core/Math/HIKARI_MathValidation.h"
 #include "Scene/HIKARI_GameObject.h"
 
 #include <algorithm>
@@ -40,24 +41,11 @@ namespace HIKARI::EDITOR {
             return { x * invLength, y * invLength, z * invLength };
         }
 
-        bool IsFinite(const MATH::Vec3& value) {
-            return std::isfinite(value.x) &&
-                std::isfinite(value.y) &&
-                std::isfinite(value.z);
-        }
-
-        bool IsFinite(const MATH::Quat& value) {
-            return std::isfinite(value.x) &&
-                std::isfinite(value.y) &&
-                std::isfinite(value.z) &&
-                std::isfinite(value.w);
-        }
-
         bool IsFinite(const DecomposedGizmoMatrix& value) {
-            return IsFinite(value.transform.position) &&
-                IsFinite(value.transform.rotationEulerDeg) &&
-                IsFinite(value.transform.scale) &&
-                IsFinite(value.rotation);
+            return MATH::IsFinite(value.transform.position) &&
+                MATH::IsFinite(value.transform.rotationEulerDeg) &&
+                MATH::IsFinite(value.transform.scale) &&
+                MATH::IsFinite(value.rotation);
         }
 
         MATH::Quat ExtractRotationFromMatrix(const float matrix[16]) {

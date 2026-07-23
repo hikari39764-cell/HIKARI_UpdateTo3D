@@ -2,6 +2,7 @@
 
 #include <cmath>
 
+#include "Core/Math/HIKARI_MathValidation.h"
 #include "Render3D/Core/HIKARI_BoundsUtils.h"
 
 namespace HIKARI::ASSETS::GEOMETRY {
@@ -21,24 +22,8 @@ namespace HIKARI::ASSETS::GEOMETRY {
             return innerBegin >= outerBegin && innerEnd <= outerEnd;
         }
 
-        bool IsFinite(float value) {
-            return std::isfinite(value);
-        }
-
-        bool IsFiniteVec2(const MATH::Vec2& value) {
-            return IsFinite(value.x) && IsFinite(value.y);
-        }
-
-        bool IsFiniteVec3(const MATH::Vec3& value) {
-            return IsFinite(value.x) && IsFinite(value.y) && IsFinite(value.z);
-        }
-
-        bool IsFiniteVec4(const MATH::Vec4& value) {
-            return IsFinite(value.x) && IsFinite(value.y) && IsFinite(value.z) && IsFinite(value.w);
-        }
-
         bool IsFiniteBounds(const Bounds& bounds) {
-            return IsFiniteVec3(bounds.min) && IsFiniteVec3(bounds.max);
+            return MATH::IsFinite(bounds.min) && MATH::IsFinite(bounds.max);
         }
 
         uint32_t CountAlphaFlags(uint32_t flags) {
@@ -50,12 +35,12 @@ namespace HIKARI::ASSETS::GEOMETRY {
         }
 
         bool VertexFinite(const RENDER3D::CLUSTER::ClusterVertex& vertex) {
-            return IsFiniteVec3(vertex.position) &&
-                IsFiniteVec3(vertex.normal) &&
-                IsFiniteVec4(vertex.tangent) &&
-                IsFiniteVec2(vertex.uv0) &&
-                IsFiniteVec2(vertex.uv1) &&
-                IsFiniteVec4(vertex.color);
+            return MATH::IsFinite(vertex.position) &&
+                MATH::IsFinite(vertex.normal) &&
+                MATH::IsFinite(vertex.tangent) &&
+                MATH::IsFinite(vertex.uv0) &&
+                MATH::IsFinite(vertex.uv1) &&
+                MATH::IsFinite(vertex.color);
         }
 
         bool ClusterMicroIndicesValid(
@@ -227,8 +212,8 @@ namespace HIKARI::ASSETS::GEOMETRY {
                         lodRange.vertexCount != 0u &&
                         lodRange.primitiveCount != 0u &&
                         lodRange.primitiveCount * 3u == lodRange.indexCount &&
-                        IsFinite(lodRange.geometricError) &&
-                        IsFinite(lodRange.minScreenRadius) &&
+                        MATH::IsFinite(lodRange.geometricError) &&
+                        MATH::IsFinite(lodRange.minScreenRadius) &&
                         RangeValid(lodRange.firstCluster, lodRange.clusterCount, asset.clusters.size()) &&
                         RangeValid(lodRange.firstIndex, lodRange.indexCount, asset.packedIndices.size()) &&
                         RangeValid(lodRange.firstVertex, lodRange.vertexCount, asset.packedVertices.size()) &&
@@ -379,11 +364,11 @@ namespace HIKARI::ASSETS::GEOMETRY {
             }
             if (!IsFiniteBounds(cluster.localBounds) ||
                 !BOUNDS::IsUsable(cluster.localBounds) ||
-                !IsFiniteVec3(cluster.sphereCenter) ||
-                !IsFiniteVec3(cluster.coneApex) ||
-                !IsFiniteVec3(cluster.coneAxis) ||
-                !IsFinite(cluster.sphereRadius) ||
-                !IsFinite(cluster.coneCutoff) ||
+                !MATH::IsFinite(cluster.sphereCenter) ||
+                !MATH::IsFinite(cluster.coneApex) ||
+                !MATH::IsFinite(cluster.coneAxis) ||
+                !MATH::IsFinite(cluster.sphereRadius) ||
+                !MATH::IsFinite(cluster.coneCutoff) ||
                 cluster.sphereRadius <= 0.0f) {
                 ++result.invalidBoundsCount;
                 clusterValid = false;

@@ -6,16 +6,12 @@
 #include <numbers>
 #include <unordered_set>
 
+#include "Core/Math/HIKARI_MathValidation.h"
+
 namespace HIKARI::SEQUENCER {
 
     namespace {
         constexpr float kKeyframeTimeEpsilon = 0.0005f;
-
-        bool IsFinite(const MATH::Vec3& value) noexcept {
-            return std::isfinite(value.x) &&
-                std::isfinite(value.y) &&
-                std::isfinite(value.z);
-        }
 
         float InterpolationAmount(
             SequenceInterpolationMode mode,
@@ -88,8 +84,8 @@ namespace HIKARI::SEQUENCER {
                     keyframes.end(),
                     [](const CameraTransformKeyframe& keyframe) {
                         return !std::isfinite(keyframe.timeSeconds) ||
-                            !IsFinite(keyframe.position) ||
-                            !IsFinite(keyframe.rotationEulerDeg);
+                            !MATH::IsFinite(keyframe.position) ||
+                            !MATH::IsFinite(keyframe.rotationEulerDeg);
                     }),
                 keyframes.end());
             for (CameraTransformKeyframe& keyframe : keyframes) {
@@ -300,7 +296,7 @@ namespace HIKARI::SEQUENCER {
         const MATH::Vec3& rotationEulerDeg) {
 
         if (!bindingId.IsValid() || !std::isfinite(timeSeconds) ||
-            !IsFinite(position) || !IsFinite(rotationEulerDeg)) {
+            !MATH::IsFinite(position) || !MATH::IsFinite(rotationEulerDeg)) {
             return 0;
         }
         CameraTransformChannel* channel =

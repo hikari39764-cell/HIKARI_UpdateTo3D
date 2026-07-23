@@ -7,20 +7,9 @@
 #include <json.hpp>
 
 #include "Assets/Animation/HIKARI_AnimationStateMachineAsset.h"
+#include "Core/Text/HIKARI_AsciiCase.h"
 
 namespace HIKARI {
-    namespace {
-        std::string LowerExtension(const std::filesystem::path& path) {
-            std::string value = path.extension().string();
-            std::transform(
-                value.begin(), value.end(), value.begin(),
-                [](unsigned char character) {
-                    return static_cast<char>(std::tolower(character));
-                });
-            return value;
-        }
-    }
-
     const char* AnimationStateMachineAssetImporter::GetImporterId() const {
         return "AnimationStateMachineAssetImporter";
     }
@@ -31,7 +20,8 @@ namespace HIKARI {
 
     bool AnimationStateMachineAssetImporter::CanImport(
         const std::filesystem::path& sourcePath) const {
-        return LowerExtension(sourcePath) == ".hanimsm";
+        return TEXT::ToLowerAsciiCopy(sourcePath.extension().string()) ==
+            ".hanimsm";
     }
 
     AssetMeta AnimationStateMachineAssetImporter::CreateDefaultMeta(

@@ -1,4 +1,6 @@
 #include "HIKARI_MaterialImporter.h"
+#include "Core/Text/HIKARI_AsciiCase.h"
+#include "Core/Text/HIKARI_AsciiCase.h"
 
 #include <algorithm>
 #include <cctype>
@@ -8,32 +10,15 @@
 #include "Assets/Formats/HIKARI_HmatFormat.h"
 #include "Assets/Material/HIKARI_MaterialAssetData.h"
 #include "Core/HIKARI_Logger.h"
+#include "Project/Paths/HIKARI_ProjectPath.h"
 
 namespace HIKARI {
 
     namespace {
-        std::string ToLowerCopy(std::string value) {
-            std::transform(value.begin(), value.end(), value.begin(), [](unsigned char c) {
-                return static_cast<char>(std::tolower(c));
-            });
-            return value;
-        }
 
         bool IsMaterialJson(const std::filesystem::path& sourcePath) {
-            const std::string filename = ToLowerCopy(sourcePath.filename().string());
+            const std::string filename = TEXT::ToLowerAsciiCopy(sourcePath.filename().string());
             return filename.ends_with(".material.json");
-        }
-
-        std::filesystem::path MakeProjectRelative(
-            const std::filesystem::path& projectRoot,
-            const std::filesystem::path& path) {
-
-            std::error_code ec{};
-            std::filesystem::path relative = std::filesystem::relative(path, projectRoot, ec);
-            if (!ec && !relative.empty()) {
-                return relative.lexically_normal();
-            }
-            return path.lexically_normal();
         }
 
         nlohmann::json ParseImportSettingsOrDefault(const AssetMeta& meta) {
@@ -149,7 +134,7 @@ namespace HIKARI {
         }
 
         const std::filesystem::path relativeOutput =
-            MakeProjectRelative(context.projectRoot, outputPath);
+            PROJECT_PATHS::MakeProjectRelativePath(context.projectRoot, outputPath);
         result.artifacts.push_back(AssetArtifactDesc{
             "Material",
             relativeOutput.generic_string(),

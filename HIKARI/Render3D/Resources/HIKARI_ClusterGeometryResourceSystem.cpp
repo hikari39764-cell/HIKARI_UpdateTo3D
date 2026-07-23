@@ -11,6 +11,7 @@
 
 #include "Assets/Geometry/HIKARI_HcmeshFormat.h"
 #include "Core/HIKARI_Logger.h"
+#include "Core/Numeric/HIKARI_IntegerConversion.h"
 #include "Gfx/HIKARI_DXCheck.h"
 #include "Gfx/HIKARI_GpuDeferredReleaseQueue.h"
 #include "Render3D/Resources/HIKARI_RenderResourceDescriptorPool.h"
@@ -35,11 +36,6 @@ namespace HIKARI::RENDER3D {
         ClusterGeometryResourceSystemState& State() {
             static ClusterGeometryResourceSystemState state{};
             return state;
-        }
-
-        uint32_t ClampToUint32(size_t value) {
-            return static_cast<uint32_t>(
-                (std::min)(value, static_cast<size_t>((std::numeric_limits<uint32_t>::max)())));
         }
 
         uint64_t PackHandle(ClusterGeometryResourceHandle handle) {
@@ -396,7 +392,7 @@ namespace HIKARI::RENDER3D {
             stats.missingDeviceCount = missingDevice;
             stats.upgradedVirtualHandleCount = upgraded;
             stats.descriptorAllocationFailedCount = descriptorAllocationFailed;
-            stats.resourceCount = ClampToUint32(state.recordsBySourceKey.size());
+            stats.resourceCount = NUMERIC::SaturateToUint32(state.recordsBySourceKey.size());
 
             for (const auto& pair : state.recordsBySourceKey) {
                 const ClusterGeometryResourceRecord& record = pair.second;
@@ -418,7 +414,7 @@ namespace HIKARI::RENDER3D {
                 stats.vertexCount += record.layout.vertexCount;
                 stats.indexCount += record.layout.indexCount;
                 stats.meshletPrimitiveCount += record.layout.meshletPrimitiveCount;
-                stats.surfaceRangeCount += ClampToUint32(record.surfaceRanges.size());
+                stats.surfaceRangeCount += NUMERIC::SaturateToUint32(record.surfaceRanges.size());
                 stats.gpuBufferBytes += record.layout.byteSize + record.metadataBufferBytes;
             }
 

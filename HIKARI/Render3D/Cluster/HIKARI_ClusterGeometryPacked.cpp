@@ -8,6 +8,7 @@
 
 #include <DirectXPackedVector.h>
 
+#include "Core/Numeric/HIKARI_IntegerConversion.h"
 #include "Render3D/Core/HIKARI_BoundsUtils.h"
 
 namespace HIKARI::RENDER3D::CLUSTER {
@@ -16,11 +17,6 @@ namespace HIKARI::RENDER3D::CLUSTER {
         static_assert(
             kHcmeshMaxVerticesPerMeshlet <= 256u,
             "Packed meshlet primitive indices require 8-bit local vertex indices.");
-
-        uint32_t ClampToUint32(size_t value) {
-            return static_cast<uint32_t>(
-                (std::min)(value, static_cast<size_t>((std::numeric_limits<uint32_t>::max)())));
-        }
 
         uint32_t AlignUp(uint32_t value, uint32_t alignment) {
             return (value + alignment - 1u) & ~(alignment - 1u);
@@ -83,7 +79,7 @@ namespace HIKARI::RENDER3D::CLUSTER {
         }
 
         uint32_t AlignSection(std::vector<uint8_t>& bytes) {
-            const uint32_t offset = ClampToUint32(bytes.size());
+            const uint32_t offset = NUMERIC::SaturateToUint32(bytes.size());
             const uint32_t alignedOffset = AlignUp(offset, kClusterGeometryGpuSectionAlignment);
             bytes.resize(alignedOffset);
             return alignedOffset;
@@ -370,20 +366,20 @@ namespace HIKARI::RENDER3D::CLUSTER {
 
         ClusterGeometryGpuHeader metadataHeader{};
         metadataHeader.flags = asset.flags;
-        metadataHeader.surfaceCount = ClampToUint32(asset.surfaces.size());
-        metadataHeader.surfaceLodRangeCount = ClampToUint32(asset.surfaceLodRanges.size());
-        metadataHeader.surfaceSectionCount = ClampToUint32(asset.surfaceSections.size());
-        metadataHeader.clusterCount = ClampToUint32(asset.clusters.size());
-        metadataHeader.pageCount = ClampToUint32(asset.pages.size());
-        metadataHeader.vertexCount = ClampToUint32(asset.packedVertices.size());
+        metadataHeader.surfaceCount = NUMERIC::SaturateToUint32(asset.surfaces.size());
+        metadataHeader.surfaceLodRangeCount = NUMERIC::SaturateToUint32(asset.surfaceLodRanges.size());
+        metadataHeader.surfaceSectionCount = NUMERIC::SaturateToUint32(asset.surfaceSections.size());
+        metadataHeader.clusterCount = NUMERIC::SaturateToUint32(asset.clusters.size());
+        metadataHeader.pageCount = NUMERIC::SaturateToUint32(asset.pages.size());
+        metadataHeader.vertexCount = NUMERIC::SaturateToUint32(asset.packedVertices.size());
         metadataHeader.skinVertexCount = hasSkinningData
-            ? ClampToUint32(asset.packedSkinningVertices.size())
+            ? NUMERIC::SaturateToUint32(asset.packedSkinningVertices.size())
             : 0u;
         metadataHeader.indexCount = options.includeFallbackIndices
-            ? ClampToUint32(asset.packedIndices.size())
+            ? NUMERIC::SaturateToUint32(asset.packedIndices.size())
             : 0u;
-        metadataHeader.materialSlotCount = ClampToUint32(asset.materialSlotMapping.size());
-        metadataHeader.meshletPrimitiveCount = ClampToUint32(asset.meshletPrimitives.size());
+        metadataHeader.materialSlotCount = NUMERIC::SaturateToUint32(asset.materialSlotMapping.size());
+        metadataHeader.meshletPrimitiveCount = NUMERIC::SaturateToUint32(asset.meshletPrimitives.size());
         metadataHeader.totalTriangleCount = asset.totalTriangleCount;
         metadataHeader.totalVertexCount = asset.totalVertexCount;
         metadataHeader.localBoundsMin = BoundsMin4(asset.localBounds);
@@ -396,7 +392,7 @@ namespace HIKARI::RENDER3D::CLUSTER {
         for (size_t surfaceIndex = 0; surfaceIndex < asset.surfaces.size(); ++surfaceIndex) {
             const ClusterSurface& surface = asset.surfaces[surfaceIndex];
             AppendPod(packed.metadataBytes, ToGpuSurface(surface));
-            packed.surfaceRanges.push_back(ToSurfaceRange(ClampToUint32(surfaceIndex), surface));
+            packed.surfaceRanges.push_back(ToSurfaceRange(NUMERIC::SaturateToUint32(surfaceIndex), surface));
         }
 
         metadataHeader.surfaceLodRangeOffsetBytes = AlignSection(packed.metadataBytes);
@@ -472,10 +468,10 @@ namespace HIKARI::RENDER3D::CLUSTER {
         }
 
         packed.metadataBytes.resize(AlignUp(
-            ClampToUint32(packed.metadataBytes.size()),
+            NUMERIC::SaturateToUint32(packed.metadataBytes.size()),
             kClusterGeometryGpuSectionAlignment));
         packed.geometryBytes.resize(AlignUp(
-            ClampToUint32(packed.geometryBytes.size()),
+            NUMERIC::SaturateToUint32(packed.geometryBytes.size()),
             kClusterGeometryGpuSectionAlignment));
 
         metadataHeader.vertexOffsetBytes = geometryHeader.vertexOffsetBytes;
@@ -484,14 +480,14 @@ namespace HIKARI::RENDER3D::CLUSTER {
         metadataHeader.indexOffsetBytes = geometryHeader.indexOffsetBytes;
         metadataHeader.materialSlotOffsetBytes = geometryHeader.materialSlotOffsetBytes;
         metadataHeader.meshletPrimitiveOffsetBytes = geometryHeader.meshletPrimitiveOffsetBytes;
-        metadataHeader.byteSize = ClampToUint32(packed.metadataBytes.size());
+        metadataHeader.byteSize = NUMERIC::SaturateToUint32(packed.metadataBytes.size());
 
         geometryHeader.surfaceOffsetBytes = metadataHeader.surfaceOffsetBytes;
         geometryHeader.surfaceLodRangeOffsetBytes = metadataHeader.surfaceLodRangeOffsetBytes;
         geometryHeader.surfaceSectionOffsetBytes = metadataHeader.surfaceSectionOffsetBytes;
         geometryHeader.clusterOffsetBytes = metadataHeader.clusterOffsetBytes;
         geometryHeader.pageOffsetBytes = metadataHeader.pageOffsetBytes;
-        geometryHeader.byteSize = ClampToUint32(packed.geometryBytes.size());
+        geometryHeader.byteSize = NUMERIC::SaturateToUint32(packed.geometryBytes.size());
 
         std::memcpy(packed.metadataBytes.data(), &metadataHeader, sizeof(metadataHeader));
         std::memcpy(packed.geometryBytes.data(), &geometryHeader, sizeof(geometryHeader));

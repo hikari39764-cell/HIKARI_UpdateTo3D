@@ -130,7 +130,6 @@ namespace HIKARI {
     void CameraDirector::SetBaseCamera(SceneObjectId cameraObjectId) {
         if (!(baseCameraObjectId_ == cameraObjectId)) {
             baseCameraObjectId_ = cameraObjectId;
-            activeBlend_ = {};
             // ベースカメラの変更自体はブレンド設定を持たないため、Cut として扱う。
             activeBlend_ = {};
         }
@@ -180,7 +179,6 @@ namespace HIKARI {
         }
 
         if (releasingWinner) {
-            activeBlend_ = found->request.blend;
             // Override 解除後にベースへ戻る場合は、解除対象のブレンド設定を使う。
             activeBlend_ = found->request.blend;
             blendActive_ = false;

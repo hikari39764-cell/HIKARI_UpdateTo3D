@@ -1,4 +1,5 @@
 #include "Editor/Panels/HIKARI_SceneCreationPanel.h"
+#include "Core/Text/HIKARI_AsciiCase.h"
 
 #include <algorithm>
 #include <cctype>
@@ -18,21 +19,10 @@
 
 namespace HIKARI::EDITOR {
     namespace {
-        std::string LowerCopy(std::string_view text) {
-            std::string value(text);
-            std::transform(
-                value.begin(),
-                value.end(),
-                value.begin(),
-                [](unsigned char ch) {
-                    return static_cast<char>(std::tolower(ch));
-                });
-            return value;
-        }
 
         bool Matches(std::string_view label, std::string_view search) {
             return search.empty() ||
-                LowerCopy(label).find(LowerCopy(search)) !=
+                TEXT::ToLowerAsciiCopy(label).find(TEXT::ToLowerAsciiCopy(search)) !=
                     std::string::npos;
         }
     }
@@ -49,7 +39,7 @@ namespace HIKARI::EDITOR {
             "Search object types...",
             searchBuffer_,
             sizeof(searchBuffer_));
-        const std::string search = LowerCopy(searchBuffer_);
+        const std::string search = TEXT::ToLowerAsciiCopy(searchBuffer_);
         ImGui::Separator();
 
         if (Matches("Empty Object", search) &&

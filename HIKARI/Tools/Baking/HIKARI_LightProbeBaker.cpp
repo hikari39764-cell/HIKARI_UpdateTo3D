@@ -12,6 +12,7 @@
 #include <DirectXTex.h>
 
 #include "Core/HIKARI_Logger.h"
+#include "Project/Paths/HIKARI_ProjectPath.h"
 
 namespace HIKARI::TOOLS::BAKING {
 
@@ -31,18 +32,6 @@ namespace HIKARI::TOOLS::BAKING {
 
         MATH::Vec3 Mul(const MATH::Vec3& value, float scale) {
             return { value.x * scale, value.y * scale, value.z * scale };
-        }
-
-        std::string MakeProjectRelativeString(
-            const std::filesystem::path& projectRoot,
-            const std::filesystem::path& path) {
-
-            std::error_code ec{};
-            const std::filesystem::path relative = std::filesystem::relative(path, projectRoot, ec);
-            if (ec) {
-                return path.lexically_normal().generic_string();
-            }
-            return relative.lexically_normal().generic_string();
         }
 
         std::filesystem::path LightProbeOutputDirectory(
@@ -220,7 +209,7 @@ namespace HIKARI::TOOLS::BAKING {
             ofs << "  \"shOrder\": " << settings.shOrder << ",\n";
             ofs << "  \"capturePaths\": [\n";
             for (size_t i = 0; i < capturePaths.size(); ++i) {
-                ofs << "    \"" << MakeProjectRelativeString(request.projectRoot, capturePaths[i]) << "\"";
+                ofs << "    \"" << PROJECT_PATHS::MakeProjectRelativeString(request.projectRoot, capturePaths[i]) << "\"";
                 ofs << (i + 1 < capturePaths.size() ? "," : "") << "\n";
             }
             ofs << "  ]\n";
@@ -313,7 +302,7 @@ namespace HIKARI::TOOLS::BAKING {
         result.record.countZ = settings.countZ;
         result.record.shOrder = settings.shOrder;
         result.record.probeCount = probeCount;
-        result.record.shDataPath = MakeProjectRelativeString(request.projectRoot, result.volumePath);
+        result.record.shDataPath = PROJECT_PATHS::MakeProjectRelativeString(request.projectRoot, result.volumePath);
 
         result.probeCount = probeCount;
         result.captureResolution = settings.captureResolution;

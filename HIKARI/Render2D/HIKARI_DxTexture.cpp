@@ -1,4 +1,5 @@
 #include "Render2D/HIKARI_DxTexture.h"
+#include "Core/Text/HIKARI_AsciiCase.h"
 #include <algorithm>
 #include <array>
 #include <cassert>
@@ -20,13 +21,6 @@ namespace HIKARI {
     namespace DXTEX {
 
         namespace {
-            std::string ToLowerCopy(std::string value)
-            {
-                std::transform(value.begin(), value.end(), value.begin(), [](unsigned char c) {
-                    return static_cast<char>(std::tolower(c));
-                });
-                return value;
-            }
 
             const char* ColorSpaceSuffix(TextureColorSpace colorSpace)
             {
@@ -74,7 +68,7 @@ namespace HIKARI {
             {
                 std::string normalized = path;
                 std::replace(normalized.begin(), normalized.end(), '\\', '/');
-                return ToLowerCopy(normalized);
+                return TEXT::ToLowerAsciiCopy(normalized);
             }
 
             std::string MakeTextureCacheKey(
@@ -95,7 +89,7 @@ namespace HIKARI {
 
                 return std::string(dimensionPrefix) +
                     "|name:" +
-                    ToLowerCopy(name) +
+                    TEXT::ToLowerAsciiCopy(name) +
                     ColorSpaceSuffix(colorSpace);
             }
 
@@ -111,7 +105,7 @@ namespace HIKARI {
 
             TextureColorSpace ResolveAutoColorSpace(const std::string& name, const std::string& path)
             {
-                const std::string key = ToLowerCopy(name + " " + path);
+                const std::string key = TEXT::ToLowerAsciiCopy(name + " " + path);
 
                 // Data textures must stay linear. Sampling these through an SRGB SRV would corrupt values.
                 if (ContainsAny(key, {
@@ -129,19 +123,19 @@ namespace HIKARI {
 
             bool IsHtexPath(const std::string& path)
             {
-                const std::string lower = ToLowerCopy(path);
+                const std::string lower = TEXT::ToLowerAsciiCopy(path);
                 return lower.size() >= 5 && lower.substr(lower.size() - 5) == ".htex";
             }
 
             bool IsDdsPath(const std::string& path)
             {
-                const std::string lower = ToLowerCopy(path);
+                const std::string lower = TEXT::ToLowerAsciiCopy(path);
                 return lower.size() >= 4 && lower.substr(lower.size() - 4) == ".dds";
             }
 
             bool IsTgaPath(const std::string& path)
             {
-                const std::string lower = ToLowerCopy(path);
+                const std::string lower = TEXT::ToLowerAsciiCopy(path);
                 return lower.size() >= 4 && lower.substr(lower.size() - 4) == ".tga";
             }
 
@@ -913,7 +907,7 @@ namespace HIKARI {
 
         void DxTextureManager::InvalidateTextureCacheByName(const std::string& name)
         {
-            const std::string normalizedName = ToLowerCopy(name);
+            const std::string normalizedName = TEXT::ToLowerAsciiCopy(name);
             const std::string texturePrefix = "tex|name:" + normalizedName + "|";
             const std::string cubemapPrefix = "cube|name:" + normalizedName + "|";
             const std::string legacyTexturePrefix = name + "|";

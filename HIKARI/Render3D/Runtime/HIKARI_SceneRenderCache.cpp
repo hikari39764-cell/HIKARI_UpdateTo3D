@@ -3,17 +3,13 @@
 #include <algorithm>
 #include <limits>
 
+#include "Core/Numeric/HIKARI_IntegerConversion.h"
 #include "Render3D/Core/HIKARI_BoundsUtils.h"
 #include "Render3D/Runtime/HIKARI_RenderSurfaceResolver.h"
 
 namespace HIKARI::RENDER3D::RUNTIME {
 
     namespace {
-        uint32_t ClampToUint32(size_t value) {
-            return static_cast<uint32_t>(
-                (std::min)(value, static_cast<size_t>((std::numeric_limits<uint32_t>::max)())));
-        }
-
         bool EqualVec3(const MATH::Vec3& lhs, const MATH::Vec3& rhs) {
             return lhs.x == rhs.x && lhs.y == rhs.y && lhs.z == rhs.z;
         }
@@ -445,9 +441,9 @@ namespace HIKARI::RENDER3D::RUNTIME {
                 const RenderSurfaceRecord& surface = renderModel.surfaces[surfaceIndex];
                 surfaceInstances_.push_back(BuildSurfaceInstance(
                     object,
-                    ClampToUint32(objectIndex),
+                    NUMERIC::SaturateToUint32(objectIndex),
                     surface,
-                    ClampToUint32(surfaceIndex),
+                    NUMERIC::SaturateToUint32(surfaceIndex),
                     nodeGlobals));
             }
         }
@@ -472,7 +468,7 @@ namespace HIKARI::RENDER3D::RUNTIME {
             ++surfaceInstanceIndex) {
 
             SceneSurfaceInstance& surfaceInstance = surfaceInstances_[surfaceInstanceIndex];
-            if (surfaceInstance.objectIndex != ClampToUint32(objectIndex)) {
+            if (surfaceInstance.objectIndex != NUMERIC::SaturateToUint32(objectIndex)) {
                 continue;
             }
             if (surfaceInstance.surfaceIndex >= renderModel.surfaces.size()) {
@@ -482,11 +478,11 @@ namespace HIKARI::RENDER3D::RUNTIME {
 
             surfaceInstance = BuildSurfaceInstance(
                 object,
-                ClampToUint32(objectIndex),
+                NUMERIC::SaturateToUint32(objectIndex),
                 renderModel.surfaces[surfaceInstance.surfaceIndex],
                 surfaceInstance.surfaceIndex,
                 nodeGlobals);
-            MarkDirtySurfaceIndex(ClampToUint32(surfaceInstanceIndex));
+            MarkDirtySurfaceIndex(NUMERIC::SaturateToUint32(surfaceInstanceIndex));
             ++updatedSurfaceCount;
         }
 
@@ -576,8 +572,8 @@ namespace HIKARI::RENDER3D::RUNTIME {
             }
         }
 
-        stats.surfaceInstanceCount = ClampToUint32(surfaceInstances_.size());
-        stats.dirtySurfaceInstanceCount = ClampToUint32(dirtySurfaceIndices_.size());
+        stats.surfaceInstanceCount = NUMERIC::SaturateToUint32(surfaceInstances_.size());
+        stats.dirtySurfaceInstanceCount = NUMERIC::SaturateToUint32(dirtySurfaceIndices_.size());
         for (const SceneSurfaceInstance& instance : surfaceInstances_) {
             if (instance.visible) {
                 ++stats.visibleSurfaceInstanceCount;

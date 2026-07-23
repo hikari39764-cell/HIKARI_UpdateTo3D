@@ -4,20 +4,14 @@
 #include <cctype>
 #include <system_error>
 
+#include "Core/Text/HIKARI_AsciiCase.h"
+
 namespace HIKARI::EDITOR {
 
     namespace {
-        std::string Lowercase(std::string value) {
-            std::transform(
-                value.begin(),
-                value.end(),
-                value.begin(),
-                [](unsigned char ch) { return static_cast<char>(std::tolower(ch)); });
-            return value;
-        }
-
         bool IsFeatureOwnedRuntime(const std::filesystem::path& path) {
-            const std::string name = Lowercase(path.filename().string());
+            const std::string name =
+                TEXT::ToLowerAsciiCopy(path.filename().string());
             return name.rfind("sl.", 0) == 0 ||
                 name == "nvngx_dlss.dll" ||
                 name == "nvngx_dlssg.dll" ||
@@ -25,9 +19,10 @@ namespace HIKARI::EDITOR {
         }
 
         bool IsAssimpRuntime(const std::filesystem::path& path) {
-            const std::string name = Lowercase(path.filename().string());
+            const std::string name =
+                TEXT::ToLowerAsciiCopy(path.filename().string());
             return name.rfind("assimp-", 0) == 0 &&
-                Lowercase(path.extension().string()) == ".dll";
+                TEXT::ToLowerAsciiCopy(path.extension().string()) == ".dll";
         }
     }
 
@@ -61,7 +56,7 @@ namespace HIKARI::EDITOR {
             }
 
             const std::filesystem::path source = it->path();
-            if (Lowercase(source.extension().string()) != ".dll" ||
+            if (TEXT::ToLowerAsciiCopy(source.extension().string()) != ".dll" ||
                 IsFeatureOwnedRuntime(source)) {
                 continue;
             }

@@ -12,6 +12,8 @@
 #include "Animation/Assets/HIKARI_AnimationAssetTypes.h"
 
 #include "Assets/HIKARI_AssetTypes.h"
+#include "Core/Math/HIKARI_MathValidation.h"
+#include "Core/Text/HIKARI_AsciiCase.h"
 #include "Render3D/Core/HIKARI_Material.h"
 #include "Render3D/HIKARI_Math3D.h"
 #include "Render3D/HIKARI_Mesh.h"
@@ -91,8 +93,7 @@ namespace HIKARI {
             for (size_t begin = 0; begin + needle.size() <= text.size(); ++begin) {
                 bool matched = true;
                 for (size_t i = 0; i < needle.size(); ++i) {
-                    const char c = static_cast<char>(
-                        std::tolower(static_cast<unsigned char>(text[begin + i])));
+                    const char c = TEXT::ToLowerAscii(text[begin + i]);
                     if (c != needle[i]) {
                         matched = false;
                         break;
@@ -244,9 +245,7 @@ namespace HIKARI {
 
         inline bool IsThinPrimitivePlane(const MeshPrimitive& primitive) {
             const MATH::Vec3 extent = BoundsExtent(primitive.bounds);
-            if (!std::isfinite(extent.x) ||
-                !std::isfinite(extent.y) ||
-                !std::isfinite(extent.z)) {
+            if (!MATH::IsFinite(extent)) {
                 return false;
             }
 

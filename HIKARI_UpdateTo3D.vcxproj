@@ -358,6 +358,11 @@
       <ClCompile Include="HIKARI\Physics\HIKARI_PhysicsSystemKinematicSolver.cpp" />
       <ClCompile Include="HIKARI\Physics\HIKARI_PhysicsSystemSynchronization.cpp" />
     <ClCompile Include="HIKARI\Core\IO\HIKARI_FileReplacementTransaction.cpp" />
+    <ClCompile Include="HIKARI\Core\IO\HIKARI_PathNormalization.cpp" />
+    <ClCompile Include="HIKARI\Core\Math\HIKARI_MathValidation.cpp" />
+    <ClCompile Include="HIKARI\Core\Math\HIKARI_NormalMatrix.cpp" />
+    <ClCompile Include="HIKARI\Core\Numeric\HIKARI_IntegerConversion.cpp" />
+    <ClCompile Include="HIKARI\Core\Text\HIKARI_AsciiCase.cpp" />
     <ClCompile Include="HIKARI\Physics\HIKARI_PhysicsBodyValidator.cpp" />
     <ClCompile Include="HIKARI\Physics\HIKARI_PhysicsProjectSettings.cpp" />
     <ClCompile Include="HIKARI\Physics\HIKARI_PhysicsRuntimeStatusService.cpp" />
@@ -640,6 +645,7 @@
     <ClCompile Include="HIKARI\Core\HIKARI_FixedStepClock.cpp" />
     <ClCompile Include="HIKARI\Core\HIKARI_TimeService.cpp" />
     <ClCompile Include="HIKARI\Project\HIKARI_ProjectSettings.cpp" />
+    <ClCompile Include="HIKARI\Project\Paths\HIKARI_ProjectPath.cpp" />
     <ClCompile Include="HIKARI\Runtime\HIKARI_RuntimeResourceRefreshService.cpp" />
     <ClCompile Include="HIKARI\Runtime\HIKARI_RuntimeLaunchConfig.cpp" />
     <ClCompile Include="HIKARI\Runtime\HIKARI_GamePresentationController.cpp" />
@@ -1244,6 +1250,7 @@
     <ClInclude Include="HIKARI\Render3D\Material\HIKARI_GpuMaterialRegistry.h" />
     <ClInclude Include="HIKARI\Render3D\Material\HIKARI_GpuMaterialTypes.h" />
     <ClInclude Include="HIKARI\Project\HIKARI_ProjectSettings.h" />
+    <ClInclude Include="HIKARI\Project\Paths\HIKARI_ProjectPath.h" />
     <ClInclude Include="HIKARI\Runtime\HIKARI_RuntimeHost.h" />
     <ClInclude Include="HIKARI\Runtime\HIKARI_RuntimeLaunchConfig.h" />
     <ClInclude Include="HIKARI\Runtime\HIKARI_GamePresentationController.h" />
@@ -1347,6 +1354,10 @@
     <ClInclude Include="HIKARI\Core\HIKARI_FramePhase.h" />
     <ClInclude Include="HIKARI\Core\HIKARI_Logger.h" />
     <ClInclude Include="HIKARI\Core\HIKARI_FixedStepClock.h" />
+    <ClInclude Include="HIKARI\Core\Math\HIKARI_MathValidation.h" />
+    <ClInclude Include="HIKARI\Core\Math\HIKARI_NormalMatrix.h" />
+    <ClInclude Include="HIKARI\Core\Numeric\HIKARI_IntegerConversion.h" />
+    <ClInclude Include="HIKARI\Core\Text\HIKARI_AsciiCase.h" />
     <ClInclude Include="HIKARI\Core\HIKARI_MathConfig.h" />
     <ClInclude Include="HIKARI\Core\HIKARI_TimeService.h" />
     <ClInclude Include="HIKARI\Core\HIKARI_Utility.h" />
@@ -1363,6 +1374,7 @@
     <ClInclude Include="HIKARI\Scene\Features\HIKARI_SequenceRuntimeFeature.h" />
     <ClInclude Include="HIKARI\Physics\HIKARI_IPhysicsWorldBackend.h" />
     <ClInclude Include="HIKARI\Core\IO\HIKARI_FileReplacementTransaction.h" />
+    <ClInclude Include="HIKARI\Core\IO\HIKARI_PathNormalization.h" />
     <ClInclude Include="HIKARI\Physics\HIKARI_PhysicsSceneBridge.h" />
     <ClInclude Include="HIKARI\Physics\HIKARI_PhysicsDefinitionScale.h" />
     <ClInclude Include="HIKARI\Physics\HIKARI_PhysicsPresentation.h" />

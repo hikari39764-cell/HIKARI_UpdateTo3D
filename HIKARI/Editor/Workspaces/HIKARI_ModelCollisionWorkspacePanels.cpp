@@ -1,4 +1,5 @@
 #include "Editor/Workspaces/HIKARI_ModelCollisionWorkspaceController.h"
+#include "Core/Text/HIKARI_AsciiCase.h"
 
 #include <algorithm>
 #include <cctype>
@@ -40,14 +41,8 @@ namespace HIKARI::EDITOR {
             if (query.empty()) {
                 return true;
             }
-            std::string lowerText(text);
-            std::string lowerQuery(query);
-            std::transform(
-                lowerText.begin(), lowerText.end(), lowerText.begin(),
-                [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
-            std::transform(
-                lowerQuery.begin(), lowerQuery.end(), lowerQuery.begin(),
-                [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+            const std::string lowerText = TEXT::ToLowerAsciiCopy(text);
+            const std::string lowerQuery = TEXT::ToLowerAsciiCopy(query);
             return lowerText.find(lowerQuery) != std::string::npos;
         }
 #endif

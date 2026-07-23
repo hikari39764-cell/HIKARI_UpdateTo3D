@@ -1,4 +1,5 @@
 #include "Render3D/Core/HIKARI_ModelManager.h"
+#include "Core/Text/HIKARI_AsciiCase.h"
 #include <algorithm>
 #include <array>
 #include <cctype>
@@ -85,9 +86,7 @@ namespace HIKARI {
 
         bool IsHtexPath(const std::string& path) {
             std::string ext = std::filesystem::path(path).extension().string();
-            for (char& c : ext) {
-                c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
-            }
+            TEXT::ToLowerAsciiInPlace(ext);
             return ext == ".htex";
         }
 
@@ -864,7 +863,7 @@ namespace HIKARI {
             ok = BuildBuiltinCube(*asset);
         } else {
             std::string ext = GetFileExt(sourcePath);
-            for (char& c : ext) c = static_cast<char>(::tolower(static_cast<unsigned char>(c)));
+            TEXT::ToLowerAsciiInPlace(ext);
             if (ext == ".hmodel") {
                 ok = LoadAsHmodel(*asset);
             } else if (ext == ".obj") {
@@ -922,7 +921,7 @@ namespace HIKARI {
     bool ModelManager::LoadCpuAssetFromSource(ModelAsset& asset) {
         const std::string sourcePath = asset.GetSourcePath();
         std::string ext = GetFileExt(sourcePath);
-        for (char& c : ext) c = static_cast<char>(::tolower(static_cast<unsigned char>(c)));
+        TEXT::ToLowerAsciiInPlace(ext);
 
         if (ext == ".hmodel") {
             std::string message{};

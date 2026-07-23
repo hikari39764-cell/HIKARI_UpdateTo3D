@@ -3,6 +3,8 @@
 #include <algorithm>
 #include <cmath>
 
+#include "Core/Math/HIKARI_MathValidation.h"
+
 namespace HIKARI::EDITOR {
 
     namespace {
@@ -24,12 +26,6 @@ namespace HIKARI::EDITOR {
             float nearClip = 0.1f;
             float farClip = 100.0f;
         };
-
-        bool IsFinite(const MATH::Vec3& value) noexcept {
-            return std::isfinite(value.x) &&
-                std::isfinite(value.y) &&
-                std::isfinite(value.z);
-        }
 
         bool TryGetCameraLensValues(
             const SceneObjectData& object,
@@ -90,8 +86,8 @@ namespace HIKARI::EDITOR {
             cameraObjectId);
         CameraLensValues cameraLens{};
         if (cameraObject == nullptr || !std::isfinite(timeSeconds) ||
-            !IsFinite(cameraObject->transform.position) ||
-            !IsFinite(cameraObject->transform.rotationEulerDeg) ||
+            !MATH::IsFinite(cameraObject->transform.position) ||
+            !MATH::IsFinite(cameraObject->transform.rotationEulerDeg) ||
             !TryGetCameraLensValues(*cameraObject, cameraLens)) {
             return result;
         }
@@ -169,8 +165,8 @@ namespace HIKARI::EDITOR {
             cameraObjectId);
         CameraLensValues lens{};
         if (cameraObject == nullptr || !std::isfinite(timeSeconds) ||
-            !IsFinite(cameraObject->transform.position) ||
-            !IsFinite(cameraObject->transform.rotationEulerDeg) ||
+            !MATH::IsFinite(cameraObject->transform.position) ||
+            !MATH::IsFinite(cameraObject->transform.rotationEulerDeg) ||
             !TryGetCameraLensValues(*cameraObject, lens)) {
             return result;
         }

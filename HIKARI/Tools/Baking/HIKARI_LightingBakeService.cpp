@@ -2,7 +2,10 @@
 
 #include "Assets/HIKARI_AssetRegistry.h"
 #include "Assets/HIKARI_AssetTypes.h"
+#include "Core/IO/HIKARI_PathNormalization.h"
 #include "Core/HIKARI_Logger.h"
+#include "Core/Text/HIKARI_AsciiCase.h"
+#include "Project/Paths/HIKARI_ProjectPath.h"
 #include "Scene/HIKARI_SceneDocument.h"
 #include "Scene/Scenes/HIKARI_DocumentSceneBase.h"
 #include "Tools/Baking/HIKARI_ReflectionProbeBaker.h"
@@ -26,11 +29,8 @@ namespace HIKARI::TOOLS::BAKING {
         }
 
         std::string ToLowerGenericPath(std::filesystem::path path) {
-            std::string text = path.lexically_normal().generic_string();
-            std::transform(text.begin(), text.end(), text.begin(), [](unsigned char c) {
-                return static_cast<char>(std::tolower(c));
-            });
-            return text;
+            return TEXT::ToLowerAsciiCopy(
+                path.lexically_normal().generic_string());
         }
 
         bool HasPathPrefix(const std::filesystem::path& path, const std::filesystem::path& prefix) {
@@ -43,27 +43,6 @@ namespace HIKARI::TOOLS::BAKING {
                 return false;
             }
             return lhs.compare(0, rhs.size(), rhs) == 0 && lhs[rhs.size()] == '/';
-        }
-
-        std::filesystem::path MakeAbsoluteNormalized(const std::filesystem::path& path) {
-            std::error_code ec{};
-            std::filesystem::path absolute = std::filesystem::absolute(path, ec);
-            if (ec) {
-                return path.lexically_normal();
-            }
-            return absolute.lexically_normal();
-        }
-
-        std::string MakeProjectRelativeString(
-            const std::filesystem::path& projectRoot,
-            const std::filesystem::path& path) {
-
-            std::error_code ec{};
-            std::filesystem::path relative = std::filesystem::relative(path, projectRoot, ec);
-            if (ec) {
-                return path.lexically_normal().generic_string();
-            }
-            return relative.lexically_normal().generic_string();
         }
 
         std::string MakeBakeGuid() {
@@ -241,9 +220,9 @@ namespace HIKARI::TOOLS::BAKING {
             return report;
         }
 
-        const std::filesystem::path projectRoot = MakeAbsoluteNormalized(request.projectRoot);
-        const std::filesystem::path bakeRoot = MakeAbsoluteNormalized(report.bakeRoot);
-        const std::filesystem::path lightingRoot = MakeAbsoluteNormalized(
+        const std::filesystem::path projectRoot = PATHS::MakeAbsoluteNormalized(request.projectRoot);
+        const std::filesystem::path bakeRoot = PATHS::MakeAbsoluteNormalized(report.bakeRoot);
+        const std::filesystem::path lightingRoot = PATHS::MakeAbsoluteNormalized(
             request.projectRoot / "Library" / "Generated" / "Lighting");
 
         if (!HasPathPrefix(bakeRoot, projectRoot) || !HasPathPrefix(bakeRoot, lightingRoot)) {
@@ -280,7 +259,7 @@ namespace HIKARI::TOOLS::BAKING {
         manifest.sceneGuid = request.sceneGuid;
         manifest.bakeGuid = MakeBakeGuid();
         manifest.bakeVersion = 1;
-        manifest.generatedRoot = MakeProjectRelativeString(
+        manifest.generatedRoot = PROJECT_PATHS::MakeProjectRelativeString(
             request.projectRoot,
             ASSETS::LIGHTING::BuildLightingBakeRoot(request.projectRoot, request.sceneGuid));
         return manifest;

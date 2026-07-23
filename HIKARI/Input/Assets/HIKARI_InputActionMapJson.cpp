@@ -1,4 +1,5 @@
 #include "Input/Assets/HIKARI_InputActionMapJson.h"
+#include "Core/Text/HIKARI_AsciiCase.h"
 
 #include <algorithm>
 #include <cctype>
@@ -23,7 +24,7 @@ std::string ContextFileStem(std::string_view contextId) {
     stem.reserve(contextId.size());
     for (unsigned char c : contextId) {
         if (std::isalnum(c) != 0) {
-            stem.push_back(static_cast<char>(std::tolower(c)));
+            stem.push_back(TEXT::ToLowerAscii(static_cast<char>(c)));
         } else if (!stem.empty() && stem.back() != '_') {
             stem.push_back('_');
         }

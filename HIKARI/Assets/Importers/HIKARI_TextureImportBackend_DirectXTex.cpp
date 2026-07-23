@@ -1,4 +1,6 @@
 #include "HIKARI_TextureImportBackend_DirectXTex.h"
+#include "Core/Text/HIKARI_AsciiCase.h"
+#include "Core/Text/HIKARI_AsciiCase.h"
 
 #include <Windows.h>
 #include <DirectXTex.h>
@@ -18,14 +20,6 @@
 namespace HIKARI {
 
     namespace {
-        std::string ToLowerCopy(std::string value) {
-            for (char& c : value) {
-                if (c >= 'A' && c <= 'Z') {
-                    c = static_cast<char>(c - 'A' + 'a');
-                }
-            }
-            return value;
-        }
 
         std::string ToHexHr(HRESULT hr) {
             std::ostringstream oss;
@@ -45,7 +39,7 @@ namespace HIKARI {
             DirectX::ScratchImage& image,
             std::string& outMessage) {
 
-            const std::string ext = ToLowerCopy(sourcePath.extension().string());
+            const std::string ext = TEXT::ToLowerAsciiCopy(sourcePath.extension().string());
             const std::wstring widePath = sourcePath.wstring();
 
             if (ext == ".dds") {
@@ -81,7 +75,7 @@ namespace HIKARI {
         }
 
         bool IsHdrLike(const std::filesystem::path& sourcePath, const DirectX::TexMetadata& metadata, TextureUsage usage) {
-            const std::string ext = ToLowerCopy(sourcePath.extension().string());
+            const std::string ext = TEXT::ToLowerAsciiCopy(sourcePath.extension().string());
             if (ext == ".hdr" || ext == ".exr") {
                 return true;
             }

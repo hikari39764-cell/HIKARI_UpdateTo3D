@@ -1,4 +1,5 @@
 #include "Editor/Panels/HIKARI_InputActionMapEditorWidgets.h"
+#include "Core/Text/HIKARI_AsciiCase.h"
 
 #include <algorithm>
 #include <array>
@@ -13,12 +14,6 @@
 namespace HIKARI::EDITOR::INPUT_WIDGETS {
 namespace {
 
-std::string LowerCopy(std::string_view value) {
-    std::string result(value);
-    std::transform(result.begin(), result.end(), result.begin(),
-        [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
-    return result;
-}
 
 const std::vector<std::string>& KeyboardControls() {
     static const std::vector<std::string> controls = [] {
@@ -96,7 +91,7 @@ bool EditString(const char* label, std::string& value, size_t capacity) {
 
 bool MatchesFilter(std::string_view value, const char* filter) {
     if (filter == nullptr || *filter == '\0') return true;
-    return LowerCopy(value).find(LowerCopy(filter)) != std::string::npos;
+    return TEXT::ToLowerAsciiCopy(value).find(TEXT::ToLowerAsciiCopy(filter)) != std::string::npos;
 }
 
 bool DrawValueTypeCombo(

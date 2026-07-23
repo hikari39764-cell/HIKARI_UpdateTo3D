@@ -8,6 +8,8 @@
 #include <vector>
 
 #include "Assets/HIKARI_AssetRegistry.h"
+#include "Core/Text/HIKARI_AsciiCase.h"
+#include "Project/Paths/HIKARI_ProjectPath.h"
 #include "Core/HIKARI_Logger.h"
 #include "Render3D/Core/HIKARI_ModelManager.h"
 #include "Render3D/Core/HIKARI_Material.h"
@@ -42,9 +44,7 @@ namespace HIKARI {
 
         std::string NormalizePlanPathKey(std::string value) {
             std::replace(value.begin(), value.end(), '\\', '/');
-            std::transform(value.begin(), value.end(), value.begin(), [](unsigned char c) {
-                return static_cast<char>(std::tolower(c));
-            });
+            TEXT::ToLowerAsciiInPlace(value);
             return value;
         }
 
@@ -183,17 +183,6 @@ namespace HIKARI {
             AddMaterialTextureSlot(plan, assetRegistry, descriptor.id.value, descriptor.data.specularColorTexture, ModelTextureUsage::SpecularColor);
         }
 
-        std::filesystem::path ResolveProjectPath(
-            const std::filesystem::path& projectRoot,
-            const std::string& path) {
-
-            std::filesystem::path resolved = path;
-            if (!resolved.is_absolute() && !projectRoot.empty()) {
-                resolved = projectRoot / resolved;
-            }
-            return resolved.lexically_normal();
-        }
-
         void AddClusterGeometryRequest(
             RuntimeAssetLoadPlan& plan,
             const std::filesystem::path& projectRoot,
@@ -204,7 +193,7 @@ namespace HIKARI {
             }
 
             const std::filesystem::path resolvedPath =
-                ResolveProjectPath(projectRoot, descriptor.clusteredGeometryPath);
+                PROJECT_PATHS::ResolveProjectPath(projectRoot, descriptor.clusteredGeometryPath);
             const std::string renderPath = resolvedPath.generic_string();
             const std::string sourceKey =
                 RENDER3D::GPUDRIVEN::BuildGpuSceneClusterGeometrySourceKey(renderPath);

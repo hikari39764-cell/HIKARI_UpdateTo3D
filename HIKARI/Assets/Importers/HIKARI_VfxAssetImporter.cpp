@@ -1,4 +1,6 @@
 #include "HIKARI_VfxAssetImporter.h"
+#include "Core/Text/HIKARI_AsciiCase.h"
+#include "Core/Text/HIKARI_AsciiCase.h"
 
 #include <algorithm>
 #include <cctype>
@@ -8,12 +10,6 @@
 namespace HIKARI {
 
     namespace {
-        std::string ToLowerCopy(std::string value) {
-            std::transform(value.begin(), value.end(), value.begin(), [](unsigned char c) {
-                return static_cast<char>(std::tolower(c));
-            });
-            return value;
-        }
     }
 
     const char* VfxAssetImporter::GetImporterId() const {
@@ -25,7 +21,7 @@ namespace HIKARI {
     }
 
     bool VfxAssetImporter::CanImport(const std::filesystem::path& sourcePath) const {
-        const std::string ext = ToLowerCopy(sourcePath.extension().string());
+        const std::string ext = TEXT::ToLowerAsciiCopy(sourcePath.extension().string());
         return ext == ".efk" || ext == ".efkefc";
     }
 

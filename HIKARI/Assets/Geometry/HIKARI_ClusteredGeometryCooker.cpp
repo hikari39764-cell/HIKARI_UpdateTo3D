@@ -7,6 +7,8 @@
 #include <numeric>
 #include <unordered_map>
 
+#include "Core/Math/HIKARI_MathValidation.h"
+#include "Core/Math/HIKARI_NormalMatrix.h"
 #include "Render3D/Core/HIKARI_BoundsUtils.h"
 #include "Render3D/Cluster/HIKARI_ClusterGeometryPacked.h"
 #include "Tools/Geometry/HIKARI_MeshLodGenerator.h"
@@ -84,7 +86,6 @@ namespace HIKARI::ASSETS::GEOMETRY {
             const ClusterCookSettings& settings,
             ClusteredGeometryBuildReport* report = nullptr);
 
-        bool IsFiniteVec3(const MATH::Vec3& v);
         bool ShouldUsePermissiveOpaqueLods(uint32_t flags);
         uint32_t TriangleNormalBucket(const SourceTriangle& tri);
         SurfaceShapeAnalysis AnalyzeSurfaceShape(
@@ -154,8 +155,8 @@ namespace HIKARI::ASSETS::GEOMETRY {
                 bounds.cone_axis[2]
             };
             outCluster.coneCutoff = bounds.cone_cutoff;
-            if (!IsFiniteVec3(outCluster.coneApex) ||
-                !IsFiniteVec3(outCluster.coneAxis) ||
+            if (!MATH::IsFinite(outCluster.coneApex) ||
+                !MATH::IsFinite(outCluster.coneAxis) ||
                 !std::isfinite(outCluster.coneCutoff) ||
                 MATH::Length(outCluster.coneAxis) <= 1.0e-5f) {
                 outCluster.coneApex = outCluster.sphereCenter;
@@ -260,46 +261,9 @@ namespace HIKARI::ASSETS::GEOMETRY {
                 });
         }
 
-        bool IsFiniteVec3(const MATH::Vec3& v) {
-            return std::isfinite(v.x) && std::isfinite(v.y) && std::isfinite(v.z);
-        }
-
         MATH::Vec3 TransformVector(const MATH::Mat4& matrix, const MATH::Vec3& value) {
             const MATH::Vec4 transformed = matrix.TransformPoint({ value.x, value.y, value.z, 0.0f });
             return { transformed.x, transformed.y, transformed.z };
-        }
-
-        MATH::Mat4 BuildNormalMatrixFromWorld(const MATH::Mat4& world) {
-            const float a00 = world.m[0][0];
-            const float a01 = world.m[1][0];
-            const float a02 = world.m[2][0];
-            const float a10 = world.m[0][1];
-            const float a11 = world.m[1][1];
-            const float a12 = world.m[2][1];
-            const float a20 = world.m[0][2];
-            const float a21 = world.m[1][2];
-            const float a22 = world.m[2][2];
-
-            const float det =
-                a00 * (a11 * a22 - a12 * a21) -
-                a01 * (a10 * a22 - a12 * a20) +
-                a02 * (a10 * a21 - a11 * a20);
-            if (std::abs(det) <= 1e-6f) {
-                return MATH::Mat4::Identity();
-            }
-
-            const float invDet = 1.0f / det;
-            MATH::Mat4 normalMatrix = MATH::Mat4::Identity();
-            normalMatrix.m[0][0] = (a11 * a22 - a12 * a21) * invDet;
-            normalMatrix.m[0][1] = (a02 * a21 - a01 * a22) * invDet;
-            normalMatrix.m[0][2] = (a01 * a12 - a02 * a11) * invDet;
-            normalMatrix.m[1][0] = (a12 * a20 - a10 * a22) * invDet;
-            normalMatrix.m[1][1] = (a00 * a22 - a02 * a20) * invDet;
-            normalMatrix.m[1][2] = (a02 * a10 - a00 * a12) * invDet;
-            normalMatrix.m[2][0] = (a10 * a21 - a11 * a20) * invDet;
-            normalMatrix.m[2][1] = (a01 * a20 - a00 * a21) * invDet;
-            normalMatrix.m[2][2] = (a00 * a11 - a01 * a10) * invDet;
-            return normalMatrix;
         }
 
         ClusterVertex ToClusterVertex(
@@ -373,7 +337,7 @@ namespace HIKARI::ASSETS::GEOMETRY {
         }
 
         void EncapsulatePoint(Bounds& bounds, bool& hasBounds, const MATH::Vec3& point) {
-            if (!IsFiniteVec3(point)) {
+            if (!MATH::IsFinite(point)) {
                 return;
             }
             if (!hasBounds) {
@@ -2912,7 +2876,7 @@ namespace HIKARI::ASSETS::GEOMETRY {
                     outWork.vertices.push_back(ToClusterVertex(vertex));
                 }
             } else {
-                const MATH::Mat4 normalMatrix = BuildNormalMatrixFromWorld(matrix);
+                const MATH::Mat4 normalMatrix = MATH::BuildNormalMatrixFromWorld(matrix);
                 for (const Vertex3D& vertex : primitive.staticVertices) {
                     outWork.vertices.push_back(ToClusterVertex(vertex, matrix, normalMatrix));
                 }

@@ -1,4 +1,6 @@
 #include "HIKARI_ModelImporter.h"
+#include "Core/Text/HIKARI_AsciiCase.h"
+#include "Core/Text/HIKARI_AsciiCase.h"
 
 #include <Windows.h>
 
@@ -22,18 +24,13 @@
 #include "Assets/HIKARI_AssetSourcePolicy.h"
 #include "Assets/Tasks/HIKARI_AssetTaskService.h"
 #include "Core/HIKARI_Logger.h"
+#include "Project/Paths/HIKARI_ProjectPath.h"
 #include "HIKARI_TextureImportBackend_DirectXTex.h"
 #include "Render3D/Core/HIKARI_ModelManager.h"
 
 namespace HIKARI {
 
     namespace {
-        std::string ToLowerCopy(std::string value) {
-            std::transform(value.begin(), value.end(), value.begin(), [](unsigned char c) {
-                return static_cast<char>(std::tolower(c));
-            });
-            return value;
-        }
 
         bool IsCookableModelExtension(const std::string& ext) {
             return ext == ".gltf" || ext == ".obj" || ext == ".fbx";
@@ -41,28 +38,6 @@ namespace HIKARI {
 
         const char* ToSupportedModelExtensionsText() {
             return ".gltf, .obj, .fbx";
-        }
-
-        std::filesystem::path ResolveProjectPath(
-            const std::filesystem::path& projectRoot,
-            const std::filesystem::path& path) {
-
-            if (path.is_absolute()) {
-                return path.lexically_normal();
-            }
-            return (projectRoot / path).lexically_normal();
-        }
-
-        std::filesystem::path MakeProjectRelative(
-            const std::filesystem::path& projectRoot,
-            const std::filesystem::path& path) {
-
-            std::error_code ec{};
-            std::filesystem::path relative = std::filesystem::relative(path, projectRoot, ec);
-            if (ec) {
-                return path.lexically_normal();
-            }
-            return relative.lexically_normal();
         }
 
         std::filesystem::path MakeSourceMetaPath(
@@ -1038,8 +1013,8 @@ namespace HIKARI {
                 return false;
             }
 
-            const std::filesystem::path absoluteTexturePath = ResolveProjectPath(projectRoot, texture.sourcePath);
-            const std::filesystem::path relativeTexturePath = MakeProjectRelative(projectRoot, absoluteTexturePath);
+            const std::filesystem::path absoluteTexturePath = PROJECT_PATHS::ResolveProjectPath(projectRoot, texture.sourcePath);
+            const std::filesystem::path relativeTexturePath = PROJECT_PATHS::MakeProjectRelativePath(projectRoot, absoluteTexturePath);
             const std::filesystem::path metaPath = MakeSourceMetaPath(sourceMetaRoot, relativeTexturePath);
             if (metaPath.empty()) {
                 return false;
@@ -1297,7 +1272,7 @@ namespace HIKARI {
     }
 
     bool ModelImporter::CanImport(const std::filesystem::path& sourcePath) const {
-        const std::string ext = ToLowerCopy(sourcePath.extension().string());
+        const std::string ext = TEXT::ToLowerAsciiCopy(sourcePath.extension().string());
         return IsCookableModelExtension(ext);
     }
 
@@ -1373,7 +1348,7 @@ namespace HIKARI {
             return context.task != nullptr &&
                 context.task->IsCancellationRequested();
         };
-        const std::string ext = ToLowerCopy(record.sourcePath.extension().string());
+        const std::string ext = TEXT::ToLowerAsciiCopy(record.sourcePath.extension().string());
         if (!IsCookableModelExtension(ext)) {
             result.message = "[AssetImporter] HMODEL cook supports " +
                 std::string(ToSupportedModelExtensionsText()) +
@@ -1393,7 +1368,7 @@ namespace HIKARI {
             true);
         const ASSETS::GEOMETRY::ClusterCookSettings clusterSettings =
             BuildClusterCookSettings(importSettings, clusterProfile);
-        const std::filesystem::path absoluteSource = ResolveProjectPath(context.projectRoot, record.sourcePath);
+        const std::filesystem::path absoluteSource = PROJECT_PATHS::ResolveProjectPath(context.projectRoot, record.sourcePath);
 
         reportStage("Parsing model source", 0.08f, false);
         if (canceled()) {
@@ -1458,7 +1433,7 @@ namespace HIKARI {
             } else if (!texture.sourcePath.empty()) {
                 ++fallbackTextureCount;
                 InspectSourceTextureAlpha(
-                    ResolveProjectPath(context.projectRoot, texture.sourcePath),
+                    PROJECT_PATHS::ResolveProjectPath(context.projectRoot, texture.sourcePath),
                     diagnostic);
             }
 
@@ -1537,7 +1512,7 @@ namespace HIKARI {
                         hcmeshReady = true;
                         result.artifacts.push_back(AssetArtifactDesc{
                             "ClusteredGeometry",
-                            MakeProjectRelative(context.projectRoot, finalHcmeshPath).generic_string(),
+                            PROJECT_PATHS::MakeProjectRelativeString(context.projectRoot, finalHcmeshPath),
                             "HCMESH"
                         });
                     }
@@ -1575,7 +1550,7 @@ namespace HIKARI {
         if (hcollisionReady) {
             result.artifacts.push_back(AssetArtifactDesc{
                 "CollisionGeometry",
-                MakeProjectRelative(
+                PROJECT_PATHS::MakeProjectRelativePath(
                     context.projectRoot,
                     collisionArtifact.path).generic_string(),
                 "HCOLLISION"
@@ -1614,7 +1589,7 @@ namespace HIKARI {
         result.diagnosticsJson = diagnostics.dump(2);
         result.artifacts.push_back(AssetArtifactDesc{
             "MainModel",
-            MakeProjectRelative(context.projectRoot, finalPath).generic_string(),
+            PROJECT_PATHS::MakeProjectRelativeString(context.projectRoot, finalPath),
             "HMODEL"
         });
 

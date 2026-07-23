@@ -1,4 +1,6 @@
 #include "HIKARI_TextureImporter.h"
+#include "Core/Text/HIKARI_AsciiCase.h"
+#include "Core/Text/HIKARI_AsciiCase.h"
 
 #include <Windows.h>
 
@@ -11,18 +13,13 @@
 #include <json.hpp>
 
 #include "Core/HIKARI_Logger.h"
+#include "Project/Paths/HIKARI_ProjectPath.h"
 #include "Assets/Tasks/HIKARI_AssetTaskService.h"
 #include "HIKARI_HtexTextureWriter_DirectXTex.h"
 
 namespace HIKARI {
 
     namespace {
-        std::string ToLowerCopy(std::string value) {
-            std::transform(value.begin(), value.end(), value.begin(), [](unsigned char c) {
-                return static_cast<char>(std::tolower(c));
-            });
-            return value;
-        }
 
         bool EndsWith(std::string_view text, std::string_view suffix) {
             return text.size() >= suffix.size() &&
@@ -153,8 +150,8 @@ namespace HIKARI {
             settings.dimension = TextureAssetDimension::Texture2D;
             settings.outputFormat = CookedAssetFormat::DDS;
 
-            const std::string key = ToLowerCopy(sourcePath.stem().string() + " " + sourcePath.generic_string());
-            const std::string ext = ToLowerCopy(sourcePath.extension().string());
+            const std::string key = TEXT::ToLowerAsciiCopy(sourcePath.stem().string() + " " + sourcePath.generic_string());
+            const std::string ext = TEXT::ToLowerAsciiCopy(sourcePath.extension().string());
 
             if (key.find("normal") != std::string::npos ||
                 key.find("_nrm") != std::string::npos ||
@@ -255,18 +252,6 @@ namespace HIKARI {
             };
         }
 
-        std::filesystem::path MakeProjectRelative(
-            const std::filesystem::path& projectRoot,
-            const std::filesystem::path& path) {
-
-            std::error_code ec{};
-            std::filesystem::path relative = std::filesystem::relative(path, projectRoot, ec);
-            if (ec) {
-                return path.lexically_normal();
-            }
-            return relative.lexically_normal();
-        }
-
         bool ReplaceFileWithTemp(
             const std::filesystem::path& tempPath,
             const std::filesystem::path& finalPath,
@@ -306,7 +291,7 @@ namespace HIKARI {
     }
 
     bool TextureImporter::CanImport(const std::filesystem::path& sourcePath) const {
-        return IsTextureExtension(ToLowerCopy(sourcePath.extension().string()));
+        return IsTextureExtension(TEXT::ToLowerAsciiCopy(sourcePath.extension().string()));
     }
 
     AssetMeta TextureImporter::CreateDefaultMeta(
@@ -472,12 +457,12 @@ namespace HIKARI {
         }.dump(2);
         result.artifacts.push_back(AssetArtifactDesc{
             "MainTexture",
-            MakeProjectRelative(context.projectRoot, finalHtexPath).generic_string(),
+            PROJECT_PATHS::MakeProjectRelativeString(context.projectRoot, finalHtexPath),
             "HTEX"
         });
         result.artifacts.push_back(AssetArtifactDesc{
             "DebugDDS",
-            MakeProjectRelative(context.projectRoot, finalPath).generic_string(),
+            PROJECT_PATHS::MakeProjectRelativeString(context.projectRoot, finalPath),
             "DDS"
         });
 

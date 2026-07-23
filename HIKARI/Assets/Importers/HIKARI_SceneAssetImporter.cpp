@@ -1,4 +1,6 @@
 #include "HIKARI_SceneAssetImporter.h"
+#include "Core/Text/HIKARI_AsciiCase.h"
+#include "Core/Text/HIKARI_AsciiCase.h"
 
 #include <algorithm>
 #include <cctype>
@@ -8,12 +10,6 @@
 namespace HIKARI {
 
     namespace {
-        std::string ToLowerCopy(std::string value) {
-            std::transform(value.begin(), value.end(), value.begin(), [](unsigned char c) {
-                return static_cast<char>(std::tolower(c));
-            });
-            return value;
-        }
 
         bool EndsWith(std::string_view text, std::string_view suffix) {
             return text.size() >= suffix.size() &&
@@ -21,9 +17,9 @@ namespace HIKARI {
         }
 
         bool IsSceneSourcePath(const std::filesystem::path& sourcePath) {
-            const std::string lowerPath = ToLowerCopy(sourcePath.generic_string());
-            const std::string filename = ToLowerCopy(sourcePath.filename().string());
-            const std::string ext = ToLowerCopy(sourcePath.extension().string());
+            const std::string lowerPath = TEXT::ToLowerAsciiCopy(sourcePath.generic_string());
+            const std::string filename = TEXT::ToLowerAsciiCopy(sourcePath.filename().string());
+            const std::string ext = TEXT::ToLowerAsciiCopy(sourcePath.extension().string());
             return ext == ".hscene" ||
                 EndsWith(filename, ".scene.json") ||
                 (ext == ".json" && lowerPath.find("assets/scenes/") != std::string::npos);

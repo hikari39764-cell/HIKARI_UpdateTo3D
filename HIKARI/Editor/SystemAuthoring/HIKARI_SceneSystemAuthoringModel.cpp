@@ -5,23 +5,13 @@
 #include <unordered_set>
 #include <utility>
 
+#include "Core/Text/HIKARI_AsciiCase.h"
 #include "Scene/HIKARI_ComponentSystemPolicy.h"
 #include "Scene/HIKARI_SystemScheduler.h"
 #include "Scene/HIKARI_SystemTypeRegistry.h"
 
 namespace HIKARI::EDITOR {
     namespace {
-
-        std::string Lowercase(std::string value) {
-            std::transform(
-                value.begin(),
-                value.end(),
-                value.begin(),
-                [](unsigned char character) {
-                    return static_cast<char>(std::tolower(character));
-                });
-            return value;
-        }
 
         size_t CountSceneComponents(
             const SceneDocument& document,
@@ -125,7 +115,7 @@ namespace HIKARI::EDITOR {
         if (filter.empty()) {
             return true;
         }
-        const std::string query = Lowercase(std::string(filter));
+        const std::string query = TEXT::ToLowerAsciiCopy(filter);
         std::string searchable = row.systemId;
         if (row.runtimeInfo) {
             searchable += " ";
@@ -133,7 +123,7 @@ namespace HIKARI::EDITOR {
             searchable += " ";
             searchable += row.runtimeInfo->featureId;
         }
-        return Lowercase(std::move(searchable)).find(query) !=
+        return TEXT::ToLowerAsciiCopy(searchable).find(query) !=
             std::string::npos;
     }
 

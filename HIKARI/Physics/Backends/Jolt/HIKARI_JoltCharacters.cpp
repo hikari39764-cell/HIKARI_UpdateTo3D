@@ -7,6 +7,7 @@
 
 #include <Jolt/Physics/Body/Body.h>
 
+#include "Core/Math/HIKARI_MathValidation.h"
 #include "Physics/Backends/Jolt/HIKARI_JoltConversions.h"
 #include "Physics/Backends/Jolt/HIKARI_JoltShapeFactory.h"
 
@@ -49,12 +50,8 @@ namespace HIKARI::PHYSICS::JOLT_BACKEND {
                 finite(desc.characterPadding) &&
                 finite(desc.predictiveContactDistance) &&
                 finite(desc.penetrationRecoverySpeed) &&
-                finite(info.initialPose.position.x) &&
-                finite(info.initialPose.position.y) &&
-                finite(info.initialPose.position.z) &&
-                finite(info.initialLinearVelocity.x) &&
-                finite(info.initialLinearVelocity.y) &&
-                finite(info.initialLinearVelocity.z);
+                MATH::IsFinite(info.initialPose.position) &&
+                MATH::IsFinite(info.initialLinearVelocity);
         }
 
     }

@@ -4,6 +4,7 @@
 #include <cmath>
 #include <limits>
 
+#include "Core/Math/HIKARI_MathValidation.h"
 #include "Render3D/Core/HIKARI_BoundsUtils.h"
 
 #ifdef max
@@ -26,10 +27,7 @@ namespace HIKARI::EDITOR {
             MATH::Vec3& outPoint) noexcept {
             const MATH::Vec4 world =
                 inverseViewProjection.TransformPoint({ x, y, z, 1.0f });
-            if (!std::isfinite(world.x) ||
-                !std::isfinite(world.y) ||
-                !std::isfinite(world.z) ||
-                !std::isfinite(world.w) ||
+            if (!MATH::IsFinite(world) ||
                 std::abs(world.w) <= 1.0e-6f) {
                 return false;
             }
@@ -39,7 +37,7 @@ namespace HIKARI::EDITOR {
                 world.y * inverseW,
                 world.z * inverseW
             };
-            return BOUNDS::IsFinite(outPoint);
+            return MATH::IsFinite(outPoint);
         }
     }
 
@@ -131,7 +129,7 @@ namespace HIKARI::EDITOR {
                 rotation,
                 { 1.0f, 1.0f, 1.0f }));
     }
-
+    
     uint64_t PickModelCollisionShape(
         const ModelCollisionPointerRay& ray,
         const ASSETS::COLLISION::ModelCollisionSetup& setup,

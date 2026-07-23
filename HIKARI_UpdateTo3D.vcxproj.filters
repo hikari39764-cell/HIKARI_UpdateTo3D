@@ -46,6 +46,18 @@
     <Filter Include="Header Files\Core">
       <UniqueIdentifier>{7D3F4CC6-EB90-59C6-9530-4E5F0F14A647}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Header Files\Core\IO">
+      <UniqueIdentifier>{B7A1D620-6C9E-4B31-8D70-94E2F1A50001}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\Core\Math">
+      <UniqueIdentifier>{B7A1D620-6C9E-4B31-8D70-94E2F1A50002}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\Core\Numeric">
+      <UniqueIdentifier>{B7A1D620-6C9E-4B31-8D70-94E2F1A50003}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\Core\Text">
+      <UniqueIdentifier>{B7A1D620-6C9E-4B31-8D70-94E2F1A50004}</UniqueIdentifier>
+    </Filter>
     <Filter Include="Header Files\Physics">
       <UniqueIdentifier>{0B8F4F3E-6D38-4D9A-A189-C520842E87B0}</UniqueIdentifier>
     </Filter>
@@ -63,6 +75,9 @@
     </Filter>
     <Filter Include="Header Files\Project">
       <UniqueIdentifier>{F3C30E53-E47A-4E83-A08B-A59E8827F4A7}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\Project\Paths">
+      <UniqueIdentifier>{B7A1D620-6C9E-4B31-8D70-94E2F1A50005}</UniqueIdentifier>
     </Filter>
     <Filter Include="Header Files\Runtime">
       <UniqueIdentifier>{B7D17D4B-3B47-4C3D-9424-38A7F4B1B30F}</UniqueIdentifier>
@@ -409,6 +424,18 @@
     <Filter Include="Source Files\Core">
       <UniqueIdentifier>{583BDFB5-9391-50A8-9F0B-2EF44B106A3F}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Source Files\Core\IO">
+      <UniqueIdentifier>{B7A1D620-6C9E-4B31-8D70-94E2F1A50011}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Core\Math">
+      <UniqueIdentifier>{B7A1D620-6C9E-4B31-8D70-94E2F1A50012}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Core\Numeric">
+      <UniqueIdentifier>{B7A1D620-6C9E-4B31-8D70-94E2F1A50013}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Core\Text">
+      <UniqueIdentifier>{B7A1D620-6C9E-4B31-8D70-94E2F1A50014}</UniqueIdentifier>
+    </Filter>
     <Filter Include="Source Files\Input">
       <UniqueIdentifier>{7AC8F034-595C-48A0-9B9C-A1D4B921D011}</UniqueIdentifier>
     </Filter>
@@ -423,6 +450,9 @@
     </Filter>
     <Filter Include="Source Files\Project">
       <UniqueIdentifier>{F99E1225-9D38-46D9-8E27-C12364820C53}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Project\Paths">
+      <UniqueIdentifier>{B7A1D620-6C9E-4B31-8D70-94E2F1A50015}</UniqueIdentifier>
     </Filter>
     <Filter Include="Source Files\Runtime">
       <UniqueIdentifier>{D86F33CF-36A5-4702-989C-8D6D4C6AE127}</UniqueIdentifier>
@@ -1716,6 +1746,18 @@
     <ClCompile Include="HIKARI\Core\HIKARI_FixedStepClock.cpp">
       <Filter>Source Files\Core</Filter>
     </ClCompile>
+    <ClCompile Include="HIKARI\Core\Math\HIKARI_MathValidation.cpp">
+      <Filter>Source Files\Core\Math</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Core\Math\HIKARI_NormalMatrix.cpp">
+      <Filter>Source Files\Core\Math</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Core\Numeric\HIKARI_IntegerConversion.cpp">
+      <Filter>Source Files\Core\Numeric</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Core\Text\HIKARI_AsciiCase.cpp">
+      <Filter>Source Files\Core\Text</Filter>
+    </ClCompile>
     <ClCompile Include="HIKARI\Core\HIKARI_Logger.cpp">
       <Filter>Source Files\Core</Filter>
     </ClCompile>
@@ -1885,7 +1927,10 @@
       <Filter>Source Files\Physics</Filter>
     </ClCompile>
     <ClCompile Include="HIKARI\Core\IO\HIKARI_FileReplacementTransaction.cpp">
-      <Filter>Source Files\Core</Filter>
+      <Filter>Source Files\Core\IO</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Core\IO\HIKARI_PathNormalization.cpp">
+      <Filter>Source Files\Core\IO</Filter>
     </ClCompile>
     <ClCompile Include="HIKARI\Physics\HIKARI_PhysicsBodyValidator.cpp">
       <Filter>Source Files\Physics</Filter>
@@ -2063,6 +2108,9 @@
     </ClCompile>
     <ClCompile Include="HIKARI\Project\HIKARI_ProjectSettings.cpp">
       <Filter>Source Files\Project</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Project\Paths\HIKARI_ProjectPath.cpp">
+      <Filter>Source Files\Project\Paths</Filter>
     </ClCompile>
     <ClCompile Include="HIKARI\Runtime\HIKARI_RuntimeResourceRefreshService.cpp">
       <Filter>Source Files\Runtime</Filter>
@@ -3235,6 +3283,18 @@
     <ClInclude Include="HIKARI\Core\HIKARI_FixedStepClock.h">
       <Filter>Header Files\Core</Filter>
     </ClInclude>
+    <ClInclude Include="HIKARI\Core\Math\HIKARI_MathValidation.h">
+      <Filter>Header Files\Core\Math</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Core\Math\HIKARI_NormalMatrix.h">
+      <Filter>Header Files\Core\Math</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Core\Numeric\HIKARI_IntegerConversion.h">
+      <Filter>Header Files\Core\Numeric</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Core\Text\HIKARI_AsciiCase.h">
+      <Filter>Header Files\Core\Text</Filter>
+    </ClInclude>
     <ClInclude Include="HIKARI\Scene\HIKARI_ISystem.h">
       <Filter>Header Files\Scene\Systems</Filter>
     </ClInclude>
@@ -3410,7 +3470,10 @@
       <Filter>Header Files\Physics</Filter>
     </ClInclude>
     <ClInclude Include="HIKARI\Core\IO\HIKARI_FileReplacementTransaction.h">
-      <Filter>Header Files\Core</Filter>
+      <Filter>Header Files\Core\IO</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Core\IO\HIKARI_PathNormalization.h">
+      <Filter>Header Files\Core\IO</Filter>
     </ClInclude>
     <ClInclude Include="HIKARI\Physics\HIKARI_PhysicsSceneBridge.h">
       <Filter>Header Files\Physics</Filter>
@@ -3573,6 +3636,9 @@
     </ClInclude>
     <ClInclude Include="HIKARI\Project\HIKARI_ProjectSettings.h">
       <Filter>Header Files\Project</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Project\Paths\HIKARI_ProjectPath.h">
+      <Filter>Header Files\Project\Paths</Filter>
     </ClInclude>
     <ClInclude Include="HIKARI\Runtime\HIKARI_RuntimeResourceRefreshService.h">
       <Filter>Header Files\Runtime</Filter>

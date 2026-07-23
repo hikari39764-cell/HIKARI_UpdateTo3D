@@ -6,16 +6,13 @@
 #include <limits>
 #include <vector>
 
+#include "Core/Math/HIKARI_MathValidation.h"
 #include "Render3D/Core/HIKARI_ModelAsset.h"
 
 namespace HIKARI::BOUNDS {
 
-    inline bool IsFinite(const MATH::Vec3& value) {
-        return std::isfinite(value.x) && std::isfinite(value.y) && std::isfinite(value.z);
-    }
-
     inline bool IsUsable(const Bounds& bounds) {
-        if (!IsFinite(bounds.min) || !IsFinite(bounds.max)) {
+        if (!MATH::IsFinite(bounds.min) || !MATH::IsFinite(bounds.max)) {
             return false;
         }
         if (bounds.min.x > bounds.max.x || bounds.min.y > bounds.max.y || bounds.min.z > bounds.max.z) {

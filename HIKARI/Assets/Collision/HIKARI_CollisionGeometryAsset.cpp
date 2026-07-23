@@ -4,16 +4,11 @@
 #include <cmath>
 #include <unordered_set>
 
+#include "Core/Math/HIKARI_MathValidation.h"
 #include "Render3D/Core/HIKARI_BoundsUtils.h"
 
 namespace HIKARI::ASSETS::COLLISION {
     namespace {
-        bool IsFinite(const MATH::Vec3& value) noexcept {
-            return std::isfinite(value.x) &&
-                std::isfinite(value.y) &&
-                std::isfinite(value.z);
-        }
-
         bool RangeFits(
             uint32_t offset,
             uint32_t count,
@@ -26,9 +21,9 @@ namespace HIKARI::ASSETS::COLLISION {
             const CollisionGeometryAsset& asset,
             const CollisionGeometryShape& shape) noexcept {
             if (shape.id == 0u ||
-                !IsFinite(shape.center) ||
-                !IsFinite(shape.rotationEulerDegrees) ||
-                !IsFinite(shape.size) ||
+                !MATH::IsFinite(shape.center) ||
+                !MATH::IsFinite(shape.rotationEulerDegrees) ||
+                !MATH::IsFinite(shape.size) ||
                 !std::isfinite(shape.radius) ||
                 !std::isfinite(shape.height)) {
                 return false;

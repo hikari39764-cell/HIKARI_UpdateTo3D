@@ -1,4 +1,5 @@
 #include "Editor/Panels/HIKARI_SceneInspectorPanel.h"
+#include "Core/Text/HIKARI_AsciiCase.h"
 
 #include <algorithm>
 #include <cctype>
@@ -71,17 +72,6 @@ namespace HIKARI::EDITOR {
                 });
         }
 
-        std::string LowerCopy(std::string_view value) {
-            std::string result(value);
-            std::transform(
-                result.begin(),
-                result.end(),
-                result.begin(),
-                [](unsigned char ch) {
-                    return static_cast<char>(std::tolower(ch));
-                });
-            return result;
-        }
 
         bool MatchesComponent(
             const ComponentTypeInfo& info,
@@ -89,11 +79,11 @@ namespace HIKARI::EDITOR {
             if (search.empty()) {
                 return true;
             }
-            const std::string haystack = LowerCopy(
+            const std::string haystack = TEXT::ToLowerAsciiCopy(
                 info.presentation.displayName + " " +
                 info.presentation.category + " " +
                 info.typeName);
-            return haystack.find(LowerCopy(search)) != std::string::npos;
+            return haystack.find(TEXT::ToLowerAsciiCopy(search)) != std::string::npos;
         }
 
         void SelectObject(EditorContext& context, GameObject& object) {
@@ -108,12 +98,16 @@ namespace HIKARI::EDITOR {
             if (message.empty()) {
                 return;
             }
+#if defined(HIKARI_WITH_EDITOR)
             const std::string text(message);
             StatusBadge(
                 text.c_str(),
                 error
                     ? EditorStatusTone::Error
                     : EditorStatusTone::Ready);
+#else
+            (void)error;
+#endif
         }
     }
 

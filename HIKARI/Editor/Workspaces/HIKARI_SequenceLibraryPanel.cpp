@@ -1,4 +1,5 @@
 #include "Editor/Workspaces/HIKARI_SequenceLibraryPanel.h"
+#include "Core/Text/HIKARI_AsciiCase.h"
 
 #include <algorithm>
 #include <cctype>
@@ -14,16 +15,6 @@
 namespace HIKARI::EDITOR {
 
     namespace {
-        std::string ToLowerCopy(std::string value) {
-            std::transform(
-                value.begin(),
-                value.end(),
-                value.begin(),
-                [](unsigned char character) {
-                    return static_cast<char>(std::tolower(character));
-                });
-            return value;
-        }
 
         bool MatchesSearch(
             const AssetRecord& record,
@@ -32,11 +23,11 @@ namespace HIKARI::EDITOR {
             if (searchText == nullptr || searchText[0] == '\0') {
                 return true;
             }
-            const std::string haystack = ToLowerCopy(
+            const std::string haystack = TEXT::ToLowerAsciiCopy(
                 record.displayName + " " +
                 record.sourcePath.generic_string() + " " +
                 record.guid.value);
-            return haystack.find(ToLowerCopy(searchText)) !=
+            return haystack.find(TEXT::ToLowerAsciiCopy(searchText)) !=
                 std::string::npos;
         }
 
