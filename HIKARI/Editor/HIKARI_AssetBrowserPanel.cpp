@@ -20,6 +20,7 @@
 #include <json.hpp>
 
 #include "Assets/HIKARI_AssetDatabase.h"
+#include "Assets/HIKARI_AssetSourcePolicy.h"
 #include "Assets/HIKARI_AssetImportState.h"
 #include "Assets/HIKARI_AssetUsageAnalyzer.h"
 #include "Assets/Material/HIKARI_MaterialAssetData.h"
@@ -93,7 +94,6 @@ namespace HIKARI {
                 ext == ".dds" ||
                 ext == ".hdr" ||
                 ext == ".gltf" ||
-                ext == ".glb" ||
                 ext == ".fbx" ||
                 ext == ".obj" ||
                 ext == ".hscene" ||
@@ -102,12 +102,6 @@ namespace HIKARI {
                 filename.ends_with(".material.json") ||
                 ext == ".efk" ||
                 ext == ".efkefc";
-        }
-
-        bool IsCopyOnlySidecarFile(const std::filesystem::path& path) {
-            const std::string ext = ToLowerCopy(path.extension().string());
-            return ext == ".bin" ||
-                ext == ".mtl";
         }
 
         std::filesystem::path SuggestedTargetDirectory(
@@ -120,7 +114,7 @@ namespace HIKARI {
 
             const std::string filename = ToLowerCopy(sourcePath.filename().string());
             const std::string ext = ToLowerCopy(sourcePath.extension().string());
-            if (ext == ".gltf" || ext == ".glb" || ext == ".fbx" || ext == ".obj") {
+            if (ext == ".gltf" || ext == ".fbx" || ext == ".obj") {
                 return "Assets/Models";
             }
             if (ext == ".hscene" || filename.ends_with(".scene.json")) {
@@ -443,6 +437,7 @@ namespace HIKARI {
             const AssetDatabase& assetDatabase,
             const std::filesystem::path& sourceFile,
             const std::filesystem::path& targetRelativePath,
+            bool preserveCompanionName,
             std::filesystem::path& outRelativePath,
             std::string& outError) {
 
@@ -463,14 +458,26 @@ namespace HIKARI {
             }
 
             std::filesystem::path destinationAbsolute = assetDatabase.GetProjectRoot() / targetRelativePath;
-            destinationAbsolute = MakeUniqueFilePath(destinationAbsolute.lexically_normal());
+            destinationAbsolute = destinationAbsolute.lexically_normal();
+            if (!preserveCompanionName) {
+                destinationAbsolute =
+                    MakeUniqueFilePath(destinationAbsolute);
+            }
             std::filesystem::create_directories(destinationAbsolute.parent_path(), ec);
             if (ec) {
                 outError = "Failed to create target directory: " + ec.message();
                 return false;
             }
 
-            std::filesystem::copy_file(sourceAbsolute, destinationAbsolute, std::filesystem::copy_options::none, ec);
+            const std::filesystem::copy_options copyOptions =
+                preserveCompanionName
+                ? std::filesystem::copy_options::overwrite_existing
+                : std::filesystem::copy_options::none;
+            std::filesystem::copy_file(
+                sourceAbsolute,
+                destinationAbsolute,
+                copyOptions,
+                ec);
             if (ec) {
                 outError = "Failed to copy " + sourceAbsolute.generic_string() + ": " + ec.message();
                 return false;
@@ -489,6 +496,7 @@ namespace HIKARI {
             const std::filesystem::path& currentDirectory,
             const AssetDatabase& assetDatabase,
             std::vector<std::filesystem::path>& outProjectRelativeFiles,
+            int& copiedCompanionCount,
             int& skippedCount,
             std::string& lastError) {
 
@@ -526,7 +534,8 @@ namespace HIKARI {
 
                     const std::filesystem::path entryPath = entry.path();
                     const bool supportedAsset = IsSupportedImportSource(entryPath);
-                    const bool copyOnlySidecar = IsCopyOnlySidecarFile(entryPath);
+                    const bool copyOnlySidecar =
+                        IsAssetCompanionSource(entryPath);
                     if (!supportedAsset && !copyOnlySidecar) {
                         ++skippedCount;
                         continue;
@@ -539,9 +548,17 @@ namespace HIKARI {
                     }
                     std::filesystem::path copiedRelative{};
                     const std::filesystem::path targetRelative = (targetRoot / relativeInside).lexically_normal();
-                    if (CopySourceFileIntoProject(assetDatabase, entryPath, targetRelative, copiedRelative, lastError)) {
+                    if (CopySourceFileIntoProject(
+                            assetDatabase,
+                            entryPath,
+                            targetRelative,
+                            copyOnlySidecar,
+                            copiedRelative,
+                            lastError)) {
                         if (supportedAsset) {
                             outProjectRelativeFiles.push_back(copiedRelative);
+                        } else {
+                            ++copiedCompanionCount;
                         }
                     } else {
                         ++skippedCount;
@@ -563,16 +580,38 @@ namespace HIKARI {
                 return;
             }
 
-            if (!regularFile || !IsSupportedImportSource(droppedPath)) {
+            const bool supportedAsset =
+                IsSupportedImportSource(droppedPath);
+            const bool companionSource =
+                IsAssetCompanionSource(droppedPath);
+            if (!regularFile ||
+                (!supportedAsset && !companionSource)) {
                 ++skippedCount;
                 return;
             }
 
-            const std::filesystem::path targetDirectory = SuggestedTargetDirectory(currentDirectory, droppedPath);
+            const std::filesystem::path targetDirectory =
+                companionSource &&
+                    (currentDirectory.empty() ||
+                     IsAssetsRootPath(currentDirectory))
+                ? std::filesystem::path("Assets/Models")
+                : SuggestedTargetDirectory(
+                    currentDirectory,
+                    droppedPath);
             const std::filesystem::path targetRelative = (targetDirectory / droppedPath.filename()).lexically_normal();
             std::filesystem::path copiedRelative{};
-            if (CopySourceFileIntoProject(assetDatabase, droppedPath, targetRelative, copiedRelative, lastError)) {
-                outProjectRelativeFiles.push_back(copiedRelative);
+            if (CopySourceFileIntoProject(
+                    assetDatabase,
+                    droppedPath,
+                    targetRelative,
+                    companionSource,
+                    copiedRelative,
+                    lastError)) {
+                if (supportedAsset) {
+                    outProjectRelativeFiles.push_back(copiedRelative);
+                } else {
+                    ++copiedCompanionCount;
+                }
             } else {
                 ++skippedCount;
             }
@@ -590,11 +629,19 @@ namespace HIKARI {
             }
 
             std::vector<std::filesystem::path> copiedFiles;
+            int copiedCompanionCount = 0;
             int skippedCount = 0;
             std::string lastError{};
             for (const std::filesystem::path& dropped : droppedFiles) {
                 try {
-                    CollectDroppedFiles(dropped, currentDirectory, assetDatabase, copiedFiles, skippedCount, lastError);
+                    CollectDroppedFiles(
+                        dropped,
+                        currentDirectory,
+                        assetDatabase,
+                        copiedFiles,
+                        copiedCompanionCount,
+                        skippedCount,
+                        lastError);
                 } catch (const std::exception& ex) {
                     ++skippedCount;
                     lastError = std::string("Drop failed: ") + ex.what();
@@ -607,9 +654,17 @@ namespace HIKARI {
             }
 
             if (copiedFiles.empty()) {
-                lastOperationMessage = lastError.empty()
-                    ? "Drop ignored: no supported asset files"
-                    : lastError;
+                if (copiedCompanionCount > 0) {
+                    assetDatabase.ScanAssets(false);
+                    lastOperationMessage =
+                        "Copied " +
+                        std::to_string(copiedCompanionCount) +
+                        " companion file(s); hidden from the Asset Browser";
+                } else {
+                    lastOperationMessage = lastError.empty()
+                        ? "Drop ignored: no supported asset files"
+                        : lastError;
+                }
                 return;
             }
 
@@ -629,9 +684,10 @@ namespace HIKARI {
                 importGuids.push_back(record->guid);
             }
 
-            const AssetImportBatchResult importResult = assetDatabase.ImportAssets(importGuids);
-
-            assetDatabase.ScanAssets(false);
+            const bool importQueued =
+                assetDatabase.QueueImportAssets(
+                    importGuids,
+                    "Dropped assets");
             if (!firstRelativePath.empty()) {
                 if (const AssetRecord* refreshed = assetDatabase.FindByPath(firstRelativePath)) {
                     SelectRecord(*refreshed, selection);
@@ -640,8 +696,15 @@ namespace HIKARI {
 
             lastOperationMessage =
                 "Dropped " + std::to_string(copiedFiles.size()) +
-                " file(s), imported " + std::to_string(importResult.succeeded) +
-                ", failed " + std::to_string(importResult.failed);
+                (importQueued
+                    ? " file(s); background import queued"
+                    : " file(s); another import batch is already running");
+            if (copiedCompanionCount > 0) {
+                lastOperationMessage +=
+                    ", copied " +
+                    std::to_string(copiedCompanionCount) +
+                    " hidden companion file(s)";
+            }
             if (skippedCount > 0) {
                 lastOperationMessage += ", skipped " + std::to_string(skippedCount);
             }
@@ -1640,6 +1703,7 @@ namespace HIKARI {
             std::string& saveSceneAsGuid,
             std::string& refreshRuntimeAssetGuid,
             std::string& reimportAndRefreshRuntimeAssetGuid,
+            std::string& pendingReimportAndRefreshRuntimeAssetGuid,
             std::string& renameSceneGuid,
             std::string& deleteSceneGuid,
             std::array<char, 128>& renameSceneNameBuffer) {
@@ -1727,16 +1791,25 @@ namespace HIKARI {
 
             if (ImGui::MenuItem("Reimport")) {
                 SelectRecord(record, selection);
-                const bool ok = assetDatabase.ImportAsset(record.guid);
-                lastOperationMessage = ok ? "Reimport succeeded" : "Reimport failed";
+                const bool queued = assetDatabase.QueueImportAssets(
+                    { record.guid },
+                    "Reimport " + record.displayName);
+                lastOperationMessage = queued
+                    ? "Reimport queued"
+                    : "Another import batch is already running";
             }
             if (ImGui::MenuItem("Reimport + Refresh Runtime")) {
                 SelectRecord(record, selection);
-                const bool ok = assetDatabase.ImportAsset(record.guid);
-                if (ok) {
-                    reimportAndRefreshRuntimeAssetGuid = record.guid.value;
+                const bool queued = assetDatabase.QueueImportAssets(
+                    { record.guid },
+                    "Reimport " + record.displayName);
+                if (queued) {
+                    pendingReimportAndRefreshRuntimeAssetGuid =
+                        record.guid.value;
                 }
-                lastOperationMessage = ok ? "Reimported; runtime refresh queued" : "Reimport failed";
+                lastOperationMessage = queued
+                    ? "Reimport queued; runtime refresh will follow"
+                    : "Another import batch is already running";
             }
             if (ImGui::MenuItem("Refresh Runtime Only")) {
                 SelectRecord(record, selection);
@@ -1744,10 +1817,13 @@ namespace HIKARI {
                 lastOperationMessage = "Runtime refresh queued";
             }
             if (ImGui::MenuItem("Reimport Dependencies")) {
-                const AssetImportBatchResult result = assetDatabase.ImportDependencies(record.guid, false);
-                lastOperationMessage =
-                    "Dependencies imported " + std::to_string(result.succeeded) +
-                    ", failed " + std::to_string(result.failed);
+                const bool queued =
+                    assetDatabase.QueueImportDependencies(
+                        record.guid,
+                        false);
+                lastOperationMessage = queued
+                    ? "Dependency import queued"
+                    : "Another import batch is already running";
             }
             if (ImGui::MenuItem("Show in Explorer")) {
                 ShowInExplorer(assetDatabase.GetProjectRoot() / record.sourcePath);
@@ -1789,6 +1865,7 @@ namespace HIKARI {
             std::string& saveSceneAsGuid,
             std::string& refreshRuntimeAssetGuid,
             std::string& reimportAndRefreshRuntimeAssetGuid,
+            std::string& pendingReimportAndRefreshRuntimeAssetGuid,
             std::string& renameSceneGuid,
             std::string& deleteSceneGuid,
             std::array<char, 128>& renameSceneNameBuffer) {
@@ -1859,6 +1936,7 @@ namespace HIKARI {
                         saveSceneAsGuid,
                         refreshRuntimeAssetGuid,
                         reimportAndRefreshRuntimeAssetGuid,
+                        pendingReimportAndRefreshRuntimeAssetGuid,
                         renameSceneGuid,
                         deleteSceneGuid,
                         renameSceneNameBuffer);
@@ -1896,6 +1974,7 @@ namespace HIKARI {
             std::string& saveSceneAsGuid,
             std::string& refreshRuntimeAssetGuid,
             std::string& reimportAndRefreshRuntimeAssetGuid,
+            std::string& pendingReimportAndRefreshRuntimeAssetGuid,
             std::string& renameSceneGuid,
             std::string& deleteSceneGuid,
             std::array<char, 128>& renameSceneNameBuffer) {
@@ -1964,6 +2043,7 @@ namespace HIKARI {
                         saveSceneAsGuid,
                         refreshRuntimeAssetGuid,
                         reimportAndRefreshRuntimeAssetGuid,
+                        pendingReimportAndRefreshRuntimeAssetGuid,
                         renameSceneGuid,
                         deleteSceneGuid,
                         renameSceneNameBuffer);
@@ -2003,6 +2083,7 @@ namespace HIKARI {
             std::string& saveSceneAsGuid,
             std::string& refreshRuntimeAssetGuid,
             std::string& reimportAndRefreshRuntimeAssetGuid,
+            std::string& pendingReimportAndRefreshRuntimeAssetGuid,
             std::string& renameSceneGuid,
             std::string& deleteSceneGuid,
             std::array<char, 128>& renameSceneNameBuffer) {
@@ -2081,6 +2162,7 @@ namespace HIKARI {
                         saveSceneAsGuid,
                         refreshRuntimeAssetGuid,
                         reimportAndRefreshRuntimeAssetGuid,
+                        pendingReimportAndRefreshRuntimeAssetGuid,
                         renameSceneGuid,
                         deleteSceneGuid,
                         renameSceneNameBuffer);
@@ -2261,6 +2343,29 @@ namespace HIKARI {
 #if defined(HIKARI_WITH_EDITOR)
         if (currentDirectory_.empty()) {
             currentDirectory_ = "Assets";
+        }
+        if (!pendingReimportAndRefreshRuntimeAssetGuid_.empty()) {
+            const AssetImportBatchStatus status =
+                assetDatabase.GetQueuedImportStatus();
+            if (!status.active && status.completed) {
+                const AssetRecord* refreshed =
+                    assetDatabase.FindByGuid(AssetGuid{
+                        pendingReimportAndRefreshRuntimeAssetGuid_
+                    });
+                if (!status.canceled &&
+                    status.failed == 0 &&
+                    refreshed != nullptr &&
+                    refreshed->lastImportSucceeded) {
+                    reimportAndRefreshRuntimeAssetGuid_ =
+                        pendingReimportAndRefreshRuntimeAssetGuid_;
+                    lastOperationMessage_ =
+                        "Reimport complete; runtime refresh queued";
+                } else {
+                    lastOperationMessage_ =
+                        "Reimport did not complete; runtime refresh skipped";
+                }
+                pendingReimportAndRefreshRuntimeAssetGuid_.clear();
+            }
         }
         ProcessDroppedFiles(assetDatabase, currentDirectory_, selection, lastOperationMessage_);
 
@@ -2505,6 +2610,7 @@ namespace HIKARI {
                 saveSceneAsGuid_,
                 refreshRuntimeAssetGuid_,
                 reimportAndRefreshRuntimeAssetGuid_,
+                pendingReimportAndRefreshRuntimeAssetGuid_,
                 renameSceneGuid_,
                 deleteSceneGuid_,
                 renameSceneNameBuffer_);
@@ -2523,6 +2629,7 @@ namespace HIKARI {
                 saveSceneAsGuid_,
                 refreshRuntimeAssetGuid_,
                 reimportAndRefreshRuntimeAssetGuid_,
+                pendingReimportAndRefreshRuntimeAssetGuid_,
                 renameSceneGuid_,
                 deleteSceneGuid_,
                 renameSceneNameBuffer_);
@@ -2541,6 +2648,7 @@ namespace HIKARI {
                 saveSceneAsGuid_,
                 refreshRuntimeAssetGuid_,
                 reimportAndRefreshRuntimeAssetGuid_,
+                pendingReimportAndRefreshRuntimeAssetGuid_,
                 renameSceneGuid_,
                 deleteSceneGuid_,
                 renameSceneNameBuffer_);

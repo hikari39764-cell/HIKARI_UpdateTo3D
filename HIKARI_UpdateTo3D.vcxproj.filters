@@ -34,6 +34,9 @@
     <Filter Include="Header Files\Assets\Animation">
       <UniqueIdentifier>{DA8E0D2D-18C9-4E0C-83A3-C9B5B47CBA51}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Header Files\Assets\Tasks">
+      <UniqueIdentifier>{7B9A3C5D-2E41-4F70-9A62-0D8E5C3B1A47}</UniqueIdentifier>
+    </Filter>
     <Filter Include="Header Files\Audio">
       <UniqueIdentifier>{7316CE12-9406-53C4-B4D6-FA6C72F69C2A}</UniqueIdentifier>
     </Filter>
@@ -393,6 +396,9 @@
     </Filter>
     <Filter Include="Source Files\Assets\Animation">
       <UniqueIdentifier>{3B8FA2F0-7D79-46D6-BF3E-A9FC44489405}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Assets\Tasks">
+      <UniqueIdentifier>{D3C82A14-6F50-4B97-A6D1-7E2F9C304B58}</UniqueIdentifier>
     </Filter>
     <Filter Include="Source Files\Audio">
       <UniqueIdentifier>{6342A581-ED5F-55FD-923E-8CB34D3C22EC}</UniqueIdentifier>
@@ -1167,6 +1173,12 @@
     <ClCompile Include="HIKARI\Assets\HIKARI_AssetDatabase.cpp">
       <Filter>Source Files\Assets</Filter>
     </ClCompile>
+    <ClCompile Include="HIKARI\Assets\Tasks\HIKARI_AssetImportQueue.cpp">
+      <Filter>Source Files\Assets\Tasks</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Assets\Tasks\HIKARI_AssetTaskService.cpp">
+      <Filter>Source Files\Assets\Tasks</Filter>
+    </ClCompile>
     <ClCompile Include="HIKARI\Assets\HIKARI_AssetGuid.cpp">
       <Filter>Source Files\Assets</Filter>
     </ClCompile>
@@ -1174,6 +1186,9 @@
       <Filter>Source Files\Assets</Filter>
     </ClCompile>
     <ClCompile Include="HIKARI\Assets\HIKARI_AssetRegistryBuilder.cpp">
+      <Filter>Source Files\Assets</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Assets\HIKARI_AssetSourcePolicy.cpp">
       <Filter>Source Files\Assets</Filter>
     </ClCompile>
     <ClCompile Include="HIKARI\Assets\HIKARI_AssetUsageAnalyzer.cpp">
@@ -2815,6 +2830,9 @@
     <ClInclude Include="HIKARI\Assets\HIKARI_AssetDatabase.h">
       <Filter>Header Files\Assets</Filter>
     </ClInclude>
+    <ClInclude Include="HIKARI\Assets\Tasks\HIKARI_AssetTaskService.h">
+      <Filter>Header Files\Assets\Tasks</Filter>
+    </ClInclude>
     <ClInclude Include="HIKARI\Assets\HIKARI_AssetArtifactManifest.h">
       <Filter>Header Files\Assets</Filter>
     </ClInclude>
@@ -2840,6 +2858,9 @@
       <Filter>Header Files\Assets</Filter>
     </ClInclude>
     <ClInclude Include="HIKARI\Assets\HIKARI_AssetRegistryBuilder.h">
+      <Filter>Header Files\Assets</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Assets\HIKARI_AssetSourcePolicy.h">
       <Filter>Header Files\Assets</Filter>
     </ClInclude>
     <ClInclude Include="HIKARI\Assets\HIKARI_AssetUsageAnalyzer.h">

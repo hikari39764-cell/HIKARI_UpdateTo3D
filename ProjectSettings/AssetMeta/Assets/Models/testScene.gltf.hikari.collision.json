@@ -1,6 +1,6 @@
 {
   "modelAssetGuid": "316766690d9a63d68e3eff3494736c27",
-  "nextShapeId": 104,
+  "nextShapeId": 106,
   "shapes": [
     {
       "center": [
@@ -3028,6 +3028,64 @@
       "sourceNodeIndices": [
         1247
       ],
+      "type": "Box"
+    },
+    {
+      "center": [
+        14.440245628356934,
+        0.8432204127311707,
+        17.35146713256836
+      ],
+      "enabled": true,
+      "generated": false,
+      "generationError": 0.0,
+      "generationMethod": "",
+      "geometryIndexCount": 0,
+      "geometryVertexCount": 0,
+      "height": 1.0,
+      "id": 104,
+      "name": "Auto Box",
+      "radius": 0.5,
+      "rotationEulerDegrees": [
+        110.38422393798828,
+        -0.12093712389469147,
+        -90.04493713378906
+      ],
+      "size": [
+        0.9751039147377014,
+        0.5054565072059631,
+        0.4363568127155304
+      ],
+      "sourceNodeIndices": [],
+      "type": "Box"
+    },
+    {
+      "center": [
+        13.600208282470703,
+        0.8432203531265259,
+        19.612186431884766
+      ],
+      "enabled": true,
+      "generated": false,
+      "generationError": 0.0,
+      "generationMethod": "",
+      "geometryIndexCount": 0,
+      "geometryVertexCount": 0,
+      "height": 1.0,
+      "id": 105,
+      "name": "Auto Box",
+      "radius": 0.5,
+      "rotationEulerDegrees": [
+        110.38409423828125,
+        -0.12093883007764816,
+        -90.04493713378906
+      ],
+      "size": [
+        0.9751031994819641,
+        0.4325993061065674,
+        0.5563622713088989
+      ],
+      "sourceNodeIndices": [],
       "type": "Box"
     }
   ],

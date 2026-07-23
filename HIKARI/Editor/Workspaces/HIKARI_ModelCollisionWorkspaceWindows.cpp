@@ -82,6 +82,8 @@ namespace HIKARI::EDITOR {
         ModelCollisionWorkspaceResult result{};
         result.statusMessage = statusMessage_;
 #if defined(HIKARI_WITH_EDITOR)
+        assetTaskService_ =
+            &scene.GetAssetDatabase().GetAssetTaskService();
         BindSelectionCommands(commandRouter);
         DrawPreviewWindow(
             scene,

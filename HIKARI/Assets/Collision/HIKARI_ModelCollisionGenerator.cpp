@@ -4,6 +4,7 @@
 #include <array>
 #include <cmath>
 #include <limits>
+#include <utility>
 
 #include "Assets/Collision/HIKARI_CoacdCollisionGenerator.h"
 #include "Assets/Collision/HIKARI_CollisionPrimitiveFitter.h"
@@ -309,6 +310,13 @@ namespace HIKARI::ASSETS::COLLISION {
         default:
             break;
         }
+        if (control != nullptr) {
+            control->ReportProgress(
+                "Collecting collision source groups",
+                0u,
+                0u,
+                false);
+        }
         const std::vector<ModelCollisionSourceGroup> groups =
             BuildModelCollisionSourceGroups(
                 model,
@@ -320,9 +328,19 @@ namespace HIKARI::ASSETS::COLLISION {
             return result;
         }
         result.candidateCount = static_cast<uint32_t>(groups.size());
+        if (control != nullptr) {
+            control->ReportProgress(
+                "Preparing collision source meshes",
+                0u,
+                result.candidateCount);
+        }
         std::vector<ModelCollisionShape> generated{};
         std::string generationMessage{};
-        for (const ModelCollisionSourceGroup& group : groups) {
+        for (size_t groupIndex = 0u;
+             groupIndex < groups.size();
+             ++groupIndex) {
+            const ModelCollisionSourceGroup& group =
+                groups[groupIndex];
             if (control != nullptr &&
                 control->IsCancellationRequested()) {
                 result.message = "collision generation canceled";
@@ -331,6 +349,27 @@ namespace HIKARI::ASSETS::COLLISION {
             if (generated.size() >= request.maximumGeneratedShapes) {
                 result.truncated = true;
                 break;
+            }
+            if (control != nullptr) {
+                std::string stage = "Fitting collision shape";
+                if (request.method ==
+                    ModelCollisionGenerationMethod::ConvexHull) {
+                    stage = "Building convex hull";
+                } else if (request.method ==
+                    ModelCollisionGenerationMethod::
+                        ConvexDecomposition) {
+                    stage = "Running convex decomposition";
+                } else if (request.method ==
+                    ModelCollisionGenerationMethod::TriangleMesh) {
+                    stage = "Building triangle mesh collision";
+                }
+                control->ReportProgress(
+                    std::move(stage),
+                    static_cast<uint32_t>(groupIndex),
+                    result.candidateCount,
+                    request.method !=
+                        ModelCollisionGenerationMethod::
+                            ConvexDecomposition);
             }
             ModelCollisionMeshData mesh{};
             if (!ExtractModelCollisionMesh(
@@ -404,6 +443,12 @@ namespace HIKARI::ASSETS::COLLISION {
                 result.message = "collision generation produced no shapes";
                 return result;
             }
+            if (control != nullptr) {
+                control->ReportProgress(
+                    "Collision source group complete",
+                    static_cast<uint32_t>(groupIndex + 1u),
+                    result.candidateCount);
+            }
         }
         if (generated.empty()) {
             result.message = "no collision shapes could be generated";
@@ -428,6 +473,12 @@ namespace HIKARI::ASSETS::COLLISION {
             setup.shapes.end(),
             std::make_move_iterator(generated.begin()),
             std::make_move_iterator(generated.end()));
+        if (control != nullptr) {
+            control->ReportProgress(
+                "Validating generated collision",
+                result.candidateCount,
+                result.candidateCount);
+        }
         std::string validationMessage{};
         if (!ValidateModelCollisionSetup(setup, validationMessage)) {
             result.message = "generated collision is invalid: " +

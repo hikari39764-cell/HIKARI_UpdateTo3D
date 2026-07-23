@@ -467,19 +467,52 @@ namespace HIKARI::EDITOR {
         }
         PollGenerationTask();
         if (generationPending_) {
+            const std::optional<AssetTaskSnapshot> task =
+                assetTaskService_ != nullptr
+                    ? assetTaskService_->FindSnapshot(
+                        generationTaskId_)
+                    : std::nullopt;
             ImGui::TextColored(
                 ImVec4(0.40f, 0.82f, 0.92f, 1.0f),
-                "Generating collision...");
+                "%s",
+                task
+                    ? task->progress.stage.c_str()
+                    : "Generating collision...");
+            if (task && task->progress.determinate) {
+                ImGui::ProgressBar(
+                    task->progress.normalized,
+                    ImVec2(-1.0f, 22.0f));
+                ImGui::TextDisabled(
+                    "%llu / %llu source groups  |  %.2f s",
+                    static_cast<unsigned long long>(
+                        task->progress.completedUnits),
+                    static_cast<unsigned long long>(
+                        task->progress.totalUnits),
+                    task->elapsedSeconds);
+            } else {
+                ImGui::ProgressBar(
+                    0.0f,
+                    ImVec2(-1.0f, 22.0f),
+                    "Working...");
+                if (task) {
+                    ImGui::TextDisabled(
+                        "%.2f s elapsed",
+                        task->elapsedSeconds);
+                }
+            }
             ImGui::TextDisabled(
-                "The editor remains usable. Cancellation takes effect between processing batches.");
-            const bool cancelRequested = generationControl_ != nullptr &&
-                generationControl_->IsCancellationRequested();
+                "The editor remains usable. CoACD cancellation takes effect after its current native solve returns.");
+            const bool cancelRequested =
+                task && task->cancellationRequested;
             ImGui::BeginDisabled(cancelRequested);
             if (ImGui::Button(
                     cancelRequested
                         ? "Cancel Requested"
                         : "Cancel Generation")) {
-                generationControl_->RequestCancel();
+                if (assetTaskService_ != nullptr) {
+                    (void)assetTaskService_->RequestCancel(
+                        generationTaskId_);
+                }
                 statusMessage_ =
                     "cancel requested; the current geometry batch will finish safely";
             }

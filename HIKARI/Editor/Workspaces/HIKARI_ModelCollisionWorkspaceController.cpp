@@ -1,8 +1,6 @@
 #include "Editor/Workspaces/HIKARI_ModelCollisionWorkspaceController.h"
 
 #include <algorithm>
-#include <chrono>
-#include <exception>
 
 #include "Assets/HIKARI_AssetDatabase.h"
 #include "Render3D/Core/HIKARI_BoundsUtils.h"
@@ -20,6 +18,11 @@ namespace HIKARI::EDITOR {
 
         if (activation.previous == EditorWorkspaceId::ModelCollision &&
             activation.current != EditorWorkspaceId::ModelCollision) {
+            if (assetTaskService_ != nullptr &&
+                generationTaskId_ != 0u) {
+                (void)assetTaskService_->RequestCancel(
+                    generationTaskId_);
+            }
             ClosePreviewRequest(workspaceHost);
             return;
         }
@@ -213,9 +216,12 @@ namespace HIKARI::EDITOR {
         }
 
         modelGuid_ = guid;
-        if (generationControl_ != nullptr) {
-            generationControl_->RequestCancel();
+        if (assetTaskService_ != nullptr && generationTaskId_ != 0u) {
+            (void)assetTaskService_->RequestCancel(generationTaskId_);
         }
+        generationTaskId_ = 0u;
+        generationTaskOutput_.reset();
+        generationPending_ = false;
         generationDraft_.reset();
         pendingModelGuid_ = {};
         modelDisplayName_ = record->displayName;
@@ -699,6 +705,11 @@ namespace HIKARI::EDITOR {
         if (generationPending_ || generationDraft_.has_value()) {
             return;
         }
+        if (assetTaskService_ == nullptr) {
+            statusMessage_ =
+                "background asset task service is unavailable";
+            return;
+        }
         std::shared_ptr<const ModelAsset> model =
             previewScene_.GetSharedModel();
         if (!model) {
@@ -724,51 +735,108 @@ namespace HIKARI::EDITOR {
             request.sourceNodeIndices.begin(),
             request.sourceNodeIndices.end());
         generationStartRevision_ = editRevision_;
-        generationControl_ = std::make_shared<
-            ASSETS::COLLISION::ModelCollisionGenerationControl>();
-        generationPending_ = true;
-        statusMessage_ = "generating collision in background...";
+        generationTaskOutput_ =
+            std::make_shared<CollisionGenerationTaskOutput>();
         ASSETS::COLLISION::ModelCollisionSetup setupSnapshot = setup_;
-        const auto generationControl = generationControl_;
-        generationFuture_ = std::async(
-            std::launch::async,
+        const std::shared_ptr<CollisionGenerationTaskOutput> output =
+            generationTaskOutput_;
+
+        AssetTaskRequest taskRequest{};
+        taskRequest.category = "Collision";
+        taskRequest.label = "Generate collision for " +
+            modelDisplayName_;
+        taskRequest.initialItem = modelDisplayName_;
+        taskRequest.cancelable = true;
+        taskRequest.work =
             [model = std::move(model),
              request = std::move(request),
-             generationControl,
-             setup = std::move(setupSnapshot)]() mutable {
-                CollisionGenerationTaskOutput output{};
-                output.setup = std::move(setup);
-                output.result =
+             output,
+             setup = std::move(setupSnapshot)](
+                AssetTaskContext& task) mutable {
+                output->setup = std::move(setup);
+                ASSETS::COLLISION::
+                    ModelCollisionGenerationControl control{
+                        [&task]() {
+                            return task.IsCancellationRequested();
+                        },
+                        [&task](
+                            std::string stage,
+                            uint32_t completed,
+                            uint32_t total,
+                            bool determinate) {
+                            AssetTaskProgress progress{};
+                            progress.stage = std::move(stage);
+                            progress.currentItem =
+                                "Collision source groups";
+                            progress.completedUnits = completed;
+                            progress.totalUnits = total;
+                            progress.determinate =
+                                determinate && total > 0u;
+                            progress.normalized = total > 0u
+                                ? static_cast<float>(completed) /
+                                    static_cast<float>(total)
+                                : 0.0f;
+                            task.Report(std::move(progress));
+                        }
+                    };
+                output->result =
                     ASSETS::COLLISION::GenerateModelCollisionShapes(
                         *model,
                         request,
-                        output.setup,
-                        generationControl.get());
-                return output;
-            });
+                        output->setup,
+                        &control);
+                if (task.IsCancellationRequested() &&
+                    !output->result.success) {
+                    return AssetTaskOutcome::Canceled(
+                        output->result.message);
+                }
+                return output->result.success
+                    ? AssetTaskOutcome::Succeeded(
+                        output->result.message)
+                    : AssetTaskOutcome::Failed(
+                        output->result.message);
+            };
+        generationTaskId_ = assetTaskService_->Submit(
+            std::move(taskRequest));
+        generationPending_ = generationTaskId_ != 0u;
+        statusMessage_ = generationPending_
+            ? "generating collision in background..."
+            : "failed to queue collision generation";
     }
 
     void ModelCollisionWorkspaceController::PollGenerationTask() {
-        if (!generationPending_ || !generationFuture_.valid() ||
-            generationFuture_.wait_for(std::chrono::seconds(0)) !=
-                std::future_status::ready) {
+        if (!generationPending_ ||
+            assetTaskService_ == nullptr ||
+            generationTaskId_ == 0u) {
             return;
         }
-        CollisionGenerationTaskOutput output{};
-        try {
-            output = generationFuture_.get();
-        } catch (const std::exception& error) {
-            generationPending_ = false;
-            statusMessage_ = std::string(
-                "collision generation failed: ") + error.what();
-            return;
-        } catch (...) {
-            generationPending_ = false;
-            statusMessage_ = "collision generation failed unexpectedly";
+        const std::optional<AssetTaskSnapshot> snapshot =
+            assetTaskService_->FindSnapshot(generationTaskId_);
+        if (!snapshot || !IsTerminal(snapshot->state)) {
             return;
         }
+
         generationPending_ = false;
-        generationControl_.reset();
+        generationTaskId_ = 0u;
+        if (snapshot->state == AssetTaskState::Canceled) {
+            statusMessage_ = snapshot->resultMessage.empty()
+                ? "collision generation canceled"
+                : snapshot->resultMessage;
+            generationTaskOutput_.reset();
+            return;
+        }
+        if (snapshot->state == AssetTaskState::Failed ||
+            !generationTaskOutput_) {
+            statusMessage_ = snapshot->resultMessage.empty()
+                ? "collision generation failed"
+                : snapshot->resultMessage;
+            generationTaskOutput_.reset();
+            return;
+        }
+
+        CollisionGenerationTaskOutput output =
+            std::move(*generationTaskOutput_);
+        generationTaskOutput_.reset();
         if (generationStartRevision_ != editRevision_) {
             statusMessage_ =
                 "generation finished, but its result was discarded because the document changed";

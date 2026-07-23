@@ -13,6 +13,7 @@
 
 #include "Assets/Formats/HIKARI_HtexFormat.h"
 #include "Core/HIKARI_Logger.h"
+#include "Assets/Tasks/HIKARI_AssetTaskService.h"
 
 namespace HIKARI {
 
@@ -338,7 +339,20 @@ namespace HIKARI {
             const std::filesystem::path& sourcePath,
             const TextureImportSettings& settings,
             DirectX::ScratchImage& outImage,
-            std::string& outMessage) {
+            std::string& outMessage,
+            AssetTaskContext* task) {
+
+            if (task != nullptr) {
+                task->ReportStage(
+                    "Reading texture source",
+                    0.22f,
+                    true,
+                    sourcePath.filename().string());
+                if (task->IsCancellationRequested()) {
+                    outMessage = "[DirectXTexBackend] import canceled";
+                    return false;
+                }
+            }
 
             DirectX::TexMetadata metadata{};
             DirectX::ScratchImage loaded{};
@@ -357,6 +371,13 @@ namespace HIKARI {
             DirectX::ScratchImage working{};
             const DXGI_FORMAT workingFormat = ResolveWorkingFormat(sourcePath, metadata, settings);
             if (metadata.format != workingFormat && !metadata.IsCubemap()) {
+                if (task != nullptr) {
+                    task->ReportStage(
+                        "Converting texture format",
+                        0.38f,
+                        true,
+                        sourcePath.filename().string());
+                }
                 hr = DirectX::Convert(
                     loaded.GetImages(),
                     loaded.GetImageCount(),
@@ -379,6 +400,17 @@ namespace HIKARI {
             DirectX::ScratchImage mipmapped{};
             const DirectX::TexMetadata convertedMetadata = converted.GetMetadata();
             if (NeedsMipGeneration(settings, convertedMetadata) && !DirectX::IsCompressed(convertedMetadata.format)) {
+                if (task != nullptr) {
+                    if (task->IsCancellationRequested()) {
+                        outMessage = "[DirectXTexBackend] import canceled";
+                        return false;
+                    }
+                    task->ReportStage(
+                        "Generating texture mipmaps",
+                        0.54f,
+                        true,
+                        sourcePath.filename().string());
+                }
                 hr = DirectX::GenerateMipMaps(
                     converted.GetImages(),
                     converted.GetImageCount(),
@@ -401,6 +433,17 @@ namespace HIKARI {
             DirectX::ScratchImage compressed{};
             const DXGI_FORMAT compressedFormat = ResolveCompressedFormat(sourcePath, mipMetadata, settings);
             if (compressedFormat != DXGI_FORMAT_UNKNOWN && !mipMetadata.IsCubemap()) {
+                if (task != nullptr) {
+                    if (task->IsCancellationRequested()) {
+                        outMessage = "[DirectXTexBackend] import canceled";
+                        return false;
+                    }
+                    task->ReportStage(
+                        "Compressing texture blocks",
+                        0.70f,
+                        false,
+                        sourcePath.filename().string());
+                }
                 const bool quickCompress = true;
                 hr = DirectX::Compress(
                     mipSource.GetImages(),
@@ -429,6 +472,17 @@ namespace HIKARI {
                 outImage = std::move(loaded);
             }
 
+            if (task != nullptr) {
+                if (task->IsCancellationRequested()) {
+                    outMessage = "[DirectXTexBackend] import canceled";
+                    return false;
+                }
+                task->ReportStage(
+                    "Texture cook ready",
+                    0.82f,
+                    true,
+                    sourcePath.filename().string());
+            }
             return true;
         }
 
@@ -627,13 +681,26 @@ namespace HIKARI {
         const std::filesystem::path& sourcePath,
         const std::filesystem::path& outputPath,
         const TextureImportSettings& settings,
-        std::string& outMessage) {
+        std::string& outMessage,
+        AssetTaskContext* task) {
 
         DirectX::ScratchImage finalImage{};
-        if (!CookTextureImage(sourcePath, settings, finalImage, outMessage)) {
+        if (!CookTextureImage(
+                sourcePath,
+                settings,
+                finalImage,
+                outMessage,
+                task)) {
             return false;
         }
 
+        if (task != nullptr) {
+            task->ReportStage(
+                "Writing DDS artifact",
+                0.90f,
+                true,
+                outputPath.filename().string());
+        }
         if (!SaveScratchImageToDds(finalImage, outputPath, outMessage)) {
             return false;
         }
@@ -648,17 +715,41 @@ namespace HIKARI {
         const std::filesystem::path& htexOutputPath,
         const std::filesystem::path& debugDdsOutputPath,
         const TextureImportSettings& settings,
-        std::string& outMessage) {
+        std::string& outMessage,
+        AssetTaskContext* task) {
 
         DirectX::ScratchImage finalImage{};
-        if (!CookTextureImage(sourcePath, settings, finalImage, outMessage)) {
+        if (!CookTextureImage(
+                sourcePath,
+                settings,
+                finalImage,
+                outMessage,
+                task)) {
             return false;
         }
 
+        if (task != nullptr) {
+            task->ReportStage(
+                "Writing HTEX artifact",
+                0.88f,
+                true,
+                htexOutputPath.filename().string());
+        }
         if (!WriteScratchImageToHtex(finalImage, settings, htexOutputPath, outMessage)) {
             return false;
         }
 
+        if (task != nullptr) {
+            if (task->IsCancellationRequested()) {
+                outMessage = "[DirectXTexBackend] import canceled";
+                return false;
+            }
+            task->ReportStage(
+                "Writing debug DDS",
+                0.94f,
+                true,
+                debugDdsOutputPath.filename().string());
+        }
         if (!debugDdsOutputPath.empty() &&
             !SaveScratchImageToDds(finalImage, debugDdsOutputPath, outMessage)) {
             return false;

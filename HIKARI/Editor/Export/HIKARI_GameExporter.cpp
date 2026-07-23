@@ -13,6 +13,7 @@
 
 #if defined(HIKARI_WITH_EDITOR)
 #include "Assets/HIKARI_AssetDatabase.h"
+#include "Assets/HIKARI_AssetSourcePolicy.h"
 #include "Assets/HIKARI_AssetRecord.h"
 #include "Assets/HIKARI_AssetTypes.h"
 #include "Assets/HIKARI_AssetUsageAnalyzer.h"
@@ -604,6 +605,10 @@ namespace HIKARI::EDITOR {
                 }
 
                 for (const AssetDependencyDesc& dependency : record->artifactManifest.dependencies) {
+                    if (IsSourceOnlyAssetDependencyRole(
+                            dependency.role)) {
+                        continue;
+                    }
                     const AssetRecord* dependencyRecord = nullptr;
                     if (dependency.guid.IsValid()) {
                         dependencyRecord = assetDatabase.FindByGuid(dependency.guid);

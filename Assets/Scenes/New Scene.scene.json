@@ -501,6 +501,7 @@
           "type": "ModelComponent"
         }
       ],
+      "editorLocked": true,
       "editorVisible": true,
       "enabled": true,
       "id": 1,
@@ -527,6 +528,7 @@
     },
     {
       "components": [],
+      "editorLocked": false,
       "editorVisible": true,
       "enabled": true,
       "id": 4,
@@ -558,8 +560,58 @@
             "assetId": "b5495438c8743f173e2cf1a7536224af",
             "castShadow": true,
             "debugRenderMode": "Normal",
-            "materialFxProfileId": "",
-            "materialFxValuesInitialized": false,
+            "materialFxParamValues": [
+              [
+                1.2000000476837158,
+                3.0,
+                -1.2999999523162842,
+                0.07999999821186066
+              ],
+              [
+                2.0,
+                2.0,
+                1.0,
+                0.0
+              ],
+              [
+                0.009999999776482582,
+                0.0,
+                1.0,
+                0.0
+              ],
+              [
+                0.0,
+                0.0,
+                0.0,
+                0.0
+              ],
+              [
+                0.0,
+                0.0,
+                0.0,
+                0.0
+              ],
+              [
+                0.0,
+                0.0,
+                0.0,
+                0.0
+              ],
+              [
+                0.0,
+                0.0,
+                0.0,
+                0.0
+              ],
+              [
+                0.0,
+                0.0,
+                0.0,
+                0.0
+              ]
+            ],
+            "materialFxProfileId": "test",
+            "materialFxValuesInitialized": true,
             "materialOverrides": [],
             "maxWireLines": 20000,
             "postGroupMask": 0,
@@ -708,6 +760,7 @@
           "type": "AnimationStateMachineComponent"
         }
       ],
+      "editorLocked": false,
       "editorVisible": true,
       "enabled": true,
       "id": 5,
@@ -785,6 +838,7 @@
           "type": "CameraFollowComponent"
         }
       ],
+      "editorLocked": false,
       "editorVisible": true,
       "enabled": true,
       "id": 6,
@@ -815,9 +869,19 @@
           "properties": {
             "assetId": "",
             "castShadow": true,
+            "debugRenderMode": "Normal",
+            "materialFxProfileId": "",
+            "materialFxValuesInitialized": false,
+            "materialOverrides": [],
+            "maxWireLines": 20000,
+            "postGroupMask": 0,
             "receiveShadow": true,
             "renderStatic": false,
-            "visible": true
+            "showSkeletonDebug": false,
+            "skeletonDebugXRay": false,
+            "visible": true,
+            "wireColor": 16755455,
+            "wirePerPrimitiveColor": true
           },
           "type": "ModelComponent"
         },
@@ -907,6 +971,7 @@
           "type": "PhysicsBodyComponent"
         }
       ],
+      "editorLocked": false,
       "editorVisible": true,
       "enabled": true,
       "id": 7,
@@ -923,6 +988,139 @@
           -0.9095566272735596,
           -0.14641302824020386,
           0.2539498209953308
+        ],
+        "scale": [
+          1.0,
+          1.0,
+          1.0
+        ]
+      }
+    },
+    {
+      "components": [
+        {
+          "properties": {
+            "assetId": "",
+            "castShadow": true,
+            "debugRenderMode": "Normal",
+            "materialFxProfileId": "",
+            "materialFxValuesInitialized": false,
+            "materialOverrides": [],
+            "maxWireLines": 20000,
+            "postGroupMask": 0,
+            "receiveShadow": true,
+            "renderStatic": false,
+            "showSkeletonDebug": false,
+            "skeletonDebugXRay": false,
+            "visible": true,
+            "wireColor": 16755455,
+            "wirePerPrimitiveColor": true
+          },
+          "type": "ModelComponent"
+        },
+        {
+          "properties": {
+            "depth": 1.0,
+            "doubleSided": false,
+            "generateTangents": true,
+            "height": 1.0,
+            "kind": "Sphere",
+            "segmentsX": 10,
+            "segmentsY": 10,
+            "segmentsZ": 1,
+            "sphereSlices": 32,
+            "sphereStacks": 16,
+            "width": 1.0
+          },
+          "type": "ProceduralMeshComponent"
+        },
+        {
+          "properties": {
+            "center": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "collisionAssetId": "",
+            "enabled": true,
+            "filter": {
+              "layer": 1,
+              "mask": 4294967295
+            },
+            "fitMode": "Geometry",
+            "height": 1.0,
+            "material": {
+              "density": 1.0,
+              "friction": 0.5,
+              "restitution": 0.0
+            },
+            "radius": 0.5,
+            "rotation": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "shape": "Sphere",
+            "size": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "trigger": false
+          },
+          "type": "ColliderComponent"
+        },
+        {
+          "properties": {
+            "allowSleeping": true,
+            "angularDamping": 0.05000000074505806,
+            "continuousCollision": false,
+            "enabled": true,
+            "gravityScale": 7.400000095367432,
+            "initialAngularVelocity": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "initialLinearVelocity": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "linearDamping": 0.05000000074505806,
+            "lockRotation": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "lockTranslation": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "mass": 7.0,
+            "motionType": "Dynamic"
+          },
+          "type": "PhysicsBodyComponent"
+        }
+      ],
+      "editorLocked": false,
+      "editorVisible": true,
+      "enabled": true,
+      "id": 8,
+      "name": "Sphere",
+      "parent": null,
+      "sourcePrefabId": "",
+      "transform": {
+        "position": [
+          -8.785205841064453,
+          8.171135902404785,
+          4.89271354675293
+        ],
+        "rotationEulerDeg": [
+          0.0,
+          0.0,
+          0.0
         ],
         "scale": [
           1.0,

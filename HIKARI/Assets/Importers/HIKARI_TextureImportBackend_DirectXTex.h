@@ -22,14 +22,16 @@ namespace HIKARI {
             const std::filesystem::path& sourcePath,
             const std::filesystem::path& outputPath,
             const TextureImportSettings& settings,
-            std::string& outMessage) override;
+            std::string& outMessage,
+            AssetTaskContext* task = nullptr) override;
 
         bool ConvertToHtexAndDds(
             const std::filesystem::path& sourcePath,
             const std::filesystem::path& htexOutputPath,
             const std::filesystem::path& debugDdsOutputPath,
             const TextureImportSettings& settings,
-            std::string& outMessage) override;
+            std::string& outMessage,
+            AssetTaskContext* task = nullptr) override;
     };
 
 } // namespace HIKARI

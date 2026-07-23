@@ -21,6 +21,7 @@ namespace HIKARI {
         mutable AssetGuid applyRuntimeMaterialGuid_{};
         mutable PbrMaterialAssetData applyRuntimeMaterialData_{};
         mutable std::string refreshRuntimeMaterialGuid_{};
+        mutable std::string pendingRefreshRuntimeMaterialGuid_{};
     };
 
 } // namespace HIKARI

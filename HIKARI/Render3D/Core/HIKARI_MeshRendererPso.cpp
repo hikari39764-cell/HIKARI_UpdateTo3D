@@ -81,7 +81,8 @@ namespace HIKARI::MESHRENDERER {
             *outBlob = insertIt->second.Get();
             return true;
         }
-
+        
+		// メッシュの描画に使用するパイプラインステートオブジェクトを作成する。頂点シェーダとピクセルシェーダのバイナリを取得し、入力レイアウトやラスタライザステートなどを設定して、ID3D12PipelineStateを生成する。
         bool CreateVariantPipeline(MeshPipelineStore& store, ID3D12Device* device, const VFX::VariantKey& key, bool wireframe, ID3D12PipelineState** outPso) {
             ID3DBlob* vsBlob = nullptr;
             if (!LoadVertexShaderBlob(store, key.vertexShaderId, &vsBlob) || vsBlob == nullptr) {

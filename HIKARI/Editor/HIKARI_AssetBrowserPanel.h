@@ -70,6 +70,7 @@ namespace HIKARI {
         mutable std::string saveSceneAsGuid_{};
         mutable std::string refreshRuntimeAssetGuid_{};
         mutable std::string reimportAndRefreshRuntimeAssetGuid_{};
+        mutable std::string pendingReimportAndRefreshRuntimeAssetGuid_{};
         mutable std::string renameSceneGuid_{};
         mutable std::string deleteSceneGuid_{};
         mutable std::array<char, 128> renameSceneNameBuffer_{};

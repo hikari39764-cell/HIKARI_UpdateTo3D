@@ -8,6 +8,7 @@
 
 #include "HIKARI_AssetRecord.h"
 #include "Importers/HIKARI_AssetImporterRegistry.h"
+#include "Tasks/HIKARI_AssetTaskService.h"
 
 namespace HIKARI {
 
@@ -15,6 +16,21 @@ namespace HIKARI {
         int attempted = 0;
         int succeeded = 0;
         int failed = 0;
+    };
+
+    struct AssetImportBatchStatus {
+        bool active = false;
+        bool completed = false;
+        bool canceled = false;
+        bool cancellationRequested = false;
+        int total = 0;
+        int finished = 0;
+        int attempted = 0;
+        int succeeded = 0;
+        int failed = 0;
+        std::string label{};
+        std::string message{};
+        std::vector<AssetTaskId> activeTaskIds{};
     };
 
     enum class ClusteredGeometryArtifactState {
@@ -61,6 +77,25 @@ namespace HIKARI {
         AssetImportBatchResult ImportOutdatedInDirectory(const std::filesystem::path& directory, bool recursive);
         AssetImportBatchResult ImportDependencies(const AssetGuid& guid, bool includeSelf = false);
 
+        bool QueueImportAssets(
+            const std::vector<AssetGuid>& guids,
+            std::string label);
+        bool QueueImportAllOutdated(std::string label = "Outdated assets");
+        bool QueueImportOutdatedInDirectory(
+            const std::filesystem::path& directory,
+            bool recursive,
+            std::string label = {});
+        bool QueueImportDependencies(
+            const AssetGuid& guid,
+            bool includeSelf = false,
+            std::string label = "Selected dependencies");
+        bool RequestCancelQueuedImport();
+        AssetImportBatchStatus GetQueuedImportStatus() const;
+        bool ConsumeCompletedImportBatch(AssetImportBatchStatus& outStatus);
+        void PumpAssetTasks();
+        AssetTaskService& GetAssetTaskService() noexcept;
+        const AssetTaskService& GetAssetTaskService() const noexcept;
+
         const AssetRecord* FindByGuid(const AssetGuid& guid) const;
         AssetRecord* FindByGuid(const AssetGuid& guid);
 
@@ -106,6 +141,14 @@ namespace HIKARI {
         std::string MakePathKey(const std::filesystem::path& path) const;
         bool IsPathUnderDirectory(const std::filesystem::path& path, const std::filesystem::path& directory) const;
         void AdvanceContentRevision() noexcept;
+        bool CommitPreparedImport(
+            const AssetRecord& sourceSnapshot,
+            uint32_t importerVersion,
+            AssetImportResult result,
+            std::string& outMessage);
+        void ScheduleQueuedImportWork();
+
+        struct QueuedImportBatch;
 
         std::filesystem::path projectRoot_{};
         std::filesystem::path assetsRoot_{};
@@ -119,6 +162,10 @@ namespace HIKARI {
         std::unordered_map<std::string, size_t> recordsByGuid_{};
         std::unordered_map<std::string, size_t> guidByNormalizedPath_{};
         uint64_t contentRevision_ = 1u;
+        std::shared_ptr<QueuedImportBatch> queuedImportBatch_{};
+        AssetImportBatchStatus lastCompletedImportBatch_{};
+        bool completedImportBatchPending_ = false;
+        AssetTaskService assetTaskService_{};
     };
 
 } // namespace HIKARI

@@ -88,7 +88,7 @@ namespace HIKARI::RENDER3D::CLUSTER {
             bytes.resize(alignedOffset);
             return alignedOffset;
         }
-
+        // --- GPU 形式への変換関数群 ---
         ClusterGeometrySurfaceRange ToSurfaceRange(
             uint32_t surfaceIndex,
             const ClusterSurface& source) {

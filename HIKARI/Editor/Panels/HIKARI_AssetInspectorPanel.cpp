@@ -617,10 +617,16 @@ namespace HIKARI {
                 if (SavePbrMaterialAssetData(sourcePath, editData, error)) {
                     materialDirty = false;
                     materialStatus = "Material saved";
-                    assetDatabase.ImportAsset(record.guid);
-                    assetDatabase.ScanAssets(true);
-                    EDITOR::ClearMaterialTextureSlotPreviewCache();
-                    outRefreshRuntimeGuid = record.guid.value;
+                    if (assetDatabase.QueueImportAssets(
+                            { record.guid },
+                            "Saved material " +
+                                record.displayName)) {
+                        outRefreshRuntimeGuid =
+                            record.guid.value;
+                    } else {
+                        materialStatus =
+                            "Material saved; import waits for the active batch";
+                    }
                 } else {
                     materialStatus = error.empty() ? "Material save failed" : error;
                 }
@@ -644,6 +650,18 @@ namespace HIKARI {
 
     void AssetInspectorPanel::Draw(AssetDatabase& assetDatabase, AssetRegistry& assetRegistry, EditorSelection& selection) const {
 #if defined(HIKARI_WITH_EDITOR)
+        if (!pendingRefreshRuntimeMaterialGuid_.empty()) {
+            const AssetImportBatchStatus status =
+                assetDatabase.GetQueuedImportStatus();
+            if (!status.active && status.completed) {
+                if (!status.canceled && status.failed == 0) {
+                    EDITOR::ClearMaterialTextureSlotPreviewCache();
+                    refreshRuntimeMaterialGuid_ =
+                        pendingRefreshRuntimeMaterialGuid_;
+                }
+                pendingRefreshRuntimeMaterialGuid_.clear();
+            }
+        }
         if (selection.selectedAssetGuid.empty()) {
             ImGui::TextDisabled("No Asset selected");
             return;
@@ -709,11 +727,15 @@ namespace HIKARI {
                 }
 
                 if (ImGui::Button("Reimport")) {
-                    assetDatabase.ImportAsset(record->guid);
+                    (void)assetDatabase.QueueImportAssets(
+                        { record->guid },
+                        "Reimport " + record->displayName);
                 }
                 ImGui::SameLine();
                 if (ImGui::Button("Import Dependencies")) {
-                    assetDatabase.ImportDependencies(record->guid, false);
+                    (void)assetDatabase.QueueImportDependencies(
+                        record->guid,
+                        false);
                 }
                 ImGui::SameLine();
                 if (ImGui::Button("Save Meta")) {
@@ -772,7 +794,9 @@ namespace HIKARI {
                 }
                 ImGui::SameLine();
                 if (ImGui::Button("Reimport")) {
-                    assetDatabase.ImportAsset(record->guid);
+                    (void)assetDatabase.QueueImportAssets(
+                        { record->guid },
+                        "Reimport " + record->displayName);
                 }
 
                 ImGui::EndTabItem();
@@ -847,7 +871,9 @@ namespace HIKARI {
                 }
                 if (!record->artifactManifest.dependencies.empty()) {
                     if (ImGui::Button("Import Dependencies")) {
-                        assetDatabase.ImportDependencies(record->guid, false);
+                        (void)assetDatabase.QueueImportDependencies(
+                            record->guid,
+                            false);
                     }
                 }
                 ImGui::EndTabItem();
@@ -888,7 +914,7 @@ namespace HIKARI {
                     *record,
                     applyRuntimeMaterialGuid_,
                     applyRuntimeMaterialData_,
-                    refreshRuntimeMaterialGuid_);
+                    pendingRefreshRuntimeMaterialGuid_);
                 ImGui::EndTabItem();
             }
 

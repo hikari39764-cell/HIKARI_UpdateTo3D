@@ -8,6 +8,7 @@
 #include <filesystem>
 #include <fstream>
 #include <sstream>
+#include <unordered_set>
 #include <utility>
 #include <vector>
 
@@ -18,6 +19,8 @@
 #include "Assets/Geometry/HIKARI_ClusteredGeometryValidator.h"
 #include "Assets/Geometry/HIKARI_HcmeshFormat.h"
 #include "Assets/Formats/HIKARI_HmodelFormat.h"
+#include "Assets/HIKARI_AssetSourcePolicy.h"
+#include "Assets/Tasks/HIKARI_AssetTaskService.h"
 #include "Core/HIKARI_Logger.h"
 #include "HIKARI_TextureImportBackend_DirectXTex.h"
 #include "Render3D/Core/HIKARI_ModelManager.h"
@@ -168,6 +171,63 @@ namespace HIKARI {
                 return settings["clusterGeometry"];
             }
             return nlohmann::json::object();
+        }
+
+        void AppendGltfSourceBufferDependencies(
+            const std::filesystem::path& absoluteSource,
+            const std::filesystem::path& projectRoot,
+            std::vector<AssetDependencyDesc>& dependencies) {
+
+            nlohmann::json source{};
+            if (!ReadJsonFile(absoluteSource, source) ||
+                !source.contains("buffers") ||
+                !source["buffers"].is_array()) {
+                return;
+            }
+
+            std::unordered_set<std::string> uniquePaths{};
+            for (const AssetDependencyDesc& dependency : dependencies) {
+                if (!dependency.path.empty()) {
+                    uniquePaths.insert(dependency.path);
+                }
+            }
+
+            for (const nlohmann::json& buffer : source["buffers"]) {
+                if (!buffer.is_object()) {
+                    continue;
+                }
+                const std::string uri = buffer.value("uri", "");
+                if (uri.empty() ||
+                    uri.starts_with("data:") ||
+                    uri.find("://") != std::string::npos) {
+                    continue;
+                }
+
+                const std::filesystem::path uriPath{ uri };
+                if (uriPath.is_absolute()) {
+                    continue;
+                }
+                const std::filesystem::path absoluteDependency =
+                    (absoluteSource.parent_path() / uriPath).
+                        lexically_normal();
+                const std::filesystem::path projectRelative =
+                    absoluteDependency.lexically_relative(
+                        projectRoot.lexically_normal());
+                if (projectRelative.empty() ||
+                    *projectRelative.begin() == "..") {
+                    continue;
+                }
+
+                const std::string dependencyPath =
+                    projectRelative.generic_string();
+                if (!uniquePaths.insert(dependencyPath).second) {
+                    continue;
+                }
+                AssetDependencyDesc dependency{};
+                dependency.path = dependencyPath;
+                dependency.role = "SourceBuffer";
+                dependencies.push_back(std::move(dependency));
+            }
         }
 
         ModelGeometryCookProfile ParseGeometryCookProfile(const nlohmann::json& settings) {
@@ -1233,7 +1293,7 @@ namespace HIKARI {
     }
 
     uint32_t ModelImporter::GetImporterVersion() const {
-        return 33;
+        return 34;
     }
 
     bool ModelImporter::CanImport(const std::filesystem::path& sourcePath) const {
@@ -1295,6 +1355,24 @@ namespace HIKARI {
         const AssetImportContext& context) {
 
         AssetImportResult result{};
+        const std::string taskItem =
+            record.sourcePath.filename().string();
+        const auto reportStage =
+            [&](const char* stage,
+                float normalized,
+                bool determinate = true) {
+                if (context.task != nullptr) {
+                    context.task->ReportStage(
+                        stage,
+                        normalized,
+                        determinate,
+                        taskItem);
+                }
+            };
+        const auto canceled = [&]() {
+            return context.task != nullptr &&
+                context.task->IsCancellationRequested();
+        };
         const std::string ext = ToLowerCopy(record.sourcePath.extension().string());
         if (!IsCookableModelExtension(ext)) {
             result.message = "[AssetImporter] HMODEL cook supports " +
@@ -1317,6 +1395,11 @@ namespace HIKARI {
             BuildClusterCookSettings(importSettings, clusterProfile);
         const std::filesystem::path absoluteSource = ResolveProjectPath(context.projectRoot, record.sourcePath);
 
+        reportStage("Parsing model source", 0.08f, false);
+        if (canceled()) {
+            result.message = "[AssetImporter] model import canceled";
+            return result;
+        }
         ModelManager loader{};
         ModelAsset model{};
         model.SetName(record.guid.value);
@@ -1330,12 +1413,30 @@ namespace HIKARI {
 
         model.SetName(record.guid.value);
         model.SetSourcePath(record.sourcePath.generic_string());
+        if (ext == ".gltf") {
+            AppendGltfSourceBufferDependencies(
+                absoluteSource,
+                context.projectRoot,
+                result.dependencies);
+        }
 
         int htexReferenceCount = 0;
         int fallbackTextureCount = 0;
         std::vector<TextureCookDiagnostic> textureDiagnostics;
         textureDiagnostics.reserve(model.textures.size());
         for (size_t i = 0; i < model.textures.size(); ++i) {
+            if (canceled()) {
+                result.message = "[AssetImporter] model import canceled";
+                return result;
+            }
+            reportStage(
+                "Resolving model texture dependencies",
+                0.18f +
+                    0.14f *
+                    (model.textures.empty()
+                        ? 1.0f
+                        : static_cast<float>(i) /
+                            static_cast<float>(model.textures.size())));
             TextureAsset3D& texture = model.textures[i];
             TextureCookDiagnostic diagnostic{};
             diagnostic.index = static_cast<int>(i);
@@ -1375,6 +1476,7 @@ namespace HIKARI {
         const std::filesystem::path finalPath = context.importedDirectory / "model.hmodel";
         const std::filesystem::path tempPath = context.importedDirectory / "model.importing.hmodel";
 
+        reportStage("Writing HMODEL", 0.36f);
         std::error_code removeEc{};
         std::filesystem::remove(tempPath, removeEc);
         if (removeEc) {
@@ -1406,6 +1508,11 @@ namespace HIKARI {
         if (!buildClusterGeometry) {
             hcmeshMessage = "[AssetImporter] HCMESH cook disabled by model import settings";
         } else {
+            if (canceled()) {
+                result.message = "[AssetImporter] model import canceled";
+                return result;
+            }
+            reportStage("Cooking clustered geometry", 0.52f, false);
             RENDER3D::CLUSTER::ClusteredGeometryAsset clusteredGeometry{};
             clusteredReportPtr = &clusteredReport;
             if (ASSETS::GEOMETRY::CookClusteredGeometryFromModel(
@@ -1417,6 +1524,7 @@ namespace HIKARI {
                 clusteredValidation = ASSETS::GEOMETRY::ValidateClusteredGeometryAsset(clusteredGeometry);
                 clusteredValidationPtr = &clusteredValidation;
                 if (clusteredValidation.valid) {
+                    reportStage("Writing HCMESH", 0.76f);
                     const std::filesystem::path finalHcmeshPath = context.importedDirectory / "clustered_mesh.hcmesh";
                     const std::filesystem::path tempHcmeshPath = context.importedDirectory / "clustered_mesh.importing.hcmesh";
                     std::error_code removeHcmeshEc{};
@@ -1445,6 +1553,11 @@ namespace HIKARI {
             }
         }
 
+        if (canceled()) {
+            result.message = "[AssetImporter] model import canceled";
+            return result;
+        }
+        reportStage("Compiling model collision", 0.86f, false);
         const ASSETS::COLLISION::ModelCollisionArtifactResult
             collisionArtifact =
                 ASSETS::COLLISION::BuildModelCollisionArtifact(
@@ -1470,6 +1583,7 @@ namespace HIKARI {
         }
 
         result.success = true;
+        reportStage("Building model import report", 0.96f);
         result.message = "[AssetImporter] Wrote HMODEL meshes=" +
             std::to_string(model.meshes.size()) +
             " materials=" + std::to_string(model.materials.size()) +

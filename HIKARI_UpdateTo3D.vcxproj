@@ -591,10 +591,13 @@
     <ClCompile Include="HIKARI\Editor\HIKARI_DocumentComponentAuthoringService.cpp" />
     <ClCompile Include="HIKARI\Editor\HIKARI_ComponentDocumentEditor.cpp" />
     <ClCompile Include="HIKARI\Assets\HIKARI_AssetDatabase.cpp" />
+    <ClCompile Include="HIKARI\Assets\Tasks\HIKARI_AssetImportQueue.cpp" />
+    <ClCompile Include="HIKARI\Assets\Tasks\HIKARI_AssetTaskService.cpp" />
     <ClCompile Include="HIKARI\Assets\HIKARI_AssetGuid.cpp" />
     <ClCompile Include="HIKARI\Assets\HIKARI_AssetImportState.cpp" />
     <ClCompile Include="HIKARI\Assets\HIKARI_AssetRegistry.cpp" />
     <ClCompile Include="HIKARI\Assets\HIKARI_AssetRegistryBuilder.cpp" />
+    <ClCompile Include="HIKARI\Assets\HIKARI_AssetSourcePolicy.cpp" />
     <ClCompile Include="HIKARI\Assets\HIKARI_AssetUsageAnalyzer.cpp" />
     <ClCompile Include="HIKARI\Assets\Collision\HIKARI_CollisionGeometryAsset.cpp" />
     <ClCompile Include="HIKARI\Assets\Collision\HIKARI_HcollisionFormat.cpp" />
@@ -1183,6 +1186,7 @@
     <ClInclude Include="HIKARI\Editor\Controllers\HIKARI_DocumentToolbarController.h" />
     <ClInclude Include="HIKARI\Editor\HIKARI_DocumentComponentAuthoringService.h" />
     <ClInclude Include="HIKARI\Assets\HIKARI_AssetDatabase.h" />
+    <ClInclude Include="HIKARI\Assets\Tasks\HIKARI_AssetTaskService.h" />
     <ClInclude Include="HIKARI\Assets\HIKARI_AssetArtifactManifest.h" />
     <ClInclude Include="HIKARI\Assets\HIKARI_AssetGuid.h" />
     <ClInclude Include="HIKARI\Assets\HIKARI_AssetImportState.h" />
@@ -1192,6 +1196,7 @@
     <ClInclude Include="HIKARI\Assets\HIKARI_AssetTypes.h" />
     <ClInclude Include="HIKARI\Assets\HIKARI_AssetRegistry.h" />
     <ClInclude Include="HIKARI\Assets\HIKARI_AssetRegistryBuilder.h" />
+    <ClInclude Include="HIKARI\Assets\HIKARI_AssetSourcePolicy.h" />
     <ClInclude Include="HIKARI\Assets\HIKARI_AssetUsageAnalyzer.h" />
     <ClInclude Include="HIKARI\Assets\Collision\HIKARI_CollisionGeometryAsset.h" />
     <ClInclude Include="HIKARI\Assets\Collision\HIKARI_HcollisionFormat.h" />

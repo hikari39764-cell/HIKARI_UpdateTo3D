@@ -11,6 +11,7 @@
 #include <json.hpp>
 
 #include "Core/HIKARI_Logger.h"
+#include "Assets/Tasks/HIKARI_AssetTaskService.h"
 #include "HIKARI_HtexTextureWriter_DirectXTex.h"
 
 namespace HIKARI {
@@ -331,6 +332,8 @@ namespace HIKARI {
         const AssetImportContext& context) {
 
         AssetImportResult result{};
+        const std::string taskItem =
+            record.sourcePath.filename().string();
         if (!backend_ || !backend_->IsAvailable()) {
             result.message = "[TextureImporter] Backend Missing";
             HIKARI_LOG_ERROR(result.message);
@@ -339,6 +342,17 @@ namespace HIKARI {
 
         TextureImportSettings settings = ReadSettings(record.meta);
         std::string inspectMessage{};
+        if (context.task != nullptr) {
+            context.task->ReportStage(
+                "Inspecting texture",
+                0.05f,
+                true,
+                taskItem);
+            if (context.task->IsCancellationRequested()) {
+                result.message = "[TextureImporter] import canceled";
+                return result;
+            }
+        }
         try {
             if (!backend_->Inspect(context.projectRoot / record.sourcePath, settings, inspectMessage)) {
                 result.message = inspectMessage.empty() ? "[TextureImporter] inspect failed" : inspectMessage;
@@ -359,6 +373,13 @@ namespace HIKARI {
         const std::filesystem::path finalHtexPath = context.importedDirectory / "texture.htex";
         const std::filesystem::path tempHtexPath = context.importedDirectory / "texture.importing.htex";
 
+        if (context.task != nullptr) {
+            context.task->ReportStage(
+                "Preparing texture artifacts",
+                0.16f,
+                true,
+                taskItem);
+        }
         std::error_code removeEc{};
         std::filesystem::remove(tempPath, removeEc);
         if (removeEc) {
@@ -381,7 +402,8 @@ namespace HIKARI {
                     tempHtexPath,
                     tempPath,
                     settings,
-                    convertMessage)) {
+                    convertMessage,
+                    context.task)) {
                 std::error_code cleanupEc{};
                 std::filesystem::remove(tempHtexPath, cleanupEc);
                 std::filesystem::remove(tempPath, cleanupEc);
@@ -404,6 +426,22 @@ namespace HIKARI {
             return result;
         }
 
+        if (context.task != nullptr &&
+            context.task->IsCancellationRequested()) {
+            std::error_code cleanupEc{};
+            std::filesystem::remove(tempHtexPath, cleanupEc);
+            std::filesystem::remove(tempPath, cleanupEc);
+            result.message = "[TextureImporter] import canceled";
+            return result;
+        }
+
+        if (context.task != nullptr) {
+            context.task->ReportStage(
+                "Committing texture artifacts",
+                0.97f,
+                true,
+                taskItem);
+        }
         if (!ReplaceFileWithTemp(tempHtexPath, finalHtexPath, result.message)) {
             std::error_code cleanupEc{};
             std::filesystem::remove(tempPath, cleanupEc);

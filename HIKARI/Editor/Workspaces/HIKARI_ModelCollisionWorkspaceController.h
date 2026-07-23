@@ -3,7 +3,7 @@
 #include <array>
 #include <cstdint>
 #include <filesystem>
-#include <future>
+#include <memory>
 #include <optional>
 #include <string>
 #include <unordered_set>
@@ -11,6 +11,7 @@
 #include "Assets/Collision/HIKARI_ModelCollisionGenerator.h"
 #include "Assets/Collision/HIKARI_ModelCollisionSetup.h"
 #include "Assets/HIKARI_AssetGuid.h"
+#include "Assets/Tasks/HIKARI_AssetTaskService.h"
 #include "Editor/Commands/HIKARI_EditorCommandRouter.h"
 #include "Editor/Gizmos/HIKARI_EditorTransformGizmo.h"
 #include "Editor/Views/HIKARI_EditorDirectorCameraController.h"
@@ -179,9 +180,10 @@ namespace HIKARI::EDITOR {
         int generationBudget_ = 512;
         int generationHullVertexBudget_ = 128;
         int generationTriangleBudget_ = 1000000;
-        std::future<CollisionGenerationTaskOutput> generationFuture_{};
-        std::shared_ptr<ASSETS::COLLISION::ModelCollisionGenerationControl>
-            generationControl_{};
+        AssetTaskService* assetTaskService_ = nullptr;
+        AssetTaskId generationTaskId_ = 0u;
+        std::shared_ptr<CollisionGenerationTaskOutput>
+            generationTaskOutput_{};
         std::optional<CollisionGenerationTaskOutput> generationDraft_{};
         uint64_t editRevision_ = 1u;
         uint64_t generationStartRevision_ = 0u;

@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <filesystem>
+#include <optional>
 #include <string>
 #include <utility>
 
@@ -182,30 +183,86 @@ namespace HIKARI {
         }
 
         void DrawPreviewAndImportLog(AssetDatabase& assetDatabase, EditorSelection& selection) {
-            ImGui::TextUnformatted("Import Log / Preview");
+            ImGui::TextUnformatted("Background Asset Tasks");
+            ImGui::SameLine();
+            const std::vector<AssetTaskSnapshot> tasks =
+                assetDatabase.GetAssetTaskService().
+                    CollectSnapshots();
+            ImGui::TextDisabled("%d recent", static_cast<int>(tasks.size()));
+            if (!tasks.empty()) {
+                ImGui::SameLine();
+                if (ImGui::SmallButton("Clear Completed")) {
+                    assetDatabase.GetAssetTaskService().
+                        ClearCompleted();
+                }
+            }
             ImGui::Separator();
 
-            if (selection.selectedAssetGuid.empty()) {
-                ImGui::TextDisabled("Select an asset to inspect its latest import message");
-                return;
-            }
-
-            const AssetRecord* record = assetDatabase.FindByGuid(AssetGuid{ selection.selectedAssetGuid });
-            if (!record) {
-                ImGui::TextDisabled("Selected asset is no longer available");
-                return;
-            }
-
-            ImGui::Text("%s | %s", record->displayName.c_str(), ToString(GetImportState(*record)));
-            if (!record->lastImportMessage.empty()) {
-                ImGui::TextWrapped("%s", record->lastImportMessage.c_str());
-            } else {
-                ImGui::TextDisabled("No import report message yet");
-            }
-
-            if (!record->artifactManifest.artifacts.empty()) {
+            int drawnTasks = 0;
+            for (const AssetTaskSnapshot& task : tasks) {
+                if (drawnTasks >= 6) {
+                    break;
+                }
+                ++drawnTasks;
+                ImGui::PushID(static_cast<int>(task.id));
+                ImGui::Text(
+                    "%s  %s",
+                    ToString(task.state),
+                    task.label.c_str());
                 ImGui::SameLine();
-                ImGui::TextDisabled("Artifacts: %d", static_cast<int>(record->artifactManifest.artifacts.size()));
+                ImGui::TextDisabled(
+                    "%.2f s  |  %s",
+                    task.elapsedSeconds,
+                    task.progress.stage.c_str());
+                if (!task.progress.currentItem.empty() &&
+                    ImGui::IsItemHovered()) {
+                    ImGui::SetTooltip(
+                        "%s",
+                        task.progress.currentItem.c_str());
+                }
+                if (!task.resultMessage.empty() &&
+                    IsTerminal(task.state)) {
+                    ImGui::TextDisabled(
+                        "%s",
+                        task.resultMessage.c_str());
+                }
+                ImGui::PopID();
+            }
+
+            ImGui::Spacing();
+            ImGui::SeparatorText("Selected Asset Import");
+            if (selection.selectedAssetGuid.empty()) {
+                ImGui::TextDisabled(
+                    "Select an asset to inspect its latest import message");
+            } else {
+                const AssetRecord* record = assetDatabase.FindByGuid(
+                    AssetGuid{ selection.selectedAssetGuid });
+                if (!record) {
+                    ImGui::TextDisabled(
+                        "Selected asset is no longer available");
+                    return;
+                }
+
+                ImGui::Text(
+                    "%s | %s",
+                    record->displayName.c_str(),
+                    ToString(GetImportState(*record)));
+                if (!record->lastImportMessage.empty()) {
+                    ImGui::TextWrapped(
+                        "%s",
+                        record->lastImportMessage.c_str());
+                } else {
+                    ImGui::TextDisabled(
+                        "No import report message yet");
+                }
+
+                if (!record->artifactManifest.artifacts.empty()) {
+                    ImGui::SameLine();
+                    ImGui::TextDisabled(
+                        "Artifacts: %d",
+                        static_cast<int>(
+                            record->artifactManifest.artifacts.size()));
+                }
             }
         }
 #endif
@@ -233,6 +290,18 @@ namespace HIKARI {
         const AssetRecord* selectedRecord = selection.selectedAssetGuid.empty()
             ? nullptr
             : assetDatabase.FindByGuid(AssetGuid{ selection.selectedAssetGuid });
+        AssetImportBatchStatus completedBatch{};
+        if (assetDatabase.ConsumeCompletedImportBatch(completedBatch)) {
+            assetDatabase.ScanAssets(false);
+            importMonitor_ = MakeImportMonitor(
+                completedBatch.attempted,
+                completedBatch.succeeded,
+                completedBatch.failed,
+                completedBatch.label);
+        }
+        const AssetImportBatchStatus importStatus =
+            assetDatabase.GetQueuedImportStatus();
+        const bool importActive = importStatus.active;
 
         DrawScopeCombo(assetDatabase, usageSummary, activeScope_);
         ImGui::SameLine();
@@ -260,6 +329,9 @@ namespace HIKARI {
         }
         const bool compactToolbar = ImGui::GetContentRegionAvail().x < 900.0f;
 
+        if (importActive) {
+            ImGui::BeginDisabled();
+        }
         if (EDITOR::IconButton(
                 EDITOR::EditorGlyph::Refresh,
                 "ResourceRefresh",
@@ -269,7 +341,13 @@ namespace HIKARI {
             assetDatabase.ScanAssets(true);
             refreshCurrentSceneResourcesRequested_ = true;
         }
+        if (importActive) {
+            ImGui::EndDisabled();
+        }
         ImGui::SameLine();
+        if (importActive) {
+            ImGui::BeginDisabled();
+        }
         if (EDITOR::IconTextButton(
                 EDITOR::EditorGlyph::Import,
                 "Import Outdated",
@@ -277,12 +355,14 @@ namespace HIKARI {
                 EDITOR::EditorButtonTone::Primary,
                 ImVec2(0.0f, 28.0f),
                 "Import every asset whose source is newer than its artifact")) {
-            const AssetImportBatchResult result = assetDatabase.ImportAllOutdated();
-            assetDatabase.ScanAssets(false);
-            importMonitor_ = MakeImportMonitor(result, "Outdated assets");
+            (void)assetDatabase.QueueImportAllOutdated();
+        }
+        if (importActive) {
+            ImGui::EndDisabled();
         }
         ImGui::SameLine();
-        if (activeScope_ != AssetBrowserScope::Project) {
+        if (activeScope_ != AssetBrowserScope::Project ||
+            importActive) {
             ImGui::BeginDisabled();
         }
         const bool importCurrentFolder = compactToolbar
@@ -301,18 +381,16 @@ namespace HIKARI {
                 "Import outdated assets in the selected folder; recursive follows the browser toggle");
         if (importCurrentFolder) {
             const std::filesystem::path currentDirectory = assetBrowserPanel_.CurrentDirectory();
-            const AssetImportBatchResult result =
-                assetDatabase.ImportOutdatedInDirectory(currentDirectory, assetBrowserPanel_.IsRecursiveEnabled());
-            assetDatabase.ScanAssets(false);
-            importMonitor_ = MakeImportMonitor(
-                result,
-                "Current folder " + currentDirectory.generic_string());
+            (void)assetDatabase.QueueImportOutdatedInDirectory(
+                currentDirectory,
+                assetBrowserPanel_.IsRecursiveEnabled());
         }
-        if (activeScope_ != AssetBrowserScope::Project) {
+        if (activeScope_ != AssetBrowserScope::Project ||
+            importActive) {
             ImGui::EndDisabled();
         }
         ImGui::SameLine();
-        if (selectedRecord == nullptr) {
+        if (selectedRecord == nullptr || importActive) {
             ImGui::BeginDisabled();
         }
         const bool importDependencies = compactToolbar
@@ -330,9 +408,9 @@ namespace HIKARI {
                 ImVec2(0.0f, 28.0f),
                 "Import dependencies of the selected asset");
         if (importDependencies) {
-            const AssetImportBatchResult result = assetDatabase.ImportDependencies(selectedRecord->guid, false);
-            assetDatabase.ScanAssets(false);
-            importMonitor_ = MakeImportMonitor(result, "Selected dependencies");
+            (void)assetDatabase.QueueImportDependencies(
+                selectedRecord->guid,
+                false);
         }
         ImGui::SameLine();
         const bool reimportSelected = compactToolbar
@@ -350,18 +428,70 @@ namespace HIKARI {
                 ImVec2(0.0f, 28.0f),
                 "Reimport the selected asset");
         if (reimportSelected) {
-            const bool ok = assetDatabase.ImportAsset(selectedRecord->guid);
-            assetDatabase.ScanAssets(false);
-            importMonitor_ = MakeImportMonitor(
-                selectedRecord != nullptr ? 1 : 0,
-                ok ? 1 : 0,
-                ok ? 0 : 1,
+            (void)assetDatabase.QueueImportAssets(
+                { selectedRecord->guid },
                 "Selected asset");
         }
-        if (selectedRecord == nullptr) {
+        if (selectedRecord == nullptr || importActive) {
             ImGui::EndDisabled();
         }
-        if (importMonitor_.hasResult &&
+        if (importActive) {
+            float activeProgress = 0.0f;
+            std::string activeStage = "Waiting for worker";
+            std::string activeItem{};
+            for (AssetTaskId taskId :
+                 importStatus.activeTaskIds) {
+                const std::optional<AssetTaskSnapshot> snapshot =
+                    assetDatabase.GetAssetTaskService().
+                        FindSnapshot(taskId);
+                if (!snapshot) {
+                    continue;
+                }
+                activeProgress += snapshot->progress.determinate
+                    ? snapshot->progress.normalized
+                    : 0.0f;
+                if (activeItem.empty() &&
+                    snapshot->state != AssetTaskState::Queued) {
+                    activeStage = snapshot->progress.stage;
+                    activeItem = snapshot->progress.currentItem;
+                }
+            }
+            const float overallProgress = importStatus.total > 0
+                ? (std::clamp)(
+                    (static_cast<float>(importStatus.finished) +
+                        activeProgress) /
+                        static_cast<float>(importStatus.total),
+                    0.0f,
+                    1.0f)
+                : 0.0f;
+            ImGui::SetNextItemWidth(
+                (std::min)(360.0f, ImGui::GetContentRegionAvail().x));
+            ImGui::ProgressBar(
+                overallProgress,
+                ImVec2(0.0f, 22.0f),
+                activeStage.c_str());
+            if (!activeItem.empty() &&
+                ImGui::IsItemHovered()) {
+                ImGui::SetTooltip("%s", activeItem.c_str());
+            }
+            ImGui::SameLine();
+            ImGui::TextDisabled(
+                "%d / %d  |  %d ok  |  %d failed",
+                importStatus.finished,
+                importStatus.total,
+                importStatus.succeeded,
+                importStatus.failed);
+            ImGui::SameLine();
+            ImGui::BeginDisabled(
+                importStatus.cancellationRequested);
+            if (ImGui::SmallButton(
+                    importStatus.cancellationRequested
+                        ? "Cancel Requested"
+                        : "Cancel")) {
+                (void)assetDatabase.RequestCancelQueuedImport();
+            }
+            ImGui::EndDisabled();
+        } else if (importMonitor_.hasResult &&
             ImGui::GetTime() <= importMonitor_.visibleUntilSeconds) {
             const bool failed = importMonitor_.failed > 0;
             const char* statusLabel = failed

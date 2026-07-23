@@ -633,6 +633,7 @@ namespace HIKARI {
         DocumentSceneBase& scene,
         EDITOR::EditorPlaySession& playSession) {
 #if defined(HIKARI_WITH_EDITOR)
+        scene.GetAssetDatabase().PumpAssetTasks();
         SyncDocumentHistory(scene);
         context_.selection.RepairObjectSelection(scene.GetWorld());
         context_.gizmos.lockedObjectIds =
