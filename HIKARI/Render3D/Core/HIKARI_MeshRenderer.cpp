@@ -141,22 +141,6 @@ namespace HIKARI::MESHRENDERER {
         (void)RENDER3D::PIPELINE::RenderMeshLightingFrame(view, environment, debugView);
     }
 
-    void RenderAll(
-        const Camera3D& camera,
-        const SceneEnvironment& environment,
-        RenderDebugView debugView) {
-
-        RENDER3D::ResolvedCameraFrame cameraFrame{};
-        cameraFrame.camera = camera;
-        cameraFrame.valid = true;
-
-        RENDER3D::RenderViewContext view{};
-        view.viewId = RENDER3D::kPrimaryRenderViewId;
-        view.purpose = RENDER3D::RenderViewPurpose::Game;
-        view.cameraFrame = &cameraFrame;
-        RenderAll(view, environment, debugView);
-    }
-
     const MeshRendererDebugStats& GetDebugStats() {
         const MaterialFxProfileCacheStats fxCacheStats = MaterialFxProfile::GetCacheStats();
         gMeshRendererState.debugStats.materialFxProfileCacheHitCount = fxCacheStats.hitCount;

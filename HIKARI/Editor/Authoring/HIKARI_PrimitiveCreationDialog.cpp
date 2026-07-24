@@ -9,18 +9,6 @@
 
 namespace HIKARI::EDITOR {
     namespace {
-        const char* DefaultName(ProceduralMeshKind kind) {
-            switch (kind) {
-            case ProceduralMeshKind::Plane: return "Plane";
-            case ProceduralMeshKind::GridPlane: return "Grid Plane";
-            case ProceduralMeshKind::Sphere: return "Sphere";
-            case ProceduralMeshKind::Cylinder: return "Cylinder";
-            case ProceduralMeshKind::Capsule: return "Capsule";
-            case ProceduralMeshKind::Box:
-            default: return "Box";
-            }
-        }
-
 #if defined(HIKARI_WITH_EDITOR)
         void DrawPositiveFloat(const char* label, float& value) {
             ImGui::DragFloat(label, &value, 0.05f, 0.001f, 100000.0f, "%.3f");
@@ -50,7 +38,7 @@ namespace HIKARI::EDITOR {
         nameBuffer_.fill('\0');
         std::strncpy(
             nameBuffer_.data(),
-            DefaultName(kind),
+            GetProceduralMeshDisplayName(kind),
             nameBuffer_.size() - 1u);
         addCollider_ = true;
         openRequested_ = true;
@@ -84,7 +72,7 @@ namespace HIKARI::EDITOR {
                     settings_.kind == ProceduralMeshKind::GridPlane;
                 std::strncpy(
                     nameBuffer_.data(),
-                    DefaultName(settings_.kind),
+                    GetProceduralMeshDisplayName(settings_.kind),
                     nameBuffer_.size() - 1u);
             }
 

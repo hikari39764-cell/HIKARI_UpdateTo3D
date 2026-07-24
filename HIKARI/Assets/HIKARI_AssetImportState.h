@@ -18,6 +18,7 @@ namespace HIKARI {
     };
 
     AssetImportState GetImportState(const AssetRecord& record);
+    bool IsBrokenAssetRecord(const AssetRecord& record);
     const char* ToString(AssetImportState state);
 
 } // namespace HIKARI

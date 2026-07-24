@@ -13,24 +13,6 @@
 namespace HIKARI::RENDER3D::GPUDRIVEN {
 
     namespace {
-        void AccumulateSurfaceGpuSceneStats(
-            RUNTIME::SurfaceGpuSceneBuildStats& dst,
-            const RUNTIME::SurfaceGpuSceneBuildStats& src) {
-
-            dst.commandCount += src.commandCount;
-            dst.instanceCount += src.instanceCount;
-            dst.skippedInvalidCommandCount += src.skippedInvalidCommandCount;
-            dst.skippedInvalidRecordCount += src.skippedInvalidRecordCount;
-            dst.maxCommandInstanceCount =
-                (std::max)(dst.maxCommandInstanceCount, src.maxCommandInstanceCount);
-            dst.resourceBackedInstanceCount += src.resourceBackedInstanceCount;
-            dst.missingResourceHandleInstanceCount += src.missingResourceHandleInstanceCount;
-            dst.clusterResourceInstanceCount += src.clusterResourceInstanceCount;
-            dst.clusterShaderVisibleInstanceCount += src.clusterShaderVisibleInstanceCount;
-            dst.clusterSurfaceRangeInstanceCount += src.clusterSurfaceRangeInstanceCount;
-            dst.clusterMissingSurfaceRangeInstanceCount += src.clusterMissingSurfaceRangeInstanceCount;
-        }
-
         void ResetPassSource(
             GpuDrivenPassSource& pass,
             const std::vector<RUNTIME::SurfaceGpuSceneInstance>* instances,
@@ -659,33 +641,6 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
         bool ShouldPublishStaticTraditionalStreams() {
             return HIKARI::RENDER3D::GetRenderQualitySettings().geometryPipeline ==
                 HIKARI::RENDER3D::GeometryPipelineMode::TraditionalVsPs;
-        }
-
-        bool HasValidGpuSceneSubmitPrimitiveTarget(
-            const GpuSceneSurfaceRecord& record) {
-
-            return
-                record.model != nullptr &&
-                record.meshIndex != RUNTIME::kInvalidRenderSurfaceIndex &&
-                record.primitiveIndex != RUNTIME::kInvalidRenderSurfaceIndex &&
-                record.meshIndex < record.model->meshes.size() &&
-                record.primitiveIndex <
-                    record.model->meshes[record.meshIndex].primitives.size();
-        }
-
-        bool HasValidSkinnedGpuSceneSubmitPrimitiveTarget(
-            const GpuSceneSurfaceRecord& record) {
-
-            if (!HasValidGpuSceneSubmitPrimitiveTarget(record)) {
-                return false;
-            }
-            const MeshPrimitive& primitive =
-                record.model
-                    ->meshes[record.meshIndex]
-                    .primitives[record.primitiveIndex];
-            return
-                !primitive.skinnedVertices.empty() &&
-                !primitive.indices.empty();
         }
 
         void FillTraditionalDrawCommand(

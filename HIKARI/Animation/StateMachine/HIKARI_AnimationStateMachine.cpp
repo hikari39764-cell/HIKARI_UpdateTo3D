@@ -37,12 +37,6 @@ namespace HIKARI::ANIMATION {
             return FindAnimationState(definition, id) != nullptr;
         }
 
-        bool HasParameter(
-            const AnimationStateMachineDefinition& definition,
-            AnimationParameterId id) noexcept {
-            return FindAnimationParameter(definition, id) != nullptr;
-        }
-
         void NormalizeStateMotion(AnimationStateMotion& motion) {
             auto* blendTree = std::get_if<
                 AnimationBlendTree1DMotion>(&motion);

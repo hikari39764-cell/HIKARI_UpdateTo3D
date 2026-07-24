@@ -2,6 +2,7 @@
 #include <cstddef>
 #include <string>
 #include <vector>
+#include "Core/Math/HIKARI_Vector2.h"
 #include "Matrix3x3.h"
 #include "Render2D/HIKARI_Transform2D.h"
 #include "Render2D/HIKARI_Camera.h"

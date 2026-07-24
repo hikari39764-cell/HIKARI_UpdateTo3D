@@ -18,6 +18,14 @@ namespace HIKARI {
         }
     }
 
+    const char* GetProceduralMeshDisplayName(
+        ProceduralMeshKind kind) noexcept {
+
+        return kind == ProceduralMeshKind::GridPlane
+            ? "Grid Plane"
+            : ToString(kind);
+    }
+
     ProceduralMeshKind ParseProceduralMeshKind(
         const nlohmann::json& value,
         ProceduralMeshKind fallback) {

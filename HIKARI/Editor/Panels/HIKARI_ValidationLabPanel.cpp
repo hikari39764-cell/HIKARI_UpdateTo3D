@@ -5,6 +5,7 @@
 #include "Render3D/Resources/Descriptors/HIKARI_RenderResourceDescriptorPool.h"
 #include "Render3D/Shadow/HIKARI_ShadowMapRenderer.h"
 #include "Scene/HIKARI_RenderSubmissionSystem.h"
+#include "Editor/Style/HIKARI_EditorWidgets.h"
 
 #include <algorithm>
 #include <cstdio>
@@ -85,21 +86,6 @@ namespace HIKARI {
             ImGui::TextUnformatted(label);
             ImGui::TableSetColumnIndex(1);
             ImGui::Text(fmt, args...);
-        }
-
-        bool BeginMetricTable(const char* id, float labelWidth = 230.0f) {
-            if (!ImGui::BeginTable(
-                    id,
-                    2,
-                    ImGuiTableFlags_BordersInnerV |
-                        ImGuiTableFlags_RowBg |
-                        ImGuiTableFlags_SizingStretchProp)) {
-                return false;
-            }
-            ImGui::TableSetupColumn("Signal", ImGuiTableColumnFlags_WidthFixed, labelWidth);
-            ImGui::TableSetupColumn("Value");
-            ImGui::TableHeadersRow();
-            return true;
         }
 
         int ComputeGpuDrivenScore(const RendererHealthSnapshot& s) {
@@ -211,7 +197,7 @@ namespace HIKARI {
 
         void DrawIssueSummary(const RendererHealthSnapshot& s) {
             ImGui::SeparatorText("Issue Summary");
-            if (BeginMetricTable("RendererHealthIssueSummary")) {
+            if (EDITOR::BeginMetricTable("RendererHealthIssueSummary", 230.0f)) {
                 MetricRow("Route / Mainline", "%s / %s",
                     ToString(s.submission.routeMode),
                     s.submission.gpuDrivenMainRouteActive ? "on" : "off");
@@ -245,7 +231,7 @@ namespace HIKARI {
 
         void DrawResourceSummary(const RendererHealthSnapshot& s) {
             ImGui::SeparatorText("Resource Summary");
-            if (BeginMetricTable("RendererHealthResourceSummary")) {
+            if (EDITOR::BeginMetricTable("RendererHealthResourceSummary", 230.0f)) {
                 MetricRow("Cluster Surfaces / LOD Ranges / Clusters / Pages", "%u / %u / %u / %u",
                     s.clusterResources.surfaceCount,
                     s.clusterResources.surfaceLodRangeCount,

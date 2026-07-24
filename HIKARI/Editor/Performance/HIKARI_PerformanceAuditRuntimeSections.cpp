@@ -7,6 +7,7 @@
 #include "Gfx/HIKARI_GpuPipelineStatsProfiler.h"
 #include "Render3D/Core/HIKARI_MeshRenderer.h"
 #include "Render3D/Lighting/HIKARI_VolumetricLightingStage.h"
+#include "Render3D/Lighting/HIKARI_SceneEnvironmentNames.h"
 #include "Render3D/Material/HIKARI_GpuMaterialRegistry.h"
 #include "Render3D/Resources/HIKARI_ClusterGeometryResourceSystem.h"
 #include "Render3D/Resources/Descriptors/HIKARI_RenderResourceDescriptorPool.h"
@@ -70,7 +71,7 @@ void DrawEffectsTable(const RuntimePerformanceSnapshot &s) {
   ImGui::SeparatorText("Effects");
   if (BeginMetricTable("EffectsMetrics", 250.0f)) {
     MetricRow("SSAO Mode / Valid / Half", "%s / %s / %s",
-              RENDER3D::SCREENSPACE::ToString(s.ssao.mode),
+              GetSsaoModeName(s.ssao.mode),
               s.ssao.valid ? "yes" : "no",
               s.ssao.halfResolution ? "yes" : "no");
     MetricRow("SSAO AO Size / Samples / Blur", "%u x %u / %u / %u",

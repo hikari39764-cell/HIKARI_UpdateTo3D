@@ -10,6 +10,7 @@
 #include "Gfx/HIKARI_GfxContext.h"
 #include "Render2D/HIKARI_RenderTarget2D.h"
 #include "Render3D/Upscaling/HIKARI_StreamlineInternal.h"
+#include "Render3D/Upscaling/HIKARI_StreamlineResourceAdapter.h"
 
 #if defined(HIKARI_WITH_STREAMLINE)
 #pragma warning(push, 0)
@@ -48,19 +49,6 @@ namespace HIKARI::RENDER3D::UPSCALING {
             } else {
                 HIKARI_LOG_WARN(message.str());
             }
-        }
-
-        sl::Resource MakeResource(const TEMPORAL::TemporalTextureView& view) {
-            sl::Resource resource(
-                sl::ResourceType::eTex2d,
-                view.resource,
-                static_cast<uint32_t>(view.state));
-            resource.width = view.width;
-            resource.height = view.height;
-            resource.nativeFormat = static_cast<uint32_t>(view.format);
-            resource.mipLevels = 1;
-            resource.arrayLayers = 1;
-            return resource;
         }
 
         sl::Resource MakeResource(RenderTarget2D& target) {
@@ -490,8 +478,12 @@ namespace HIKARI::RENDER3D::UPSCALING {
             return true;
         }
 
-        sl::Resource depth = MakeResource(temporal.sceneDepth);
-        sl::Resource motion = MakeResource(temporal.motionVectors);
+        sl::Resource depth =
+            INTERNAL::MakeStreamlineTextureResource(
+                temporal.sceneDepth);
+        sl::Resource motion =
+            INTERNAL::MakeStreamlineTextureResource(
+                temporal.motionVectors);
         sl::Resource hudless = MakeResource(hudlessColor);
         sl::Resource ui = MakeResource(uiColorAndAlpha);
         const sl::Extent renderExtent{

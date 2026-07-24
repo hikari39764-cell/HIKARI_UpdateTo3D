@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Editor/Performance/HIKARI_PerformanceAuditPanel.h"
+#include "Editor/Style/HIKARI_EditorWidgets.h"
 
 #include "Core/HIKARI_TimeService.h"
 #include "Diagnostics/HIKARI_CpuFrameProfiler.h"
@@ -84,8 +85,6 @@ ImVec4 StatusColor(bool ok);
 void TextStatus(const char *label, bool ok);
 
 void MetricRowText(const char *label, const char *value);
-
-bool BeginMetricTable(const char *id, float labelWidth = 210.0f);
 
 RuntimePerformanceSnapshot BuildSnapshot();
 

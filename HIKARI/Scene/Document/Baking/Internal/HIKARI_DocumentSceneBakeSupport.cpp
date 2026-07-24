@@ -37,20 +37,6 @@ namespace HIKARI::DOCUMENT_SCENE_BAKING {
             report.errors.push_back(std::move(message));
         }
 
-        bool IsBakeStateRunning(TOOLS::BAKING::LightingBakeJobState state) {
-            switch (state) {
-            case TOOLS::BAKING::LightingBakeJobState::Requested:
-            case TOOLS::BAKING::LightingBakeJobState::Capturing:
-            case TOOLS::BAKING::LightingBakeJobState::WaitingGpu:
-            case TOOLS::BAKING::LightingBakeJobState::ProjectingSH:
-            case TOOLS::BAKING::LightingBakeJobState::Saving:
-            case TOOLS::BAKING::LightingBakeJobState::Finalizing:
-                return true;
-            default:
-                return false;
-            }
-        }
-
         std::filesystem::path ReflectionProbeOutputDirectory(
             const std::filesystem::path& projectRoot,
             const std::string& sceneGuid) {

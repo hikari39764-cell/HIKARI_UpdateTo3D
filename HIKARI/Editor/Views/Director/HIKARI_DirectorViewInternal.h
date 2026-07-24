@@ -54,8 +54,6 @@ CameraOverlayModeLabel(const EditorViewVisualizationState &visualization);
 
 bool DrawModeButton(const char *label, bool selected);
 
-DirectorCameraPose CameraPoseFromView(const Camera3D &camera);
-
 uint32_t ExtentDimension(float value);
 #endif
 

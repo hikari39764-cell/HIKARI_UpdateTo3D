@@ -108,14 +108,6 @@ namespace HIKARI::RENDER3D::CLUSTER {
             HIKARI_LOG_WARN(message);
         }
 
-        GeometryCullModeBucket ResolveCullBucket(uint32_t flags) {
-            constexpr uint32_t doubleSidedFlag =
-                static_cast<uint32_t>(RUNTIME::SurfaceGpuSceneInstanceFlags::DoubleSided);
-            return (flags & doubleSidedFlag) != 0u
-                ? GeometryCullModeBucket::DoubleSided
-                : GeometryCullModeBucket::BackFace;
-        }
-
         size_t CullBucketIndex(GeometryCullModeBucket bucket) {
             const size_t index = static_cast<size_t>(bucket);
             return index < kGeometryCullModeBucketCount ? index : 0u;

@@ -77,8 +77,8 @@ namespace HIKARI {
                 false;
 #endif
             bool enablePortableObjectTools = false;
-            int windowWidth = kScreenW;
-            int windowHeight = kScreenH;
+            int windowWidth = PRESENTATION::kDefaultLogicalWidth;
+            int windowHeight = PRESENTATION::kDefaultLogicalHeight;
             std::string startupSceneGuid{};
             std::vector<std::string> exportedSceneGuids{};
         };
@@ -106,8 +106,10 @@ namespace HIKARI {
         inline bool gHasPendingWindowResize = false;
         inline int gPendingWindowWidth = 0;
         inline int gPendingWindowHeight = 0;
-        inline int gLogicalScreenWidth = kScreenW;
-        inline int gLogicalScreenHeight = kScreenH;
+        inline int gLogicalScreenWidth =
+            PRESENTATION::kDefaultLogicalWidth;
+        inline int gLogicalScreenHeight =
+            PRESENTATION::kDefaultLogicalHeight;
         inline bool gEditorGameViewportVisible = false;
         inline int gEditorGameViewportWidth = 0;
         inline int gEditorGameViewportHeight = 0;
@@ -122,7 +124,6 @@ namespace HIKARI {
             return gInputService.GetSnapshot();
         }
         inline bool IsEditorHost() { return IsEditorHostMode(gRuntimeHostMode); }
-        inline bool IsExportedGameHost() { return IsExportedGameHostMode(gRuntimeHostMode); }
         inline bool IsStandaloneGameHost() { return IsStandaloneGameHostMode(gRuntimeHostMode); }
         inline bool IsInProcessGamePresentationActive() {
             return gGamePresentationController.IsActive();
@@ -141,7 +142,6 @@ namespace HIKARI {
         inline bool ArePortableObjectToolsEnabled() { return gEnableImGui && gEnablePortableObjectTools; }
         inline const std::string& GetRuntimeStartupSceneGuid() { return gRuntimeStartupSceneGuid; }
         inline const std::vector<std::string>& GetRuntimeExportedSceneGuids() { return gRuntimeExportedSceneGuids; }
-        inline bool HasRuntimeExportedSceneFilter() { return !gRuntimeExportedSceneGuids.empty(); }
         inline bool IsRuntimeSceneGuidAllowed(const std::string& sceneGuid) {
             if (gRuntimeExportedSceneGuids.empty()) {
                 return true;
@@ -152,10 +152,6 @@ namespace HIKARI {
                 sceneGuid) != gRuntimeExportedSceneGuids.end();
         }
         inline void SetEditorUIEnabled(bool enabled) { gEnableEditorUI = IsEditorHost() && enabled; }
-        inline void SetPortableObjectToolsEnabled(bool enabled) {
-            gEnablePortableObjectTools = AllowsPortableObjectTools(gRuntimeHostMode) && enabled;
-        }
-
         inline void SetEditorGameViewportSize(int width, int height, bool visible) {
             gEditorGameViewportVisible = visible && width > 0 && height > 0;
             gEditorGameViewportWidth = gEditorGameViewportVisible ? width : 0;

@@ -3,7 +3,6 @@
 #include <algorithm>
 #include <sstream>
 
-#include "Core/HIKARI_Utility.h"
 #include "Core/HIKARI_Logger.h"
 #include "Diagnostics/HIKARI_DebugLogBuffer.h"
 #include "Gfx/HIKARI_D3D12DebugTools.h"

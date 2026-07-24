@@ -13,6 +13,7 @@
 #include "Scene/Components/HIKARI_ProceduralMeshComponent.h"
 #include "Scene/Components/Rendering/MaterialFx/HIKARI_MaterialFxComponent.h"
 #include "Scene/Components/Rendering/Model/HIKARI_ModelComponent.h"
+#include "Scene/Components/Rendering/Model/HIKARI_ModelRenderableAssetResolver.h"
 #include "Scene/HIKARI_GameObject.h"
 #include "Scene/HIKARI_PresentationTransformService.h"
 #include "Scene/HIKARI_World.h"
@@ -26,17 +27,6 @@ namespace HIKARI {
                 id.value = reinterpret_cast<uint64_t>(&object);
             }
             return id;
-        }
-
-        const ModelAsset* ResolveModelAsset(
-            const GameObject& object,
-            ModelComponent& model) {
-            if (const auto* procedural =
-                    object.GetComponent<ProceduralMeshComponent>()) {
-                return PROCEDURAL::GetOrCreateModel(
-                    procedural->GetSettings());
-            }
-            return model.GetModelAsset();
         }
 
         std::string ResolveClusteredGeometryPath(
@@ -136,7 +126,8 @@ namespace HIKARI {
                 debugMode == ModelRenderDebugMode::BoundsOnly;
             desc.visible = model.IsVisible() && !debugOnly;
 
-            const ModelAsset* asset = ResolveModelAsset(object, model);
+            const ModelAsset* asset =
+                ResolveRenderableModelAsset(object, model);
             desc.model = asset;
             if (asset != nullptr) {
                 desc.renderModel = renderModelCache.GetOrCreate(*asset);

@@ -21,16 +21,6 @@
 
 namespace HIKARI::EDITOR::RESOURCE_WORKSPACE {
 #if defined(HIKARI_WITH_EDITOR)
-bool IsBrokenRecord(const AssetRecord &record) {
-  const AssetImportState state = GetImportState(record);
-  return state == AssetImportState::MissingSource ||
-         state == AssetImportState::MissingMeta ||
-         state == AssetImportState::MissingArtifact ||
-         state == AssetImportState::UnknownImporter ||
-         state == AssetImportState::DuplicateGuid ||
-         state == AssetImportState::ImportFailed;
-}
-
 int CountByType(const AssetDatabase &assetDatabase, AssetType type) {
   return static_cast<int>(assetDatabase.CollectByType(type).size());
 }
@@ -38,7 +28,7 @@ int CountByType(const AssetDatabase &assetDatabase, AssetType type) {
 int CountBroken(const AssetDatabase &assetDatabase) {
   int count = 0;
   for (const AssetRecord *record : assetDatabase.CollectAll()) {
-    if (record && IsBrokenRecord(*record)) {
+    if (record && IsBrokenAssetRecord(*record)) {
       ++count;
     }
   }

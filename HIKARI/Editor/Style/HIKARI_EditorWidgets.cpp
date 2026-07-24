@@ -410,6 +410,24 @@ namespace HIKARI::EDITOR {
         return true;
     }
 
+    bool BeginMetricTable(const char* id, float labelWidth) {
+        if (!ImGui::BeginTable(
+                id,
+                2,
+                ImGuiTableFlags_BordersInnerV |
+                    ImGuiTableFlags_RowBg |
+                    ImGuiTableFlags_SizingStretchProp)) {
+            return false;
+        }
+        ImGui::TableSetupColumn(
+            "Signal",
+            ImGuiTableColumnFlags_WidthFixed,
+            labelWidth);
+        ImGui::TableSetupColumn("Value");
+        ImGui::TableHeadersRow();
+        return true;
+    }
+
     void PropertyLabel(const char* label) {
         ImGui::TableNextRow();
         ImGui::TableSetColumnIndex(0);

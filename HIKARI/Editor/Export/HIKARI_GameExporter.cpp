@@ -1,6 +1,5 @@
 #include "HIKARI_GameExporter.h"
 #include "Core/Text/HIKARI_AsciiCase.h"
-#include "Core/Text/HIKARI_AsciiCase.h"
 
 #include <algorithm>
 #include <cctype>
@@ -412,16 +411,6 @@ namespace HIKARI::EDITOR {
             return true;
         }
 
-        std::string SceneLabel(const AssetRecord& record) {
-            std::string label = record.displayName.empty()
-                ? record.sourcePath.stem().string()
-                : record.displayName;
-            if (label.empty()) {
-                label = record.guid.value;
-            }
-            return label;
-        }
-
         std::vector<GameExportSceneInfo> CollectSceneAssetsFromProjectRoot(
             const std::filesystem::path& projectRoot) {
             AssetDatabase assetDatabase{};
@@ -440,7 +429,8 @@ namespace HIKARI::EDITOR {
                 if (!lhs || !rhs) {
                     return lhs < rhs;
                 }
-                return SceneLabel(*lhs) < SceneLabel(*rhs);
+                return GetAssetRecordDisplayName(*lhs) <
+                    GetAssetRecordDisplayName(*rhs);
             });
 
             std::vector<GameExportSceneInfo> scenes{};
@@ -452,7 +442,7 @@ namespace HIKARI::EDITOR {
 
                 GameExportSceneInfo info{};
                 info.guid = record->guid.value;
-                info.displayName = SceneLabel(*record);
+                info.displayName = GetAssetRecordDisplayName(*record);
                 info.sourcePath = record->sourcePath;
                 info.projectStartup = projectStartupGuid.IsValid() && record->guid == projectStartupGuid;
                 scenes.push_back(std::move(info));

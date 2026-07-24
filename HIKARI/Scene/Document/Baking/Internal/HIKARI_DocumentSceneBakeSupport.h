@@ -22,9 +22,6 @@ namespace HIKARI::DOCUMENT_SCENE_BAKING {
     void AddBakeError(
         TOOLS::BAKING::LightingBakeReport& report,
         std::string message);
-    bool IsBakeStateRunning(
-        TOOLS::BAKING::LightingBakeJobState state);
-
     std::filesystem::path ReflectionProbeOutputDirectory(
         const std::filesystem::path& projectRoot,
         const std::string& sceneGuid);

@@ -47,10 +47,6 @@ namespace HIKARI::MODELRENDERER {
         const RENDER3D::RenderViewContext& view,
         const SceneEnvironment& environment,
         RenderDebugView debugView = RenderDebugView::None);
-    void RenderAll(
-        const Camera3D& camera,
-        const SceneEnvironment& environment,
-        RenderDebugView debugView = RenderDebugView::None);
     void RenderOpaqueForReflectionProbeCapture(
         const Camera3D& camera,
         const SceneEnvironment& environment,

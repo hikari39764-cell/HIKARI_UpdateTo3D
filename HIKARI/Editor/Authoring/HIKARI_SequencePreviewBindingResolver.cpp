@@ -1,8 +1,9 @@
 #include "Editor/Authoring/HIKARI_SequencePreviewBindingResolver.h"
 
 #include <algorithm>
-#include <cctype>
 #include <string_view>
+
+#include "Scene/Sequencer/HIKARI_SequenceBindingNaming.h"
 
 namespace HIKARI::EDITOR {
 
@@ -33,21 +34,6 @@ namespace HIKARI::EDITOR {
                 [](const SceneComponentData& component) {
                     return component.type == "CameraComponent";
                 });
-        }
-
-        std::string MakeSlotToken(std::string value) {
-            for (char& character : value) {
-                const unsigned char byte =
-                    static_cast<unsigned char>(character);
-                if (!std::isalnum(byte) && character != '_' &&
-                    character != '.') {
-                    character = '_';
-                }
-            }
-            while (!value.empty() && value.back() == '_') {
-                value.pop_back();
-            }
-            return value.empty() ? std::string("Camera") : value;
         }
 
         bool IsMatchingSequencePlayer(
@@ -166,9 +152,12 @@ namespace HIKARI::EDITOR {
         const SceneObjectData* object = FindSceneObject(
             document,
             cameraObjectId);
-        return "Camera." + MakeSlotToken(
-            object != nullptr ? object->name :
-                ("Object" + std::to_string(cameraObjectId.value)));
+        return "Camera." +
+            SEQUENCER::NormalizeSequenceBindingSlotName(
+                object != nullptr
+                    ? object->name
+                    : ("Object" +
+                        std::to_string(cameraObjectId.value)));
     }
 
     bool IsGeneratedCameraPreviewSlot(

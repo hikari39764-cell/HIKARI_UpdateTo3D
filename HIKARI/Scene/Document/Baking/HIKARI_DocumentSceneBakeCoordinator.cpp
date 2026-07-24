@@ -14,13 +14,17 @@ namespace HIKARI {
     using namespace DOCUMENT_SCENE_BAKING;
 
     bool DocumentSceneBakeCoordinator::RequestReflectionProbeBake(DocumentSceneBase& scene) {
-        if (reflectionProbeJob_ && IsBakeStateRunning(reflectionProbeJob_->state)) {
+        if (reflectionProbeJob_ &&
+            TOOLS::BAKING::IsLightingBakeJobRunning(
+                reflectionProbeJob_->state)) {
             lastReport_ = reflectionProbeJob_->report;
             lastReport_.warnings.push_back("Reflection probe bake is already running.");
             hasLastReport_ = true;
             return false;
         }
-        if (lightProbeJob_ && IsBakeStateRunning(lightProbeJob_->state)) {
+        if (lightProbeJob_ &&
+            TOOLS::BAKING::IsLightingBakeJobRunning(
+                lightProbeJob_->state)) {
             lastReport_ = lightProbeJob_->report;
             lastReport_.warnings.push_back("Light probe volume bake is already running.");
             hasLastReport_ = true;
@@ -109,13 +113,17 @@ namespace HIKARI {
     }
 
     bool DocumentSceneBakeCoordinator::RequestLightProbeBake(DocumentSceneBase& scene) {
-        if (lightProbeJob_ && IsBakeStateRunning(lightProbeJob_->state)) {
+        if (lightProbeJob_ &&
+            TOOLS::BAKING::IsLightingBakeJobRunning(
+                lightProbeJob_->state)) {
             lastReport_ = lightProbeJob_->report;
             lastReport_.warnings.push_back("Light probe volume bake is already running.");
             hasLastReport_ = true;
             return false;
         }
-        if (reflectionProbeJob_ && IsBakeStateRunning(reflectionProbeJob_->state)) {
+        if (reflectionProbeJob_ &&
+            TOOLS::BAKING::IsLightingBakeJobRunning(
+                reflectionProbeJob_->state)) {
             lastReport_ = reflectionProbeJob_->report;
             lastReport_.warnings.push_back("Reflection probe bake is already running.");
             hasLastReport_ = true;
@@ -190,10 +198,14 @@ namespace HIKARI {
     }
 
     TOOLS::BAKING::LightingBakeJobState DocumentSceneBakeCoordinator::GetJobState() const {
-        if (lightProbeJob_ && IsBakeStateRunning(lightProbeJob_->state)) {
+        if (lightProbeJob_ &&
+            TOOLS::BAKING::IsLightingBakeJobRunning(
+                lightProbeJob_->state)) {
             return lightProbeJob_->state;
         }
-        if (reflectionProbeJob_ && IsBakeStateRunning(reflectionProbeJob_->state)) {
+        if (reflectionProbeJob_ &&
+            TOOLS::BAKING::IsLightingBakeJobRunning(
+                reflectionProbeJob_->state)) {
             return reflectionProbeJob_->state;
         }
         return hasLastReport_

@@ -48,24 +48,6 @@ namespace HIKARI::RENDER3D::CLUSTER {
             return { bounds.max.x, bounds.max.y, bounds.max.z, 1.0f };
         }
 
-        MATH::Vec4 BoundsCenterRadius4(const Bounds& bounds) {
-            const MATH::Vec3 center{
-                (bounds.min.x + bounds.max.x) * 0.5f,
-                (bounds.min.y + bounds.max.y) * 0.5f,
-                (bounds.min.z + bounds.max.z) * 0.5f,
-            };
-            const MATH::Vec3 extent{
-                bounds.max.x - center.x,
-                bounds.max.y - center.y,
-                bounds.max.z - center.z,
-            };
-            const float radius = std::sqrt(
-                extent.x * extent.x +
-                extent.y * extent.y +
-                extent.z * extent.z);
-            return { center.x, center.y, center.z, radius };
-        }
-
         const Bounds& ResolveLodMetricBounds(const ClusterSurfaceSection& section) {
             return BOUNDS::IsUsable(section.lodMetricBounds)
                 ? section.lodMetricBounds
@@ -131,33 +113,11 @@ namespace HIKARI::RENDER3D::CLUSTER {
             return gpu;
         }
 
-        ClusterGeometryGpuSurfaceLodRange ToGpuSurfaceLodRange(
+        template <typename Destination>
+        Destination BuildSurfaceLodRangeRecord(
             const ClusterSurfaceLodRange& source) {
 
-            ClusterGeometryGpuSurfaceLodRange gpu{};
-            gpu.surfaceIndex = source.surfaceIndex;
-            gpu.lodIndex = source.lodIndex;
-            gpu.firstCluster = source.firstCluster;
-            gpu.clusterCount = source.clusterCount;
-            gpu.firstIndex = source.firstIndex;
-            gpu.indexCount = source.indexCount;
-            gpu.firstVertex = source.firstVertex;
-            gpu.vertexCount = source.vertexCount;
-            gpu.firstPage = source.firstPage;
-            gpu.pageCount = source.pageCount;
-            gpu.firstPrimitive = source.firstPrimitive;
-            gpu.primitiveCount = source.primitiveCount;
-            gpu.geometricError = source.geometricError;
-            gpu.minScreenRadius = source.minScreenRadius;
-            gpu.flags = source.flags;
-            gpu.sectionIndex = source.sectionIndex;
-            return gpu;
-        }
-
-        ClusterGeometrySurfaceLodRange ToSurfaceLodRange(
-            const ClusterSurfaceLodRange& source) {
-
-            ClusterGeometrySurfaceLodRange range{};
+            Destination range{};
             range.surfaceIndex = source.surfaceIndex;
             range.lodIndex = source.lodIndex;
             range.firstCluster = source.firstCluster;
@@ -177,36 +137,11 @@ namespace HIKARI::RENDER3D::CLUSTER {
             return range;
         }
 
-        ClusterGeometryGpuSurfaceSection ToGpuSurfaceSection(
+        template <typename Destination>
+        Destination BuildSurfaceSectionRecord(
             const ClusterSurfaceSection& source) {
 
-            ClusterGeometryGpuSurfaceSection gpu{};
-            gpu.surfaceIndex = source.surfaceIndex;
-            gpu.sectionIndex = source.sectionIndex;
-            gpu.firstCluster = source.firstCluster;
-            gpu.clusterCount = source.clusterCount;
-            gpu.firstIndex = source.firstIndex;
-            gpu.indexCount = source.indexCount;
-            gpu.firstVertex = source.firstVertex;
-            gpu.vertexCount = source.vertexCount;
-            gpu.firstPage = source.firstPage;
-            gpu.pageCount = source.pageCount;
-            gpu.firstPrimitive = source.firstPrimitive;
-            gpu.primitiveCount = source.primitiveCount;
-            gpu.firstLodRange = source.firstLodRange;
-            gpu.lodRangeCount = source.lodRangeCount;
-            gpu.flags = source.flags;
-            gpu.boundsMin = BoundsMin4(source.localBounds);
-            gpu.boundsMax = BoundsMax4(source.localBounds);
-            gpu.lodMetricCenterRadius = BoundsCenterRadius4(ResolveLodMetricBounds(source));
-            gpu.lodErrorBudgetNdc = source.lodErrorBudgetNdc;
-            return gpu;
-        }
-
-        ClusterGeometrySurfaceSection ToSurfaceSection(
-            const ClusterSurfaceSection& source) {
-
-            ClusterGeometrySurfaceSection section{};
+            Destination section{};
             section.surfaceIndex = source.surfaceIndex;
             section.sectionIndex = source.sectionIndex;
             section.firstCluster = source.firstCluster;
@@ -224,7 +159,8 @@ namespace HIKARI::RENDER3D::CLUSTER {
             section.flags = source.flags;
             section.boundsMin = BoundsMin4(source.localBounds);
             section.boundsMax = BoundsMax4(source.localBounds);
-            section.lodMetricCenterRadius = BoundsCenterRadius4(ResolveLodMetricBounds(source));
+            section.lodMetricCenterRadius =
+                BOUNDS::ComputeCenterRadius(ResolveLodMetricBounds(source));
             section.lodErrorBudgetNdc = source.lodErrorBudgetNdc;
             return section;
         }
@@ -392,15 +328,25 @@ namespace HIKARI::RENDER3D::CLUSTER {
         metadataHeader.surfaceLodRangeOffsetBytes = AlignSection(packed.metadataBytes);
         packed.surfaceLodRanges.reserve(asset.surfaceLodRanges.size());
         for (const ClusterSurfaceLodRange& lodRange : asset.surfaceLodRanges) {
-            AppendTrivial(packed.metadataBytes, ToGpuSurfaceLodRange(lodRange));
-            packed.surfaceLodRanges.push_back(ToSurfaceLodRange(lodRange));
+            AppendTrivial(
+                packed.metadataBytes,
+                BuildSurfaceLodRangeRecord<ClusterGeometryGpuSurfaceLodRange>(
+                    lodRange));
+            packed.surfaceLodRanges.push_back(
+                BuildSurfaceLodRangeRecord<ClusterGeometrySurfaceLodRange>(
+                    lodRange));
         }
 
         metadataHeader.surfaceSectionOffsetBytes = AlignSection(packed.metadataBytes);
         packed.surfaceSections.reserve(asset.surfaceSections.size());
         for (const ClusterSurfaceSection& section : asset.surfaceSections) {
-            AppendTrivial(packed.metadataBytes, ToGpuSurfaceSection(section));
-            packed.surfaceSections.push_back(ToSurfaceSection(section));
+            AppendTrivial(
+                packed.metadataBytes,
+                BuildSurfaceSectionRecord<ClusterGeometryGpuSurfaceSection>(
+                    section));
+            packed.surfaceSections.push_back(
+                BuildSurfaceSectionRecord<ClusterGeometrySurfaceSection>(
+                    section));
         }
 
         metadataHeader.clusterOffsetBytes = AlignSection(packed.metadataBytes);

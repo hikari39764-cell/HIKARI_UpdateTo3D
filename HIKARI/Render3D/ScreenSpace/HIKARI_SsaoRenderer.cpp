@@ -167,16 +167,6 @@ namespace HIKARI::RENDER3D::SCREENSPACE {
         return gDebugState;
     }
 
-    const char* ToString(SsaoMode mode) {
-        switch (mode) {
-        case SsaoMode::Reference: return "Reference";
-        case SsaoMode::OptimizedHigh: return "OptimizedHigh";
-        case SsaoMode::Balanced: return "Balanced";
-        case SsaoMode::Off:
-        default: return "Off";
-        }
-    }
-
     SsaoMode ResolveEffectiveSsaoMode(const AmbientOcclusionSettings& settings) {
         if (!settings.enabled || settings.mode == SsaoMode::Off) {
             return SsaoMode::Off;

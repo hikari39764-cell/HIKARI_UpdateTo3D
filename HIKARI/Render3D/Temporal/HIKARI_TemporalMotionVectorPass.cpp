@@ -10,13 +10,13 @@
 #include <wrl/client.h>
 
 #include "Diagnostics/HIKARI_DebugLogBuffer.h"
-#include "Gfx/D3D12/HIKARI_D3D12BufferAlignment.h"
 #include "Gfx/HIKARI_DXCheck.h"
 #include "Gfx/HIKARI_GpuFrameProfiler.h"
 #include "Gfx/HIKARI_PixProfiler.h"
 #include "Gfx/HIKARI_ShaderCompiler.h"
 #include "HIKARI_Services.h"
 #include "Render3D/Temporal/HIKARI_TemporalResourceSystem.h"
+#include "Render3D/Temporal/Internal/HIKARI_TemporalConstantBufferSlots.h"
 
 namespace HIKARI::RENDER3D::TEMPORAL {
 
@@ -49,43 +49,6 @@ namespace HIKARI::RENDER3D::TEMPORAL {
         MotionVectorPassState& State() {
             static MotionVectorPassState state{};
             return state;
-        }
-
-        bool EnsureConstantBuffers(ID3D12Device* device) {
-            MotionVectorPassState& state = State();
-            for (uint32_t index = 0; index < kFrameSlotCount; ++index) {
-                ConstantSlot& slot = state.constants[index];
-                if (slot.buffer != nullptr && slot.mapped != nullptr) {
-                    continue;
-                }
-
-                const auto heapProps = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
-                const auto bufferDesc = CD3DX12_RESOURCE_DESC::Buffer(
-                    GFX::AlignD3D12ConstantBufferByteSize(sizeof(MotionVectorConstants)));
-                const HRESULT hr = device->CreateCommittedResource(
-                    &heapProps,
-                    D3D12_HEAP_FLAG_NONE,
-                    &bufferDesc,
-                    D3D12_RESOURCE_STATE_GENERIC_READ,
-                    nullptr,
-                    IID_PPV_ARGS(slot.buffer.GetAddressOf()));
-                if (!HIKARI_DX_CHECK(hr, "TemporalMotionVectorPass::CreateConstantBuffer")) {
-                    return false;
-                }
-                const std::wstring name =
-                    L"HIKARI.Temporal.MotionVectorCB" + std::to_wstring(index);
-                slot.buffer->SetName(name.c_str());
-                const CD3DX12_RANGE readRange(0, 0);
-                if (FAILED(slot.buffer->Map(
-                        0,
-                        &readRange,
-                        reinterpret_cast<void**>(&slot.mapped)))) {
-                    slot.buffer.Reset();
-                    slot.mapped = nullptr;
-                    return false;
-                }
-            }
-            return true;
         }
 
         bool EnsurePipeline(ID3D12Device* device) {
@@ -188,7 +151,12 @@ namespace HIKARI::RENDER3D::TEMPORAL {
             }
             state.pipelineState->SetName(L"HIKARI.Temporal.MotionVectorPSO");
 
-            state.ready = EnsureConstantBuffers(device);
+            state.ready =
+                INTERNAL::EnsureMappedConstantBufferSlots<
+                    MotionVectorConstants>(
+                    device,
+                    state.constants,
+                    L"HIKARI.Temporal.MotionVectorCB");
             return state.ready;
         }
     }

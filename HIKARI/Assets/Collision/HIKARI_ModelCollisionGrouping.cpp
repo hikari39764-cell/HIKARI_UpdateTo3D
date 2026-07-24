@@ -15,16 +15,6 @@ namespace HIKARI::ASSETS::COLLISION {
             Bounds bounds{};
         };
 
-        float BoundsVolume(const Bounds& bounds) noexcept {
-            if (!BOUNDS::IsUsable(bounds)) {
-                return 0.0f;
-            }
-            const MATH::Vec3 size = bounds.max - bounds.min;
-            return (std::max)(size.x, 0.0f) *
-                (std::max)(size.y, 0.0f) *
-                (std::max)(size.z, 0.0f);
-        }
-
         float AxisDistance(
             float firstMin,
             float firstMax,
@@ -138,7 +128,7 @@ namespace HIKARI::ASSETS::COLLISION {
             for (size_t index = 0u; index < nodes.size(); ++index) {
                 ModelCollisionSourceGroup& group = grouped[findRoot(index)];
                 group.nodeIndices.push_back(nodes[index].nodeIndex);
-                group.sourceBoundsVolume += BoundsVolume(nodes[index].bounds);
+                group.sourceBoundsVolume += BOUNDS::ComputeVolume(nodes[index].bounds);
             }
             std::vector<ModelCollisionSourceGroup> result{};
             result.reserve(grouped.size());
@@ -177,7 +167,7 @@ namespace HIKARI::ASSETS::COLLISION {
             for (const NodeBounds& node : nodes) {
                 groups.push_back({
                     { node.nodeIndex },
-                    BoundsVolume(node.bounds)
+                    BOUNDS::ComputeVolume(node.bounds)
                 });
             }
             return groups;
@@ -192,7 +182,7 @@ namespace HIKARI::ASSETS::COLLISION {
         combined.nodeIndices.reserve(nodes.size());
         for (const NodeBounds& node : nodes) {
             combined.nodeIndices.push_back(node.nodeIndex);
-            combined.sourceBoundsVolume += BoundsVolume(node.bounds);
+            combined.sourceBoundsVolume += BOUNDS::ComputeVolume(node.bounds);
         }
         std::sort(
             combined.nodeIndices.begin(),

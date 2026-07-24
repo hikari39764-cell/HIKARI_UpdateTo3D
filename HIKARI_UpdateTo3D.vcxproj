@@ -326,6 +326,7 @@
     <ClCompile Include="HIKARI\Scene\HIKARI_CinematicSequencePlayer.cpp" />
     <ClCompile Include="HIKARI\Scene\HIKARI_CinematicCameraPlayback.cpp" />
     <ClCompile Include="HIKARI\Scene\Sequencer\HIKARI_SequenceBinding.cpp" />
+    <ClCompile Include="HIKARI\Scene\Sequencer\HIKARI_SequenceBindingNaming.cpp" />
     <ClCompile Include="HIKARI\Scene\Sequencer\HIKARI_SequencePlayback.cpp" />
     <ClCompile Include="HIKARI\Scene\Sequencer\Runtime\HIKARI_SequencePlaybackService.cpp" />
     <ClCompile Include="HIKARI\Scene\Sequencer\Runtime\HIKARI_SequencePlayerSystem.cpp" />
@@ -452,6 +453,7 @@
     <ClCompile Include="HIKARI\Render3D\Settings\HIKARI_RenderQualityProfileStore.cpp" />
     <ClCompile Include="HIKARI\Render3D\GpuDriven\HIKARI_SurfaceGpuSceneFrameBuffer.cpp" />
     <ClCompile Include="HIKARI\Render3D\GpuDriven\CommandStream\HIKARI_GpuTraditionalCommandStreamBuffer.cpp" />
+    <ClCompile Include="HIKARI\Render3D\GpuDriven\CommandStream\HIKARI_OwnedTraditionalIndirectStream.cpp" />
     <ClCompile Include="HIKARI\Render3D\GpuDriven\HIKARI_ClusterGpuDrivenProducerAdapter.cpp" />
     <ClCompile Include="HIKARI\Render3D\GpuDriven\Backend\HIKARI_GeometryBackendPolicy.cpp" />
     <ClCompile Include="HIKARI\Render3D\GpuDriven\HIKARI_GpuDrivenDrawCommandStream.cpp" />
@@ -836,6 +838,7 @@
     <ClCompile Include="HIKARI\Editor\Quality\HIKARI_RenderQualityControls.cpp" />
     <ClCompile Include="HIKARI\Editor\Scene\Inspector\HIKARI_SceneInspectorDialogs.cpp" />
     <ClCompile Include="HIKARI\Editor\Scene\Inspector\HIKARI_SceneInspectorObjectActions.cpp" />
+    <ClCompile Include="HIKARI\Editor\Views\Director\HIKARI_DirectorCameraPose.cpp" />
     <ClCompile Include="HIKARI\Editor\Views\Director\HIKARI_DirectorViewState.cpp" />
     <ClCompile Include="HIKARI\Editor\Views\Director\HIKARI_DirectorViewSupport.cpp" />
     <ClCompile Include="HIKARI\Editor\Widgets\HIKARI_PostProfileParameterWidget.cpp" />
@@ -1052,6 +1055,7 @@
     <ClInclude Include="HIKARI\Render3D\Settings\HIKARI_RenderQualityProfileStore.h" />
     <ClInclude Include="HIKARI\Render3D\GpuDriven\HIKARI_SurfaceGpuSceneFrameBuffer.h" />
     <ClInclude Include="HIKARI\Render3D\GpuDriven\CommandStream\HIKARI_GpuTraditionalCommandStreamBuffer.h" />
+    <ClInclude Include="HIKARI\Render3D\GpuDriven\CommandStream\HIKARI_OwnedTraditionalIndirectStream.h" />
     <ClInclude Include="HIKARI\Render3D\GpuDriven\HIKARI_ClusterGpuDrivenProducerAdapter.h" />
     <ClInclude Include="HIKARI\Render3D\GpuDriven\Backend\HIKARI_GeometryBackendContext.h" />
     <ClInclude Include="HIKARI\Render3D\GpuDriven\Backend\HIKARI_GeometryBackendPolicy.h" />
@@ -1139,6 +1143,7 @@
     <ClInclude Include="HIKARI\Scene\HIKARI_CinematicSequencePlayer.h" />
     <ClInclude Include="HIKARI\Scene\HIKARI_CinematicCameraPlayback.h" />
     <ClInclude Include="HIKARI\Scene\Sequencer\HIKARI_SequenceBinding.h" />
+    <ClInclude Include="HIKARI\Scene\Sequencer\HIKARI_SequenceBindingNaming.h" />
     <ClInclude Include="HIKARI\Scene\Sequencer\HIKARI_SequencePlayback.h" />
     <ClInclude Include="HIKARI\Scene\Sequencer\HIKARI_SequenceTrack.h" />
     <ClInclude Include="HIKARI\Scene\Sequencer\Runtime\HIKARI_SequencePlaybackService.h" />
@@ -1149,6 +1154,7 @@
     <ClInclude Include="HIKARI\Scene\Sequencer\Tracks\HIKARI_CameraCutTrack.h" />
     <ClInclude Include="HIKARI\Scene\Sequencer\Tracks\HIKARI_CameraTransformTrack.h" />
     <ClInclude Include="HIKARI\Scene\Sequencer\Tracks\HIKARI_CameraLensTrack.h" />
+    <ClInclude Include="HIKARI\Scene\Sequencer\Tracks\Internal\HIKARI_CameraTrackNormalization.h" />
     <ClInclude Include="HIKARI\Scene\Sequencer\Serialization\HIKARI_CinematicSequenceJson.h" />
     <ClInclude Include="HIKARI\Scene\Sequencer\Serialization\HIKARI_CameraAnimationTrackJson.h" />
     <ClInclude Include="HIKARI\Scene\HIKARI_CameraDirector.h" />
@@ -1172,6 +1178,7 @@
     <ClInclude Include="HIKARI\Scene\Components\HIKARI_IComponent.h" />
     <ClInclude Include="HIKARI\Scene\Components\Rendering\MaterialFx\HIKARI_MaterialFxComponent.h" />
     <ClInclude Include="HIKARI\Scene\Components\Rendering\Model\HIKARI_ModelComponent.h" />
+    <ClInclude Include="HIKARI\Scene\Components\Rendering\Model\HIKARI_ModelRenderableAssetResolver.h" />
     <ClInclude Include="HIKARI\Scene\Components\HIKARI_ProceduralMeshComponent.h" />
     <ClInclude Include="HIKARI\Scene\Components\HIKARI_SpawnPointComponent.h" />
     <ClInclude Include="HIKARI\Vfx\HIKARI_VfxTypes.h" />
@@ -1287,7 +1294,9 @@
     <ClInclude Include="HIKARI\Render3D\Lighting\HIKARI_LightProbeVolumeRuntime.h" />
     <ClInclude Include="HIKARI\Render3D\Lighting\HIKARI_LightingRuntimeLoader.h" />
     <ClInclude Include="HIKARI\Render3D\Lighting\HIKARI_SceneLightingRuntimeData.h" />
+    <ClInclude Include="HIKARI\Render3D\Lighting\HIKARI_SceneEnvironmentNames.h" />
     <ClInclude Include="HIKARI\Render3D\Reflection\HIKARI_ReflectionProbeRuntime.h" />
+    <ClInclude Include="HIKARI\Render3D\Reflection\HIKARI_ReflectionProbeRuntimeConversion.h" />
     <ClInclude Include="HIKARI\Render3D\Lighting\HIKARI_SceneEnvironment.h" />
     <ClInclude Include="HIKARI\Render3D\Lighting\HIKARI_SkyRenderer.h" />
     <ClInclude Include="HIKARI\Render3D\Lighting\HIKARI_VolumetricLightingStage.h" />
@@ -1301,8 +1310,10 @@
     <ClInclude Include="HIKARI\Render3D\Temporal\HIKARI_TemporalResourceSystem.h" />
     <ClInclude Include="HIKARI\Render3D\Temporal\HIKARI_TemporalResolveStage.h" />
     <ClInclude Include="HIKARI\Render3D\Temporal\HIKARI_TaaResolvePass.h" />
+    <ClInclude Include="HIKARI\Render3D\Temporal\Internal\HIKARI_TemporalConstantBufferSlots.h" />
     <ClInclude Include="HIKARI\Render3D\Upscaling\HIKARI_StreamlineRuntime.h" />
     <ClInclude Include="HIKARI\Render3D\Upscaling\HIKARI_StreamlineInternal.h" />
+    <ClInclude Include="HIKARI\Render3D\Upscaling\HIKARI_StreamlineResourceAdapter.h" />
     <ClInclude Include="HIKARI\Render3D\Upscaling\HIKARI_StreamlineReflex.h" />
     <ClInclude Include="HIKARI\Render3D\Upscaling\HIKARI_StreamlineFrameGeneration.h" />
     <ClInclude Include="HIKARI\Render3D\Upscaling\HIKARI_StreamlineFrameGenerationPolicy.h" />
@@ -1469,6 +1480,7 @@
     <ClInclude Include="HIKARI\Editor\Platform\HIKARI_EditorShellActions.h" />
     <ClInclude Include="HIKARI\Editor\Quality\HIKARI_QualityPanelSections.h" />
     <ClInclude Include="HIKARI\Editor\Views\Director\HIKARI_DirectorViewInternal.h" />
+    <ClInclude Include="HIKARI\Editor\Views\Director\HIKARI_DirectorCameraPose.h" />
     <ClInclude Include="HIKARI\Editor\Widgets\HIKARI_PostProfileParameterWidget.h" />
     <ClInclude Include="HIKARI\Editor\Workspaces\Camera\Overview\HIKARI_CameraOverviewInternal.h" />
     <ClInclude Include="HIKARI\Editor\Workspaces\AnimationStateMachine\HIKARI_AnimationStateMachineGraphSupport.h" />
@@ -1549,11 +1561,12 @@
     <ClInclude Include="HIKARI\Core\HIKARI_FixedStepClock.h" />
     <ClInclude Include="HIKARI\Core\Math\HIKARI_MathValidation.h" />
     <ClInclude Include="HIKARI\Core\Math\HIKARI_NormalMatrix.h" />
+    <ClInclude Include="HIKARI\Core\Math\HIKARI_Vector2.h" />
     <ClInclude Include="HIKARI\Core\Numeric\HIKARI_IntegerConversion.h" />
+    <ClInclude Include="HIKARI\Core\Presentation\HIKARI_LogicalDisplayDefaults.h" />
     <ClInclude Include="HIKARI\Core\Text\HIKARI_AsciiCase.h" />
     <ClInclude Include="HIKARI\Core\HIKARI_MathConfig.h" />
     <ClInclude Include="HIKARI\Core\HIKARI_TimeService.h" />
-    <ClInclude Include="HIKARI\Core\HIKARI_Utility.h" />
     <ClInclude Include="HIKARI\Scene\Features\HIKARI_RuntimeFeature.h" />
     <ClInclude Include="HIKARI\Scene\Features\HIKARI_RuntimeExtension.h" />
     <ClInclude Include="HIKARI\Scene\Features\HIKARI_RuntimeFeatureIds.h" />

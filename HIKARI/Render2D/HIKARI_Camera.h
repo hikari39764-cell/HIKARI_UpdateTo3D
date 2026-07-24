@@ -1,4 +1,5 @@
 ﻿#pragma once
+#include "Core/Math/HIKARI_Vector2.h"
 #include "Matrix3x3.h"
 
 namespace HIKARI {

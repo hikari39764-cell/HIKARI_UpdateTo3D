@@ -1,6 +1,5 @@
 #include "HIKARI_HierarchyPanel.h"
 #include "Core/Text/HIKARI_AsciiCase.h"
-#include "Core/Text/HIKARI_AsciiCase.h"
 #include <algorithm>
 #include <cctype>
 #include <string>

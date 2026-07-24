@@ -147,19 +147,6 @@ void MetricRowText(const char *label, const char *value) {
   ImGui::TextUnformatted(value);
 }
 
-bool BeginMetricTable(const char *id, float labelWidth) {
-  if (!ImGui::BeginTable(id, 2,
-                         ImGuiTableFlags_BordersInnerV | ImGuiTableFlags_RowBg |
-                             ImGuiTableFlags_SizingStretchProp)) {
-    return false;
-  }
-  ImGui::TableSetupColumn("Signal", ImGuiTableColumnFlags_WidthFixed,
-                          labelWidth);
-  ImGui::TableSetupColumn("Value");
-  ImGui::TableHeadersRow();
-  return true;
-}
-
 RuntimePerformanceSnapshot BuildSnapshot() {
   RuntimePerformanceSnapshot out{};
   const FrameContext &frame = TIME::GetFrameContext();

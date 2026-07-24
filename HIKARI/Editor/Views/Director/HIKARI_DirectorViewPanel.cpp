@@ -15,6 +15,7 @@
 #if defined(HIKARI_WITH_EDITOR)
 #include "Render3D/Views/HIKARI_EditorInteractiveViewRenderer.h"
 #endif
+#include "Editor/Views/Director/HIKARI_DirectorCameraPose.h"
 #include "Editor/Views/Director/HIKARI_DirectorViewInternal.h"
 #include "Editor/Views/HIKARI_EditorViewInputGate.h"
 #include "Scene/Components/HIKARI_CameraComponent.h"
@@ -106,7 +107,8 @@ DirectorViewPanelResult DirectorViewPanel::DrawContents(
   if (ImGui::Button("Align Camera to View")) {
     result.alignCameraRequested = true;
     result.alignCameraObjectId = toolbarTarget;
-    result.alignPose = CameraPoseFromView(currentViewCamera_);
+    result.alignPose =
+        MakeDirectorCameraPose(currentViewCamera_);
   }
   if (alignDisabled) {
     ImGui::EndDisabled();

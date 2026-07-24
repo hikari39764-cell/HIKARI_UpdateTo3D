@@ -9,6 +9,7 @@
 #include "Core/HIKARI_JsonRead.h"
 #include "Core/Serialization/Json/HIKARI_JsonMath.h"
 #include "Render3D/Lighting/HIKARI_SceneEnvironment.h"
+#include "Render3D/Lighting/HIKARI_SceneEnvironmentNames.h"
 
 namespace HIKARI::SCENE::SERIALIZATION {
 
@@ -119,20 +120,6 @@ namespace HIKARI::SCENE::SERIALIZATION {
             return fallback;
         }
 
-        const char* ToString(SsaoMode mode) {
-            switch (mode) {
-            case SsaoMode::Reference:
-                return "Reference";
-            case SsaoMode::OptimizedHigh:
-                return "OptimizedHigh";
-            case SsaoMode::Balanced:
-                return "Balanced";
-            case SsaoMode::Off:
-            default:
-                return "Off";
-            }
-        }
-
         SsaoMode ParseSsaoMode(const nlohmann::json& node, SsaoMode fallback) {
 
             if (node.is_number_integer()) {
@@ -233,7 +220,8 @@ namespace HIKARI::SCENE::SERIALIZATION {
         out["reflectionProbe"]["priority"] = environment.reflectionProbe.priority;
 
         out["ambientOcclusion"]["enabled"] = environment.ambientOcclusion.enabled;
-        out["ambientOcclusion"]["mode"] = ToString(environment.ambientOcclusion.mode);
+        out["ambientOcclusion"]["mode"] =
+            GetSsaoModeName(environment.ambientOcclusion.mode);
         out["ambientOcclusion"]["radius"] = environment.ambientOcclusion.radius;
         out["ambientOcclusion"]["bias"] = environment.ambientOcclusion.bias;
         out["ambientOcclusion"]["strength"] = environment.ambientOcclusion.strength;

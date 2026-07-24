@@ -33,4 +33,12 @@ namespace HIKARI {
         AssetArtifactManifest artifactManifest{};
     };
 
+    inline std::string GetAssetRecordDisplayName(const AssetRecord& record) {
+        if (!record.displayName.empty()) {
+            return record.displayName;
+        }
+        std::string name = record.sourcePath.stem().string();
+        return name.empty() ? record.guid.value : name;
+    }
+
 } // namespace HIKARI

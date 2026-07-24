@@ -1,5 +1,5 @@
 #include "HIKARI_Dx12Core.h"
-#include "Core/HIKARI_Utility.h"
+#include "Core/Presentation/HIKARI_LogicalDisplayDefaults.h"
 
 #include <d3d12.h>
 #include <d3d12sdklayers.h>
@@ -38,7 +38,9 @@ namespace {
             return { 0.0f, 0.0f, 1.0f, 1.0f };
         }
 
-        const float targetAspect = static_cast<float>(kScreenW) / static_cast<float>(kScreenH);
+        const float targetAspect =
+            static_cast<float>(PRESENTATION::kDefaultLogicalWidth) /
+            static_cast<float>(PRESENTATION::kDefaultLogicalHeight);
         const float backBufferAspect = static_cast<float>(backBufferW) / static_cast<float>(backBufferH);
 
         int vpW = backBufferW;

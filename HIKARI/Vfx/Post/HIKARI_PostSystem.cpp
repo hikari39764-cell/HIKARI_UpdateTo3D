@@ -152,17 +152,25 @@ namespace HIKARI::POST {
     }
 
     void PostSystem::GetSceneCaptureSize(int& width, int& height) {
-        width = requestedRenderWidth_ > 0 ? requestedRenderWidth_ : kScreenW;
-        height = requestedRenderHeight_ > 0 ? requestedRenderHeight_ : kScreenH;
+        width = requestedRenderWidth_ > 0
+            ? requestedRenderWidth_
+            : PRESENTATION::kDefaultLogicalWidth;
+        height = requestedRenderHeight_ > 0
+            ? requestedRenderHeight_
+            : PRESENTATION::kDefaultLogicalHeight;
     }
 
     void PostSystem::GetSceneOutputSize(int& width, int& height) {
         width = requestedOutputWidth_ > 0
             ? requestedOutputWidth_
-            : (requestedRenderWidth_ > 0 ? requestedRenderWidth_ : kScreenW);
+            : (requestedRenderWidth_ > 0
+                ? requestedRenderWidth_
+                : PRESENTATION::kDefaultLogicalWidth);
         height = requestedOutputHeight_ > 0
             ? requestedOutputHeight_
-            : (requestedRenderHeight_ > 0 ? requestedRenderHeight_ : kScreenH);
+            : (requestedRenderHeight_ > 0
+                ? requestedRenderHeight_
+                : PRESENTATION::kDefaultLogicalHeight);
     }
 
     void PostSystem::BeginSceneCapture() {

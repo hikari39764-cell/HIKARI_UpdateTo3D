@@ -12,6 +12,7 @@
 #include "HIKARI_Services.h"
 #include "Core/HIKARI_Logger.h"
 #include "Core/Math/HIKARI_MathValidation.h"
+#include "Core/Presentation/HIKARI_LogicalDisplayDefaults.h"
 #include "Core/HIKARI_TimeService.h"
 #include "Render3D/HIKARI_LightDebugDraw.h"
 #include "Render3D/Core/HIKARI_MeshRenderer.h"
@@ -138,7 +139,14 @@ namespace HIKARI {
 
     void DocumentSceneBase::OnEnter() {
         state_->runtime.initialized = true;
-        state_->camera.editorCamera.SetPerspective(60.0f * std::numbers::pi_v<float> / 180.0f, static_cast<float>(kScreenW) / static_cast<float>(kScreenH), 0.1f, 100.0f);
+        state_->camera.editorCamera.SetPerspective(
+            60.0f * std::numbers::pi_v<float> / 180.0f,
+            static_cast<float>(
+                PRESENTATION::kDefaultLogicalWidth) /
+                static_cast<float>(
+                    PRESENTATION::kDefaultLogicalHeight),
+            0.1f,
+            100.0f);
         state_->camera.gameplayCamera = state_->camera.editorCamera;
         state_->camera.debugCamera.Reset({ 0.0f, 2.0f, -6.0f }, 0.0f, 0.0f);
         state_->runtime.fixedStepClock.SetSettings(FixedStepSettings{

@@ -5,6 +5,7 @@
 
 #include "Editor/HIKARI_EditorContext.h"
 #include "Editor/HIKARI_SelectionSyncService.h"
+#include "Editor/Views/Director/HIKARI_DirectorCameraPose.h"
 #include "Scene/Components/HIKARI_CameraComponent.h"
 #include "Scene/HIKARI_GameObject.h"
 #include "Scene/Document/HIKARI_DocumentSceneBase.h"
@@ -28,22 +29,6 @@ GameObject *FindRuntimeObject(DocumentSceneBase &scene,
                               SceneObjectId objectId) {
 
   return scene.GetWorld().FindObject(objectId);
-}
-
-DirectorCameraPose CameraPoseFromView(const Camera3D &camera) {
-  MATH::Vec3 forward = camera.GetTarget() - camera.GetPosition();
-  if (MATH::Length(forward) <= 1.0e-5f) {
-    forward = {0.0f, 0.0f, 1.0f};
-  } else {
-    forward = MATH::Normalize(forward);
-  }
-  const float yaw = std::atan2(forward.x, forward.z);
-  const float pitch = std::asin(std::clamp(forward.y, -1.0f, 1.0f));
-
-  DirectorCameraPose pose{};
-  pose.position = camera.GetPosition();
-  pose.rotation = MATH::Quat::FromEulerXYZ(-pitch, yaw, 0.0f);
-  return pose;
 }
 
 CameraBlendDesc
@@ -336,7 +321,8 @@ void CinematicsWorkspaceController::ApplyCameraOverviewAction(
     break;
   case CameraOverviewActionKind::SnapToView: {
     const DirectorCameraPose pose =
-        CameraPoseFromView(directorViewPanel_.GetViewCamera());
+        MakeDirectorCameraPose(
+            directorViewPanel_.GetViewCamera());
     if (scene.ApplyCameraObjectPose(action.cameraObjectId, pose.position,
                                     pose.rotation, true)) {
       directorViewPanel_.SetTargetCamera(action.cameraObjectId);

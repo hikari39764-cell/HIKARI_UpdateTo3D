@@ -3,7 +3,8 @@
 #include <algorithm>
 #include <cmath>
 #include <limits>
-#include <unordered_set>
+
+#include "Scene/Sequencer/Tracks/Internal/HIKARI_CameraTrackNormalization.h"
 
 namespace HIKARI::SEQUENCER {
 
@@ -14,37 +15,19 @@ namespace HIKARI::SEQUENCER {
         constexpr float kMinNearClip = 0.001f;
         constexpr float kMinClipRange = 0.001f;
 
-        float InterpolationAmount(
-            SequenceInterpolationMode mode,
-            float amount) noexcept {
+    }
 
-            const float clamped = std::clamp(amount, 0.0f, 1.0f);
-            if (mode == SequenceInterpolationMode::Hold) {
-                return 0.0f;
-            }
-            if (mode == SequenceInterpolationMode::Smooth) {
-                return clamped * clamped * (3.0f - 2.0f * clamped);
-            }
-            return clamped;
-        }
-
-        void NormalizeKeyframes(
-            std::vector<CameraLensKeyframe>& keyframes,
-            std::unordered_set<uint64_t>& usedIds,
-            uint64_t& nextId) {
-
-            keyframes.erase(
-                std::remove_if(
-                    keyframes.begin(),
-                    keyframes.end(),
-                    [](const CameraLensKeyframe& keyframe) {
-                        return !std::isfinite(keyframe.timeSeconds) ||
-                            !std::isfinite(keyframe.verticalFovDegrees) ||
-                            !std::isfinite(keyframe.nearClip) ||
-                            !std::isfinite(keyframe.farClip);
-                    }),
-                keyframes.end());
-            for (CameraLensKeyframe& keyframe : keyframes) {
+    void NormalizeCameraLensTrack(CameraLensTrack& track) {
+        INTERNAL::NormalizeCameraTrack(
+            track,
+            3,
+            [](const CameraLensKeyframe& keyframe) {
+                return std::isfinite(keyframe.timeSeconds) &&
+                    std::isfinite(keyframe.verticalFovDegrees) &&
+                    std::isfinite(keyframe.nearClip) &&
+                    std::isfinite(keyframe.farClip);
+            },
+            [](CameraLensKeyframe& keyframe) {
                 keyframe.timeSeconds = std::clamp(
                     keyframe.timeSeconds,
                     0.0f,
@@ -59,87 +42,7 @@ namespace HIKARI::SEQUENCER {
                 keyframe.farClip = (std::max)(
                     keyframe.farClip,
                     keyframe.nearClip + kMinClipRange);
-            }
-            std::sort(
-                keyframes.begin(),
-                keyframes.end(),
-                [](const CameraLensKeyframe& lhs,
-                    const CameraLensKeyframe& rhs) {
-                    if (lhs.timeSeconds != rhs.timeSeconds) {
-                        return lhs.timeSeconds < rhs.timeSeconds;
-                    }
-                    return lhs.id < rhs.id;
-                });
-            for (size_t index = 1; index < keyframes.size();) {
-                if (std::abs(
-                        keyframes[index].timeSeconds -
-                        keyframes[index - 1].timeSeconds) <=
-                        kKeyframeTimeEpsilon) {
-                    keyframes.erase(keyframes.begin() + index - 1);
-                } else {
-                    ++index;
-                }
-            }
-            for (CameraLensKeyframe& keyframe : keyframes) {
-                if (keyframe.id == 0 ||
-                    !usedIds.insert(keyframe.id).second) {
-                    while (nextId == 0 || usedIds.contains(nextId)) {
-                        ++nextId;
-                    }
-                    keyframe.id = nextId++;
-                    usedIds.insert(keyframe.id);
-                }
-            }
-        }
-    }
-
-    void NormalizeCameraLensTrack(CameraLensTrack& track) {
-        if (!track.id.IsValid()) {
-            track.id = { 3 };
-        }
-        track.channels.erase(
-            std::remove_if(
-                track.channels.begin(),
-                track.channels.end(),
-                [](const CameraLensChannel& channel) {
-                    return !channel.cameraBindingId.IsValid();
-                }),
-            track.channels.end());
-        std::sort(
-            track.channels.begin(),
-            track.channels.end(),
-            [](const CameraLensChannel& lhs,
-                const CameraLensChannel& rhs) {
-                return lhs.cameraBindingId.value < rhs.cameraBindingId.value;
             });
-        for (size_t index = 1; index < track.channels.size();) {
-            if (track.channels[index - 1].cameraBindingId ==
-                    track.channels[index].cameraBindingId) {
-                auto& destination = track.channels[index - 1].keyframes;
-                auto& source = track.channels[index].keyframes;
-                destination.insert(
-                    destination.end(),
-                    source.begin(),
-                    source.end());
-                track.channels.erase(track.channels.begin() + index);
-            } else {
-                ++index;
-            }
-        }
-
-        std::unordered_set<uint64_t> usedIds{};
-        uint64_t nextId = 1;
-        for (CameraLensChannel& channel : track.channels) {
-            NormalizeKeyframes(channel.keyframes, usedIds, nextId);
-        }
-        track.channels.erase(
-            std::remove_if(
-                track.channels.begin(),
-                track.channels.end(),
-                [](const CameraLensChannel& channel) {
-                    return channel.keyframes.empty();
-                }),
-            track.channels.end());
     }
 
     uint64_t AllocateCameraLensKeyframeId(const CameraLensTrack& track) {
@@ -366,7 +269,9 @@ namespace HIKARI::SEQUENCER {
             amount = duration > kKeyframeTimeEpsilon
                 ? (timeSeconds - from->timeSeconds) / duration
                 : 0.0f;
-            amount = InterpolationAmount(from->interpolation, amount);
+            amount = EvaluateSequenceInterpolation(
+                from->interpolation,
+                amount);
         }
         result.cameraBindingId = bindingId;
         result.verticalFovDegrees = from->verticalFovDegrees +

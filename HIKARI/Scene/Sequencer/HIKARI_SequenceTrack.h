@@ -1,5 +1,6 @@
 #pragma once
 
+#include <algorithm>
 #include <cstdint>
 
 namespace HIKARI::SEQUENCER {
@@ -17,6 +18,20 @@ namespace HIKARI::SEQUENCER {
         Linear,
         Smooth,
     };
+
+    inline float EvaluateSequenceInterpolation(
+        SequenceInterpolationMode mode,
+        float amount) noexcept {
+
+        const float clamped = std::clamp(amount, 0.0f, 1.0f);
+        if (mode == SequenceInterpolationMode::Hold) {
+            return 0.0f;
+        }
+        if (mode == SequenceInterpolationMode::Smooth) {
+            return clamped * clamped * (3.0f - 2.0f * clamped);
+        }
+        return clamped;
+    }
 
     constexpr float kMaxSequenceDurationSeconds = 3600.0f;
 

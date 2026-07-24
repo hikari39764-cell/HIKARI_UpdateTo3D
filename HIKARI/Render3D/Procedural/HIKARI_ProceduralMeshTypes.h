@@ -33,6 +33,8 @@ namespace HIKARI {
     };
 
     const char* ToString(ProceduralMeshKind kind) noexcept;
+    const char* GetProceduralMeshDisplayName(
+        ProceduralMeshKind kind) noexcept;
     ProceduralMeshKind ParseProceduralMeshKind(
         const nlohmann::json& value,
         ProceduralMeshKind fallback = ProceduralMeshKind::Box);

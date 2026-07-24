@@ -5,7 +5,6 @@
 #include <cstdint>
 #include <wrl.h>
 #include <d3d12.h>
-#include "Core/HIKARI_Utility.h"
 #include "Gfx/HIKARI_GfxContext.h"
 namespace HIKARI {
     namespace DX {

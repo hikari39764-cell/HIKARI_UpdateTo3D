@@ -2,6 +2,7 @@
 
 #include "Render2D/HIKARI_DxRenderer.h"
 #include "Render2D/HIKARI_DxTexture.h"
+#include "Core/Presentation/HIKARI_LogicalDisplayDefaults.h"
 #include "Gfx/HIKARI_DynamicUploadBuffer.h"
 #include "Gfx/HIKARI_ShaderCompiler.h"
 
@@ -29,8 +30,10 @@ namespace HIKARI {
             GFX::Context g_ctx{};
             uint32_t g_uploadFrameIndex = 0;
 
-            float g_screenW = kScreenW;
-            float g_screenH = kScreenH;
+            float g_screenW =
+                static_cast<float>(PRESENTATION::kDefaultLogicalWidth);
+            float g_screenH =
+                static_cast<float>(PRESENTATION::kDefaultLogicalHeight);
 
             struct PipelineSet {
                 DXGI_FORMAT format = DXGI_FORMAT_UNKNOWN;
@@ -321,8 +324,14 @@ float4 main(PS_IN input) : SV_TARGET { return input.col; }
         void DxRenderer::Init(const GFX::Context& ctx)
         {
             g_ctx = ctx;
-            g_screenW = (ctx.backBufferWidth > 0) ? static_cast<float>(ctx.backBufferWidth) : static_cast<float>(kScreenW);
-            g_screenH = (ctx.backBufferHeight > 0) ? static_cast<float>(ctx.backBufferHeight) : static_cast<float>(kScreenH);
+            g_screenW = (ctx.backBufferWidth > 0)
+                ? static_cast<float>(ctx.backBufferWidth)
+                : static_cast<float>(
+                    PRESENTATION::kDefaultLogicalWidth);
+            g_screenH = (ctx.backBufferHeight > 0)
+                ? static_cast<float>(ctx.backBufferHeight)
+                : static_cast<float>(
+                    PRESENTATION::kDefaultLogicalHeight);
 
 
             auto* device = g_ctx.device;

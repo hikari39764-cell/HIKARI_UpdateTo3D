@@ -94,6 +94,9 @@
     <Filter Include="Header Files\Core\Math">
       <UniqueIdentifier>{B7A1D620-6C9E-4B31-8D70-94E2F1A50002}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Header Files\Core\Presentation">
+      <UniqueIdentifier>{B7A1D620-6C9E-4B31-8D70-94E2F1A50009}</UniqueIdentifier>
+    </Filter>
     <Filter Include="Header Files\Core\Numeric">
       <UniqueIdentifier>{B7A1D620-6C9E-4B31-8D70-94E2F1A50003}</UniqueIdentifier>
     </Filter>
@@ -298,6 +301,9 @@
     <Filter Include="Header Files\Render3D\Temporal">
       <UniqueIdentifier>{D4D296D8-7CD6-49CB-A813-9F9C41F3E522}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Header Files\Render3D\Temporal\Internal">
+      <UniqueIdentifier>{9AE9B804-30F6-490F-BEE2-27F52678BF5F}</UniqueIdentifier>
+    </Filter>
     <Filter Include="Header Files\Render3D\Upscaling">
       <UniqueIdentifier>{4b88dc06-c6eb-4f86-a92a-f8870bd6a381}</UniqueIdentifier>
     </Filter>
@@ -339,6 +345,9 @@
     </Filter>
     <Filter Include="Header Files\Scene\Sequencer\Tracks">
       <UniqueIdentifier>{716C364C-E272-4D2C-BC4B-0DC46660EE6E}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\Scene\Sequencer\Tracks\Internal">
+      <UniqueIdentifier>{F7E3CF8D-1D78-45E7-8905-E7649D136C9B}</UniqueIdentifier>
     </Filter>
     <Filter Include="Header Files\Scene\Sequencer\Serialization">
       <UniqueIdentifier>{C804EA28-77D3-48E7-9F44-C76112515F0F}</UniqueIdentifier>
@@ -2460,6 +2469,9 @@
     <ClCompile Include="HIKARI\Scene\Sequencer\HIKARI_SequenceBinding.cpp">
       <Filter>Source Files\Scene\Sequencer</Filter>
     </ClCompile>
+    <ClCompile Include="HIKARI\Scene\Sequencer\HIKARI_SequenceBindingNaming.cpp">
+      <Filter>Source Files\Scene\Sequencer</Filter>
+    </ClCompile>
     <ClCompile Include="HIKARI\Scene\Sequencer\HIKARI_SequencePlayback.cpp">
       <Filter>Source Files\Scene\Sequencer</Filter>
     </ClCompile>
@@ -2811,6 +2823,9 @@
     <ClCompile Include="HIKARI\Render3D\GpuDriven\CommandStream\HIKARI_GpuTraditionalCommandStreamBuffer.cpp">
       <Filter>Source Files\Render3D\GpuDriven\CommandStream</Filter>
     </ClCompile>
+    <ClCompile Include="HIKARI\Render3D\GpuDriven\CommandStream\HIKARI_OwnedTraditionalIndirectStream.cpp">
+      <Filter>Source Files\Render3D\GpuDriven\CommandStream</Filter>
+    </ClCompile>
     <ClCompile Include="HIKARI\Render3D\GpuDriven\HIKARI_ClusterGpuDrivenProducerAdapter.cpp">
       <Filter>Source Files\Render3D\GpuDriven</Filter>
     </ClCompile>
@@ -3097,6 +3112,9 @@
     <ClCompile Include="HIKARI\Editor\Views\Director\HIKARI_DirectorViewState.cpp">
       <Filter>Source Files\Editor\Views\Director</Filter>
     </ClCompile>
+    <ClCompile Include="HIKARI\Editor\Views\Director\HIKARI_DirectorCameraPose.cpp">
+      <Filter>Source Files\Editor\Views\Director</Filter>
+    </ClCompile>
     <ClCompile Include="HIKARI\Editor\Views\Director\HIKARI_DirectorViewSupport.cpp">
       <Filter>Source Files\Editor\Views\Director</Filter>
     </ClCompile>
@@ -3187,6 +3205,9 @@
       <Filter>Header Files\Render3D\GpuDriven</Filter>
     </ClInclude>
     <ClInclude Include="HIKARI\Render3D\GpuDriven\CommandStream\HIKARI_GpuTraditionalCommandStreamBuffer.h">
+      <Filter>Header Files\Render3D\GpuDriven\CommandStream</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Render3D\GpuDriven\CommandStream\HIKARI_OwnedTraditionalIndirectStream.h">
       <Filter>Header Files\Render3D\GpuDriven\CommandStream</Filter>
     </ClInclude>
     <ClInclude Include="HIKARI\Render3D\GpuDriven\Backend\HIKARI_GeometryBackendContext.h">
@@ -3355,6 +3376,9 @@
       <Filter>Header Files\Scene\Components\Rendering\MaterialFx</Filter>
     </ClInclude>
     <ClInclude Include="HIKARI\Scene\Components\Rendering\Model\HIKARI_ModelComponent.h">
+      <Filter>Header Files\Scene\Components\Rendering\Model</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Scene\Components\Rendering\Model\HIKARI_ModelRenderableAssetResolver.h">
       <Filter>Header Files\Scene\Components\Rendering\Model</Filter>
     </ClInclude>
     <ClInclude Include="HIKARI\Scene\Components\HIKARI_ProceduralMeshComponent.h">
@@ -3726,7 +3750,13 @@
     <ClInclude Include="HIKARI\Render3D\Lighting\HIKARI_SceneLightingRuntimeData.h">
       <Filter>Header Files\Render3D\Lighting</Filter>
     </ClInclude>
+    <ClInclude Include="HIKARI\Render3D\Lighting\HIKARI_SceneEnvironmentNames.h">
+      <Filter>Header Files\Render3D\Lighting</Filter>
+    </ClInclude>
     <ClInclude Include="HIKARI\Render3D\Reflection\HIKARI_ReflectionProbeRuntime.h">
+      <Filter>Header Files\Render3D\Reflection</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Render3D\Reflection\HIKARI_ReflectionProbeRuntimeConversion.h">
       <Filter>Header Files\Render3D\Reflection</Filter>
     </ClInclude>
     <ClInclude Include="HIKARI\Render3D\Diagnostics\HIKARI_EnvironmentDiagnostics.h">
@@ -4224,8 +4254,11 @@
     <ClInclude Include="HIKARI\Core\HIKARI_MathConfig.h">
       <Filter>Header Files\Core</Filter>
     </ClInclude>
-    <ClInclude Include="HIKARI\Core\HIKARI_Utility.h">
-      <Filter>Header Files\Core</Filter>
+    <ClInclude Include="HIKARI\Core\Math\HIKARI_Vector2.h">
+      <Filter>Header Files\Core\Math</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Core\Presentation\HIKARI_LogicalDisplayDefaults.h">
+      <Filter>Header Files\Core\Presentation</Filter>
     </ClInclude>
     <ClInclude Include="HIKARI\Matrix3x3.h">
       <Filter>Header Files\Core</Filter>
@@ -4341,6 +4374,9 @@
     <ClInclude Include="HIKARI\Scene\Sequencer\HIKARI_SequenceBinding.h">
       <Filter>Header Files\Scene\Sequencer</Filter>
     </ClInclude>
+    <ClInclude Include="HIKARI\Scene\Sequencer\HIKARI_SequenceBindingNaming.h">
+      <Filter>Header Files\Scene\Sequencer</Filter>
+    </ClInclude>
     <ClInclude Include="HIKARI\Scene\Sequencer\HIKARI_SequencePlayback.h">
       <Filter>Header Files\Scene\Sequencer</Filter>
     </ClInclude>
@@ -4370,6 +4406,9 @@
     </ClInclude>
     <ClInclude Include="HIKARI\Scene\Sequencer\Tracks\HIKARI_CameraLensTrack.h">
       <Filter>Header Files\Scene\Sequencer\Tracks</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Scene\Sequencer\Tracks\Internal\HIKARI_CameraTrackNormalization.h">
+      <Filter>Header Files\Scene\Sequencer\Tracks\Internal</Filter>
     </ClInclude>
     <ClInclude Include="HIKARI\Scene\Sequencer\Serialization\HIKARI_CinematicSequenceJson.h">
       <Filter>Header Files\Scene\Sequencer\Serialization</Filter>
@@ -4802,10 +4841,16 @@
     <ClInclude Include="HIKARI\Render3D\Temporal\HIKARI_TaaResolvePass.h">
       <Filter>Header Files\Render3D\Temporal</Filter>
     </ClInclude>
+    <ClInclude Include="HIKARI\Render3D\Temporal\Internal\HIKARI_TemporalConstantBufferSlots.h">
+      <Filter>Header Files\Render3D\Temporal\Internal</Filter>
+    </ClInclude>
     <ClInclude Include="HIKARI\Render3D\Upscaling\HIKARI_StreamlineRuntime.h">
       <Filter>Header Files\Render3D\Upscaling</Filter>
     </ClInclude>
     <ClInclude Include="HIKARI\Render3D\Upscaling\HIKARI_StreamlineInternal.h">
+      <Filter>Header Files\Render3D\Upscaling</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Render3D\Upscaling\HIKARI_StreamlineResourceAdapter.h">
       <Filter>Header Files\Render3D\Upscaling</Filter>
     </ClInclude>
     <ClInclude Include="HIKARI\Render3D\Upscaling\HIKARI_StreamlineReflex.h">
@@ -4851,6 +4896,9 @@
       <Filter>Header Files\Editor\Quality</Filter>
     </ClInclude>
     <ClInclude Include="HIKARI\Editor\Views\Director\HIKARI_DirectorViewInternal.h">
+      <Filter>Header Files\Editor\Views\Director</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Editor\Views\Director\HIKARI_DirectorCameraPose.h">
       <Filter>Header Files\Editor\Views\Director</Filter>
     </ClInclude>
     <ClInclude Include="HIKARI\Editor\Widgets\HIKARI_PostProfileParameterWidget.h">

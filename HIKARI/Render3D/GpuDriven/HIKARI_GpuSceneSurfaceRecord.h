@@ -136,6 +136,9 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
     GpuSceneSurfaceValidationResult ValidateGpuSceneSurfaceRecord(
         const GpuSceneSurfaceRecord& record);
 
+    bool HasValidGpuSceneSubmitPrimitiveTarget(
+        const GpuSceneSurfaceRecord& record);
+
     bool IsGpuSceneForwardOpaqueResidentRecord(
         const GpuSceneSurfaceRecord& record);
 

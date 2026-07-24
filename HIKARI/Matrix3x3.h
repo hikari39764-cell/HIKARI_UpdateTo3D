@@ -1,6 +1,5 @@
 #pragma once
 #include <cmath>
-#include "Core/HIKARI_Utility.h"
 
 struct Matrix3x3 {
     float m[3][3];

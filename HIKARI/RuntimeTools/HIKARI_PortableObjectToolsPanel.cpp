@@ -40,16 +40,6 @@ namespace HIKARI::RUNTIME_TOOLS {
             return objects.front().get();
         }
 
-        std::string SceneLabel(const AssetRecord& record) {
-            std::string label = record.displayName.empty()
-                ? record.sourcePath.stem().string()
-                : record.displayName;
-            if (label.empty()) {
-                label = record.guid.value;
-            }
-            return label;
-        }
-
         struct AssetPickerEntry {
             std::string id{};
             std::string label{};
@@ -257,7 +247,8 @@ namespace HIKARI::RUNTIME_TOOLS {
                     if (!lhs || !rhs) {
                         return lhs < rhs;
                     }
-                    return SceneLabel(*lhs) < SceneLabel(*rhs);
+                    return GetAssetRecordDisplayName(*lhs) <
+                        GetAssetRecordDisplayName(*rhs);
                 });
 
                 bool changed = false;
@@ -276,7 +267,10 @@ namespace HIKARI::RUNTIME_TOOLS {
                             continue;
                         }
                         const bool selected = value == record->guid.value;
-                        std::string itemLabel = SceneLabel(*record) + "##" + record->guid.value;
+                        std::string itemLabel =
+                            GetAssetRecordDisplayName(*record) +
+                            "##" +
+                            record->guid.value;
                         if (ImGui::Selectable(itemLabel.c_str(), selected)) {
                             value = record->guid.value;
                             changed = true;
@@ -322,7 +316,8 @@ namespace HIKARI::RUNTIME_TOOLS {
                 if (!lhs || !rhs) {
                     return lhs < rhs;
                 }
-                return SceneLabel(*lhs) < SceneLabel(*rhs);
+                return GetAssetRecordDisplayName(*lhs) <
+                    GetAssetRecordDisplayName(*rhs);
             });
 
             const AssetGuid& currentGuid = scene.GetCurrentSceneAssetGuid();
@@ -341,14 +336,15 @@ namespace HIKARI::RUNTIME_TOOLS {
                     continue;
                 }
 
-                std::string label = SceneLabel(*record);
+                std::string label = GetAssetRecordDisplayName(*record);
                     label += "##";
                     label += record->guid.value;
 
                     const bool selected = record->guid == currentGuid;
                     if (ImGui::Selectable(label.c_str(), selected)) {
                         const AssetGuid targetGuid = record->guid;
-                        const std::string targetLabel = SceneLabel(*record);
+                        const std::string targetLabel =
+                            GetAssetRecordDisplayName(*record);
                         if (scene.RequestOpenSceneAsset(targetGuid)) {
                             selectedObjectId = {};
                             lastSceneMessage = "Opened scene: " + targetLabel;

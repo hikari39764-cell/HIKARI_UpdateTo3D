@@ -1,6 +1,5 @@
 #include "HIKARI_TextureImportBackend_DirectXTex.h"
 #include "Core/Text/HIKARI_AsciiCase.h"
-#include "Core/Text/HIKARI_AsciiCase.h"
 
 #include <Windows.h>
 #include <DirectXTex.h>

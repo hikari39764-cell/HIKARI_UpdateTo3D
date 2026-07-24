@@ -655,50 +655,6 @@ namespace HIKARI {
             return false;
         }
 
-        void ApplyBaseColorAlphaMaterialPolicy(
-            ModelAsset& model,
-            const std::vector<TextureCookDiagnostic>& textureDiagnostics) {
-
-            (void)model;
-            (void)textureDiagnostics;
-            return;
-
-            for (MaterialAsset& material : model.materials) {
-                const int textureIndex = material.baseColorTexture.textureIndex;
-                if (textureIndex < 0 ||
-                    static_cast<size_t>(textureIndex) >= textureDiagnostics.size()) {
-                    continue;
-                }
-
-                const TextureCookDiagnostic& texture =
-                    textureDiagnostics[static_cast<size_t>(textureIndex)];
-                if (!texture.sourceHasMeaningfulAlpha) {
-                    continue;
-                }
-
-                if (IsCutoutDominantAlpha(texture)) {
-                    material.doubleSided = true;
-                    material.alphaMode = AlphaMode::Mask;
-                    material.featureBits |= MATERIAL_FEATURES::AlphaMask;
-                    material.featureBits &= ~MATERIAL_FEATURES::ThinTransparentSurface;
-                    continue;
-                }
-
-                material.featureBits |= MATERIAL_FEATURES::ThinTransparentSurface;
-                material.doubleSided = true;
-
-                if (material.alphaMode == AlphaMode::Opaque) {
-                    // baseColor の alpha が実データとして存在する場合、旧 asset の OPAQUE 指定を補正する。
-                    if (texture.sourceHasTranslucentAlpha) {
-                        material.alphaMode = AlphaMode::Blend;
-                    } else {
-                        material.alphaMode = AlphaMode::Mask;
-                        material.featureBits |= MATERIAL_FEATURES::AlphaMask;
-                    }
-                }
-            }
-        }
-
         bool HasMaterialThinSurfaceCookHint(const MaterialAsset& material) {
             return
                 MATERIAL_POLICY::HasThinTransparentSurfaceHint(material) ||

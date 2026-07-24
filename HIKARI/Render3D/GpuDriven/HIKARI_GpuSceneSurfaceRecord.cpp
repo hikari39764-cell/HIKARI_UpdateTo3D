@@ -164,19 +164,6 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
                 surface.primitiveIndex < model->meshes[surface.meshIndex].primitives.size();
         }
 
-        bool HasValidSubmitPrimitiveTarget(const GpuSceneSurfaceRecord& record) {
-            return
-                record.model != nullptr &&
-                record.meshIndex != RUNTIME::kInvalidRenderSurfaceIndex &&
-                record.primitiveIndex != RUNTIME::kInvalidRenderSurfaceIndex &&
-                record.meshIndex < record.model->meshes.size() &&
-                record.primitiveIndex < record.model->meshes[record.meshIndex].primitives.size();
-        }
-
-        int ResolveRuntimeTextureSlot(const Material& material, MaterialTextureUsage usage) {
-            return material.HasTextureSlot(usage) ? material.GetTextureSlot(usage).handle : -1;
-        }
-
         uint64_t HashTextureSlot(uint64_t hash, const TextureSlot& slot) {
             hash = HashAppend(hash, HashIntSlot(slot.textureIndex));
             hash = HashAppend(hash, static_cast<uint64_t>(std::clamp(slot.texCoord, 0, 1)));
@@ -479,24 +466,6 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
             return key;
         }
 
-        MATH::Vec4 BuildBoundsCenterRadius(const Bounds& bounds) {
-            const MATH::Vec3 center{
-                (bounds.min.x + bounds.max.x) * 0.5f,
-                (bounds.min.y + bounds.max.y) * 0.5f,
-                (bounds.min.z + bounds.max.z) * 0.5f,
-            };
-            const MATH::Vec3 extent{
-                bounds.max.x - center.x,
-                bounds.max.y - center.y,
-                bounds.max.z - center.z,
-            };
-            const float radius = std::sqrt(
-                extent.x * extent.x +
-                extent.y * extent.y +
-                extent.z * extent.z);
-            return { center.x, center.y, center.z, radius };
-        }
-
         uint32_t BuildInstanceFlags(const GpuSceneSurfaceRecord& record) {
             uint32_t flags = 0;
             const bool staticGeometry =
@@ -654,7 +623,8 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
                 ? record.drawWorldMatrix
                 : record.objectWorldTransform.GetWorldMatrix();
             instance.clusterNormalMatrix = MATH::BuildNormalMatrixFromWorld(instance.clusterWorld);
-            instance.boundsCenterRadius = BuildBoundsCenterRadius(record.worldBounds);
+            instance.boundsCenterRadius =
+                BOUNDS::ComputeCenterRadius(record.worldBounds);
             instance.sourceRecordIndex = sourceRecordIndex;
             instance.sourceSurfaceInstanceIndex = record.sourceSurfaceInstanceIndex;
             instance.objectIdLow = static_cast<uint32_t>(record.objectId.value & 0xffffffffull);
@@ -724,6 +694,18 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
             !missingDrawMatrix &&
             !invalidBounds &&
             !invalidPrimitiveIndex;
+    }
+
+    bool HasValidGpuSceneSubmitPrimitiveTarget(
+        const GpuSceneSurfaceRecord& record) {
+
+        return
+            record.model != nullptr &&
+            record.meshIndex != RUNTIME::kInvalidRenderSurfaceIndex &&
+            record.primitiveIndex != RUNTIME::kInvalidRenderSurfaceIndex &&
+            record.meshIndex < record.model->meshes.size() &&
+            record.primitiveIndex <
+                record.model->meshes[record.meshIndex].primitives.size();
     }
 
     GpuSceneSurfaceRecord BuildGpuSceneSurfaceRecord(
@@ -825,7 +807,7 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
                 (!record.skinned ||
                     (record.jointPaletteSlot != RUNTIME::kInvalidRenderSurfaceIndex &&
                         record.jointPaletteMatrixCount != 0u)) &&
-                HasValidSubmitPrimitiveTarget(record);
+                HasValidGpuSceneSubmitPrimitiveTarget(record);
         }
     }
 

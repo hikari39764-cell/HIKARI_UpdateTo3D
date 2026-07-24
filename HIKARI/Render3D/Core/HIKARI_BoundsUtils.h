@@ -23,6 +23,34 @@ namespace HIKARI::BOUNDS {
         return (std::abs(extent.x) + std::abs(extent.y) + std::abs(extent.z)) > 1e-5f;
     }
 
+    inline MATH::Vec4 ComputeCenterRadius(const Bounds& bounds) {
+        const MATH::Vec3 center{
+            (bounds.min.x + bounds.max.x) * 0.5f,
+            (bounds.min.y + bounds.max.y) * 0.5f,
+            (bounds.min.z + bounds.max.z) * 0.5f,
+        };
+        const MATH::Vec3 extent{
+            bounds.max.x - center.x,
+            bounds.max.y - center.y,
+            bounds.max.z - center.z,
+        };
+        const float radius = std::sqrt(
+            extent.x * extent.x +
+            extent.y * extent.y +
+            extent.z * extent.z);
+        return { center.x, center.y, center.z, radius };
+    }
+
+    inline float ComputeVolume(const Bounds& bounds) noexcept {
+        if (!IsUsable(bounds)) {
+            return 0.0f;
+        }
+        const MATH::Vec3 size = bounds.max - bounds.min;
+        return (std::max)(size.x, 0.0f) *
+            (std::max)(size.y, 0.0f) *
+            (std::max)(size.z, 0.0f);
+    }
+
     inline Bounds EmptyBounds() {
         const float inf = std::numeric_limits<float>::infinity();
         return { { inf, inf, inf }, { -inf, -inf, -inf } };
@@ -218,42 +246,6 @@ namespace HIKARI::BOUNDS {
         if (!IsUsable(model.bounds)) {
             model.bounds = ComputeModelBounds(model);
         }
-    }
-
-    inline bool IntersectsClipFrustum(const Bounds& bounds, const MATH::Mat4& localToClip) {
-        if (!IsUsable(bounds)) {
-            return true;
-        }
-
-        const std::array<MATH::Vec3, 8> corners = {
-            MATH::Vec3{ bounds.min.x, bounds.min.y, bounds.min.z },
-            MATH::Vec3{ bounds.max.x, bounds.min.y, bounds.min.z },
-            MATH::Vec3{ bounds.min.x, bounds.max.y, bounds.min.z },
-            MATH::Vec3{ bounds.max.x, bounds.max.y, bounds.min.z },
-            MATH::Vec3{ bounds.min.x, bounds.min.y, bounds.max.z },
-            MATH::Vec3{ bounds.max.x, bounds.min.y, bounds.max.z },
-            MATH::Vec3{ bounds.min.x, bounds.max.y, bounds.max.z },
-            MATH::Vec3{ bounds.max.x, bounds.max.y, bounds.max.z },
-        };
-
-        bool outsideLeft = true;
-        bool outsideRight = true;
-        bool outsideBottom = true;
-        bool outsideTop = true;
-        bool outsideNear = true;
-        bool outsideFar = true;
-
-        for (const MATH::Vec3& corner : corners) {
-            const MATH::Vec4 clip = localToClip.TransformPoint({ corner.x, corner.y, corner.z, 1.0f });
-            outsideLeft = outsideLeft && (clip.x < -clip.w);
-            outsideRight = outsideRight && (clip.x > clip.w);
-            outsideBottom = outsideBottom && (clip.y < -clip.w);
-            outsideTop = outsideTop && (clip.y > clip.w);
-            outsideNear = outsideNear && (clip.z < 0.0f);
-            outsideFar = outsideFar && (clip.z > clip.w);
-        }
-
-        return !(outsideLeft || outsideRight || outsideBottom || outsideTop || outsideNear || outsideFar);
     }
 
 } // namespace HIKARI::BOUNDS

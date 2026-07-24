@@ -22,16 +22,6 @@ namespace HIKARI::ASSETS::COLLISION {
             return bounds.max - bounds.min;
         }
 
-        float BoundsVolume(const Bounds& bounds) noexcept {
-            if (!BOUNDS::IsUsable(bounds)) {
-                return 0.0f;
-            }
-            const MATH::Vec3 size = bounds.max - bounds.min;
-            return (std::max)(size.x, 0.0f) *
-                (std::max)(size.y, 0.0f) *
-                (std::max)(size.z, 0.0f);
-        }
-
         float PrimitiveVolume(const ModelCollisionShape& shape) noexcept {
             constexpr float kPi = 3.14159265358979323846f;
             switch (shape.type) {
@@ -422,7 +412,7 @@ namespace HIKARI::ASSETS::COLLISION {
                         !GenerateGroupShapes(
                             nodeMesh,
                             request,
-                            BoundsVolume(nodeMesh.bounds),
+                            BOUNDS::ComputeVolume(nodeMesh.bounds),
                             setup,
                             groupShapes,
                             generationMessage)) {

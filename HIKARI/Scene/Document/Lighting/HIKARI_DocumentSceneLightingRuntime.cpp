@@ -5,32 +5,12 @@
 #include "Render3D/Lighting/HIKARI_SkyRenderer.h"
 #include "Render3D/Lighting/HIKARI_LightProbeVolumeRuntime.h"
 #include "Render3D/Reflection/HIKARI_ReflectionProbeRuntime.h"
+#include "Render3D/Reflection/HIKARI_ReflectionProbeRuntimeConversion.h"
 
 namespace HIKARI {
     namespace {
         bool EqualVec3(const MATH::Vec3& lhs, const MATH::Vec3& rhs) {
             return lhs.x == rhs.x && lhs.y == rhs.y && lhs.z == rhs.z;
-        }
-
-        bool EqualSkySettings(const SkySettings& lhs, const SkySettings& rhs) {
-            return lhs.enabled == rhs.enabled &&
-                lhs.mode == rhs.mode &&
-                lhs.skyAsset == rhs.skyAsset &&
-                lhs.scale == rhs.scale &&
-                lhs.yaw == rhs.yaw &&
-                lhs.exposure == rhs.exposure &&
-                EqualVec3(lhs.tint, rhs.tint) &&
-                lhs.followCamera == rhs.followCamera &&
-                EqualVec3(lhs.zenithColor, rhs.zenithColor) &&
-                EqualVec3(lhs.horizonColor, rhs.horizonColor) &&
-                EqualVec3(lhs.groundColor, rhs.groundColor) &&
-                lhs.horizonPower == rhs.horizonPower &&
-                lhs.showSunDisk == rhs.showSunDisk &&
-                lhs.sunDiskIntensity == rhs.sunDiskIntensity &&
-                lhs.sunDiskSize == rhs.sunDiskSize &&
-                lhs.ambientFromSky == rhs.ambientFromSky &&
-                lhs.reflectionIntensity == rhs.reflectionIntensity &&
-                lhs.showDebugTexture == rhs.showDebugTexture;
         }
 
         bool IsSkyRuntimeResourceBindingChanged(
@@ -60,20 +40,6 @@ namespace HIKARI {
                 before.priority != after.priority;
         }
 
-        REFLECTION::RuntimeReflectionProbeInfluenceShape ToRuntimeInfluenceShape(
-            ReflectionProbeInfluenceShape shape) {
-            return shape == ReflectionProbeInfluenceShape::Box
-                ? REFLECTION::RuntimeReflectionProbeInfluenceShape::Box
-                : REFLECTION::RuntimeReflectionProbeInfluenceShape::Sphere;
-        }
-
-        REFLECTION::RuntimeReflectionProbeProjectionShape ToRuntimeProjectionShape(
-            ReflectionProbeProjectionShape shape) {
-            return shape == ReflectionProbeProjectionShape::Box
-                ? REFLECTION::RuntimeReflectionProbeProjectionShape::Box
-                : REFLECTION::RuntimeReflectionProbeProjectionShape::Infinite;
-        }
-
     }
 
     void DocumentSceneBase::SyncReflectionProbeRuntimeFromAuthoring() {
@@ -89,8 +55,8 @@ namespace HIKARI {
             probe.position,
             probe.radius,
             probe.intensity,
-            ToRuntimeInfluenceShape(probe.influenceShape),
-            ToRuntimeProjectionShape(probe.projectionShape),
+            REFLECTION::ToRuntimeInfluenceShape(probe.influenceShape),
+            REFLECTION::ToRuntimeProjectionShape(probe.projectionShape),
             probe.influenceBoxCenter,
             probe.influenceBoxSize,
             probe.projectionBoxCenter,

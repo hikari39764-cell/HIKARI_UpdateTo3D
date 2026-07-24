@@ -24,7 +24,10 @@ namespace HIKARI::POST {
             }
 
             const float targetAspect =
-                static_cast<float>(kScreenW) / static_cast<float>(kScreenH);
+                static_cast<float>(
+                    PRESENTATION::kDefaultLogicalWidth) /
+                static_cast<float>(
+                    PRESENTATION::kDefaultLogicalHeight);
             const float outputAspect =
                 static_cast<float>(width) / static_cast<float>(height);
             int viewportWidth = width;

@@ -85,10 +85,6 @@ namespace HIKARI::MESHRENDERER {
         const RENDER3D::RenderViewContext& view,
         const SceneEnvironment& environment,
         RenderDebugView debugView = RenderDebugView::None);
-    void RenderAll(
-        const Camera3D& camera,
-        const SceneEnvironment& environment,
-        RenderDebugView debugView = RenderDebugView::None);
 #if defined(HIKARI_WITH_EDITOR)
     namespace EDITOR_DETAIL {
         struct SceneSourceTag;

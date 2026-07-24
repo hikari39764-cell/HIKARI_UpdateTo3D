@@ -37,13 +37,6 @@ namespace HIKARI::ASSETS::MODELS::ASSIMP {
             return scheme != std::string::npos && value.rfind("file://", 0) != 0;
         }
 
-        const TextureAsset3D* FindModelTexture(const ModelAsset& asset, const TextureSlot& slot) {
-            if (slot.textureIndex < 0 || slot.textureIndex >= static_cast<int>(asset.textures.size())) {
-                return nullptr;
-            }
-            return &asset.textures[static_cast<size_t>(slot.textureIndex)];
-        }
-
         float Clamp01(float value) {
             return std::clamp(value, 0.0f, 1.0f);
         }
@@ -326,7 +319,10 @@ namespace HIKARI::ASSETS::MODELS::ASSIMP {
                         material.name);
                 }
 
-                const TextureAsset3D* baseColorTexture = FindModelTexture(asset, material.baseColorTexture);
+                const TextureAsset3D* baseColorTexture =
+                    ::HIKARI::ASSETS::MODELS::FindModelTexture(
+                        asset,
+                        material.baseColorTexture);
                 const std::string_view baseColorTextureName =
                     baseColorTexture != nullptr ? std::string_view(baseColorTexture->name) : std::string_view{};
                 const std::string_view baseColorTexturePath =

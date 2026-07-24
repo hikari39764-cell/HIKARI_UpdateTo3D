@@ -34,6 +34,22 @@ namespace HIKARI::TOOLS::BAKING {
         Failed,
     };
 
+    inline bool IsLightingBakeJobRunning(
+        LightingBakeJobState state) noexcept {
+
+        switch (state) {
+        case LightingBakeJobState::Requested:
+        case LightingBakeJobState::Capturing:
+        case LightingBakeJobState::WaitingGpu:
+        case LightingBakeJobState::ProjectingSH:
+        case LightingBakeJobState::Saving:
+        case LightingBakeJobState::Finalizing:
+            return true;
+        default:
+            return false;
+        }
+    }
+
     struct LightingBakeReport {
         bool success = true;
         bool manifestWritten = false;

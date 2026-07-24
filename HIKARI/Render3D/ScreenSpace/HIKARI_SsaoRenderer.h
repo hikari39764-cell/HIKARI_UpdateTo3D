@@ -131,7 +131,6 @@ namespace HIKARI::RENDER3D::SCREENSPACE {
     };
 
     const SsaoDebugState& GetSsaoDebugState();
-    const char* ToString(SsaoMode mode);
     SsaoMode ResolveEffectiveSsaoMode(const AmbientOcclusionSettings& settings);
     bool SsaoRequiresGeometryAux(const AmbientOcclusionSettings& settings);
     void BeginSsaoDebugFrame(uint32_t width, uint32_t height, const AmbientOcclusionSettings& settings);

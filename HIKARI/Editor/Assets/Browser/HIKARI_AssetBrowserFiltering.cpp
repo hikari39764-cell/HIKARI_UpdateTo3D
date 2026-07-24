@@ -117,16 +117,6 @@ nlohmann::json ReadImportSettings(const AssetRecord &record) {
   return settings.is_object() ? settings : nlohmann::json::object();
 }
 
-bool IsBrokenRecord(const AssetRecord &record) {
-  const AssetImportState state = GetImportState(record);
-  return state == AssetImportState::MissingSource ||
-         state == AssetImportState::MissingMeta ||
-         state == AssetImportState::MissingArtifact ||
-         state == AssetImportState::UnknownImporter ||
-         state == AssetImportState::DuplicateGuid ||
-         state == AssetImportState::ImportFailed;
-}
-
 bool MatchesScope(const AssetRecord &record,
                   const AssetUsageSummary *usageSummary,
                   AssetBrowserScope scope) {
@@ -137,7 +127,7 @@ bool MatchesScope(const AssetRecord &record,
   case AssetBrowserScope::UnusedInScene:
     return usageSummary && !usageSummary->IsUsed(record.guid);
   case AssetBrowserScope::Broken:
-    return IsBrokenRecord(record);
+    return IsBrokenAssetRecord(record);
   case AssetBrowserScope::Textures:
     return record.type == AssetType::Texture;
   case AssetBrowserScope::Models:

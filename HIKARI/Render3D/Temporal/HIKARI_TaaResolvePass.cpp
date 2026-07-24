@@ -10,7 +10,6 @@
 #include <wrl/client.h>
 
 #include "Diagnostics/HIKARI_DebugLogBuffer.h"
-#include "Gfx/D3D12/HIKARI_D3D12BufferAlignment.h"
 #include "Gfx/HIKARI_DXCheck.h"
 #include "Gfx/HIKARI_GpuFrameProfiler.h"
 #include "Gfx/HIKARI_PixProfiler.h"
@@ -18,6 +17,7 @@
 #include "HIKARI_Services.h"
 #include "Render2D/HIKARI_RenderTarget2D.h"
 #include "Render3D/Temporal/HIKARI_TemporalResourceSystem.h"
+#include "Render3D/Temporal/Internal/HIKARI_TemporalConstantBufferSlots.h"
 
 namespace HIKARI::RENDER3D::TEMPORAL {
 
@@ -46,43 +46,6 @@ namespace HIKARI::RENDER3D::TEMPORAL {
         TaaResolvePassState& State() {
             static TaaResolvePassState state{};
             return state;
-        }
-
-        bool EnsureConstantBuffers(ID3D12Device* device) {
-            TaaResolvePassState& state = State();
-            for (uint32_t index = 0; index < kFrameSlotCount; ++index) {
-                ConstantSlot& slot = state.constants[index];
-                if (slot.buffer != nullptr && slot.mapped != nullptr) {
-                    continue;
-                }
-
-                const auto heapProps = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
-                const auto bufferDesc = CD3DX12_RESOURCE_DESC::Buffer(
-                    GFX::AlignD3D12ConstantBufferByteSize(sizeof(TaaResolveConstants)));
-                const HRESULT hr = device->CreateCommittedResource(
-                    &heapProps,
-                    D3D12_HEAP_FLAG_NONE,
-                    &bufferDesc,
-                    D3D12_RESOURCE_STATE_GENERIC_READ,
-                    nullptr,
-                    IID_PPV_ARGS(slot.buffer.GetAddressOf()));
-                if (!HIKARI_DX_CHECK(hr, "TaaResolvePass::CreateConstantBuffer")) {
-                    return false;
-                }
-                const std::wstring name =
-                    L"HIKARI.Temporal.TaaResolveCB" + std::to_wstring(index);
-                slot.buffer->SetName(name.c_str());
-                const CD3DX12_RANGE readRange(0, 0);
-                if (FAILED(slot.buffer->Map(
-                        0,
-                        &readRange,
-                        reinterpret_cast<void**>(&slot.mapped)))) {
-                    slot.buffer.Reset();
-                    slot.mapped = nullptr;
-                    return false;
-                }
-            }
-            return true;
         }
 
         bool EnsurePipeline(ID3D12Device* device) {
@@ -208,7 +171,11 @@ namespace HIKARI::RENDER3D::TEMPORAL {
             }
             state.pipelineState->SetName(L"HIKARI.Temporal.TaaResolvePSO");
 
-            state.ready = EnsureConstantBuffers(device);
+            state.ready =
+                INTERNAL::EnsureMappedConstantBufferSlots<TaaResolveConstants>(
+                    device,
+                    state.constants,
+                    L"HIKARI.Temporal.TaaResolveCB");
             return state.ready;
         }
     }

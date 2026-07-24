@@ -32,6 +32,16 @@ namespace HIKARI {
         return AssetImportState::MetaOnly;
     }
 
+    bool IsBrokenAssetRecord(const AssetRecord& record) {
+        const AssetImportState state = GetImportState(record);
+        return state == AssetImportState::MissingSource ||
+            state == AssetImportState::MissingMeta ||
+            state == AssetImportState::MissingArtifact ||
+            state == AssetImportState::UnknownImporter ||
+            state == AssetImportState::DuplicateGuid ||
+            state == AssetImportState::ImportFailed;
+    }
+
     const char* ToString(AssetImportState state) {
         switch (state) {
         case AssetImportState::MetaOnly: return "Meta Only";

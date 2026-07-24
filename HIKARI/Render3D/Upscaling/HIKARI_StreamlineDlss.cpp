@@ -8,6 +8,7 @@
 #include "Gfx/HIKARI_GpuFrameProfiler.h"
 #include "Gfx/HIKARI_PixProfiler.h"
 #include "Render3D/Upscaling/HIKARI_StreamlineInternal.h"
+#include "Render3D/Upscaling/HIKARI_StreamlineResourceAdapter.h"
 
 #if defined(HIKARI_WITH_STREAMLINE)
 #pragma warning(push, 0)
@@ -97,19 +98,6 @@ namespace HIKARI::RENDER3D::UPSCALING {
             }
             state.stats.outputReady = state.output.GetResource() != nullptr;
             return state.stats.outputReady;
-        }
-
-        sl::Resource MakeResource(const TEMPORAL::TemporalTextureView& view) {
-            sl::Resource resource(
-                sl::ResourceType::eTex2d,
-                view.resource,
-                static_cast<uint32_t>(view.state));
-            resource.width = view.width;
-            resource.height = view.height;
-            resource.nativeFormat = static_cast<uint32_t>(view.format);
-            resource.mipLevels = 1;
-            resource.arrayLayers = 1;
-            return resource;
         }
 
         bool DlssFailureSignatureChanged(
@@ -376,14 +364,24 @@ namespace HIKARI::RENDER3D::UPSCALING {
         outputView.state = state.output.GetColorState();
         outputView.valid = outputView.resource != nullptr;
 
-        sl::Resource colorInput = MakeResource(inputs.sceneColor);
-        sl::Resource colorOutput = MakeResource(outputView);
-        sl::Resource depth = MakeResource(inputs.sceneDepth);
-        sl::Resource motion = MakeResource(inputs.motionVectors);
-        sl::Resource exposure = MakeResource(inputs.exposure);
-        sl::Resource reactive = MakeResource(inputs.reactiveMask);
-        sl::Resource transparency = MakeResource(inputs.transparencyMask);
-        sl::Resource invalidDepthMotion = MakeResource(inputs.invalidDepthMotionMask);
+        sl::Resource colorInput =
+            INTERNAL::MakeStreamlineTextureResource(inputs.sceneColor);
+        sl::Resource colorOutput =
+            INTERNAL::MakeStreamlineTextureResource(outputView);
+        sl::Resource depth =
+            INTERNAL::MakeStreamlineTextureResource(inputs.sceneDepth);
+        sl::Resource motion =
+            INTERNAL::MakeStreamlineTextureResource(inputs.motionVectors);
+        sl::Resource exposure =
+            INTERNAL::MakeStreamlineTextureResource(inputs.exposure);
+        sl::Resource reactive =
+            INTERNAL::MakeStreamlineTextureResource(inputs.reactiveMask);
+        sl::Resource transparency =
+            INTERNAL::MakeStreamlineTextureResource(
+                inputs.transparencyMask);
+        sl::Resource invalidDepthMotion =
+            INTERNAL::MakeStreamlineTextureResource(
+                inputs.invalidDepthMotionMask);
 
         const sl::Extent renderExtent{
             0u, 0u, inputs.frame.renderWidth, inputs.frame.renderHeight };

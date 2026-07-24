@@ -2,11 +2,11 @@
 
 #include <algorithm>
 #include <array>
-#include <cctype>
 #include <cstdio>
 #include <string>
 
 #include "Editor/Authoring/HIKARI_SequencePreviewBindingResolver.h"
+#include "Scene/Sequencer/HIKARI_SequenceBindingNaming.h"
 
 #if defined(HIKARI_WITH_EDITOR)
 #include "imgui.h"
@@ -54,24 +54,12 @@ bool IsBindingUsed(const CinematicSequence &sequence,
                      });
 }
 
-std::string MakeSlotToken(std::string value) {
-  for (char &character : value) {
-    const unsigned char byte = static_cast<unsigned char>(character);
-    if (!std::isalnum(byte) && character != '_' && character != '.') {
-      character = '_';
-    }
-  }
-  while (!value.empty() && value.back() == '_') {
-    value.pop_back();
-  }
-  return value.empty() ? std::string("Camera") : value;
-}
-
 std::string MakeUniqueSlotName(const SEQUENCER::SequenceBindingTable &bindings,
                                std::string baseName,
                                SEQUENCER::SequenceBindingId ignoredId = {}) {
 
-  baseName = MakeSlotToken(std::move(baseName));
+  baseName = SEQUENCER::NormalizeSequenceBindingSlotName(
+      std::move(baseName));
   std::string candidate = baseName;
   uint32_t suffix = 2;
   for (;;) {
@@ -138,7 +126,9 @@ void ConvertToPortableSlot(const SceneDocument &document,
   const std::string baseName =
       previousObject.value != 0
           ? BuildCameraPreviewSlotName(document, previousObject)
-          : "Camera." + MakeSlotToken(binding.name);
+          : "Camera." +
+              SEQUENCER::NormalizeSequenceBindingSlotName(
+                  binding.name);
   binding.targetKind = SEQUENCER::SequenceBindingTargetKind::Slot;
   binding.slotName = MakeUniqueSlotName(bindings, baseName, binding.id);
   binding.sceneObjectId = {};

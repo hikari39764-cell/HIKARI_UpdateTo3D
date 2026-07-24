@@ -4,19 +4,6 @@
 #include <spine/RegionAttachment.h>
 #include <spine/TextureRegion.h>
 #include <spine/Animation.h>
-namespace {
-
-    static inline void Transform4(const Matrix3x3& m, const float inXY[8], float outXY[8]) {
-        for (int i = 0; i < 4; ++i) {
-            const float x = inXY[i * 2 + 0];
-            const float y = inXY[i * 2 + 1];
-            outXY[i * 2 + 0] = x * m.m[0][0] + y * m.m[1][0] + m.m[2][0];
-            outXY[i * 2 + 1] = x * m.m[0][1] + y * m.m[1][1] + m.m[2][1];
-        }
-    }
-
-} // namespace
-
 namespace HIKARI {
 
     SpineActor::~SpineActor() {

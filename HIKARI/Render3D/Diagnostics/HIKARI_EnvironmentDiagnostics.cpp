@@ -7,6 +7,7 @@
 #include "Render3D/Lighting/HIKARI_IblEnvironment.h"
 #include "Render3D/Lighting/HIKARI_LightProbeVolumeRuntime.h"
 #include "Render3D/Lighting/HIKARI_SceneEnvironment.h"
+#include "Render3D/Lighting/HIKARI_SceneEnvironmentNames.h"
 #include "Render3D/Lighting/HIKARI_SceneLightingRuntimeData.h"
 #include "Render3D/Lighting/HIKARI_SkyRenderer.h"
 #include "Render3D/Reflection/HIKARI_ReflectionProbeRuntime.h"
@@ -493,7 +494,7 @@ namespace HIKARI::RENDER3D::DIAGNOSTICS {
         snapshot.ssaoEnabled = ssao.enabled;
         snapshot.ssaoValid = ssao.valid;
         snapshot.ssaoSuppressed = ssao.suppressed;
-        snapshot.ssaoMode = SCREENSPACE::ToString(ssao.mode);
+        snapshot.ssaoMode = GetSsaoModeName(ssao.mode);
         snapshot.ssaoWidth = ssao.width;
         snapshot.ssaoHeight = ssao.height;
         snapshot.ssaoInternalWidth = ssao.internalWidth;

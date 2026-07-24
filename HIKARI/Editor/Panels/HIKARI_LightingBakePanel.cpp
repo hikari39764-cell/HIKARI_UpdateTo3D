@@ -48,20 +48,6 @@ namespace HIKARI {
             ImGui::Unindent();
         }
 
-        bool IsBakeJobBusy(TOOLS::BAKING::LightingBakeJobState state) {
-            switch (state) {
-            case TOOLS::BAKING::LightingBakeJobState::Requested:
-            case TOOLS::BAKING::LightingBakeJobState::Capturing:
-            case TOOLS::BAKING::LightingBakeJobState::WaitingGpu:
-            case TOOLS::BAKING::LightingBakeJobState::ProjectingSH:
-            case TOOLS::BAKING::LightingBakeJobState::Saving:
-            case TOOLS::BAKING::LightingBakeJobState::Finalizing:
-                return true;
-            default:
-                return false;
-            }
-        }
-
         int CaptureResolutionToIndex(uint32_t resolution) {
             const uint32_t normalized = NormalizeLightProbeCaptureResolution(resolution);
             if (normalized == 16u) {
@@ -212,7 +198,9 @@ namespace HIKARI {
 
         // Route bake actions through the service layer to keep runtime coupling narrow.
         TOOLS::BAKING::LightingBakeService service{};
-        const bool bakeBusy = IsBakeJobBusy(scene.GetLightingBakeJobState());
+        const bool bakeBusy =
+            TOOLS::BAKING::IsLightingBakeJobRunning(
+                scene.GetLightingBakeJobState());
         if (ImGui::Button("Validate Lighting Bake Setup")) {
             lastReport_ = service.ValidateLightingBakeSetup(request);
             hasReport_ = true;

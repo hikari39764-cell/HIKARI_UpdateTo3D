@@ -8,6 +8,7 @@
 #include <vector>
 
 #include "Assets/HIKARI_AssetRegistry.h"
+#include "Assets/Models/HIKARI_ModelAssetLookup.h"
 #include "Core/Text/HIKARI_AsciiCase.h"
 #include "Project/Paths/HIKARI_ProjectPath.h"
 #include "Core/HIKARI_Logger.h"
@@ -19,6 +20,7 @@
 #include "Render3D/Material/HIKARI_MaterialRuntimeBuilder.h"
 #include "Render3D/Material/HIKARI_MaterialTextureUsage.h"
 #include "Render3D/Reflection/HIKARI_ReflectionProbeRuntime.h"
+#include "Render3D/Reflection/HIKARI_ReflectionProbeRuntimeConversion.h"
 #include "Render3D/Resources/HIKARI_ClusterGeometryResourceSystem.h"
 #include "Render3D/Resources/HIKARI_TextureResourceSystem.h"
 #include "Scene/Components/HIKARI_IComponent.h"
@@ -47,13 +49,6 @@ namespace HIKARI {
             std::replace(value.begin(), value.end(), '\\', '/');
             TEXT::ToLowerAsciiInPlace(value);
             return value;
-        }
-
-        const TextureAsset3D* FindTextureBySlot(const ModelAsset& asset, const TextureSlot& slot) {
-            if (slot.textureIndex < 0 || slot.textureIndex >= static_cast<int>(asset.textures.size())) {
-                return nullptr;
-            }
-            return &asset.textures[static_cast<size_t>(slot.textureIndex)];
         }
 
         const std::string& SelectRuntimeTexturePath(const TextureAsset3D& texture) {
@@ -90,7 +85,8 @@ namespace HIKARI {
             const TextureSlot& slot,
             MaterialTextureUsage usage) {
 
-            const TextureAsset3D* texture = FindTextureBySlot(asset, slot);
+            const TextureAsset3D* texture =
+                ASSETS::MODELS::FindModelTexture(asset, slot);
             if (texture == nullptr) {
                 return;
             }
@@ -291,21 +287,6 @@ namespace HIKARI {
             }
         }
 
-        REFLECTION::RuntimeReflectionProbeInfluenceShape ToRuntimeInfluenceShape(
-            ReflectionProbeInfluenceShape shape) {
-
-            return shape == ReflectionProbeInfluenceShape::Box
-                ? REFLECTION::RuntimeReflectionProbeInfluenceShape::Box
-                : REFLECTION::RuntimeReflectionProbeInfluenceShape::Sphere;
-        }
-
-        REFLECTION::RuntimeReflectionProbeProjectionShape ToRuntimeProjectionShape(
-            ReflectionProbeProjectionShape shape) {
-
-            return shape == ReflectionProbeProjectionShape::Box
-                ? REFLECTION::RuntimeReflectionProbeProjectionShape::Box
-                : REFLECTION::RuntimeReflectionProbeProjectionShape::Infinite;
-        }
     }
 
     SceneDependencySet SceneRuntimeBuilder::CollectDependencies(
@@ -433,8 +414,12 @@ namespace HIKARI {
         request.reflectionProbePosition = dependencies.reflectionProbePosition;
         request.reflectionProbeRadius = dependencies.reflectionProbeRadius;
         request.reflectionProbeIntensity = dependencies.reflectionProbeIntensity;
-        request.reflectionProbeInfluenceShape = ToRuntimeInfluenceShape(dependencies.reflectionProbeInfluenceShape);
-        request.reflectionProbeProjectionShape = ToRuntimeProjectionShape(dependencies.reflectionProbeProjectionShape);
+        request.reflectionProbeInfluenceShape =
+            REFLECTION::ToRuntimeInfluenceShape(
+                dependencies.reflectionProbeInfluenceShape);
+        request.reflectionProbeProjectionShape =
+            REFLECTION::ToRuntimeProjectionShape(
+                dependencies.reflectionProbeProjectionShape);
         request.reflectionProbeInfluenceBoxCenter = dependencies.reflectionProbeInfluenceBoxCenter;
         request.reflectionProbeInfluenceBoxSize = dependencies.reflectionProbeInfluenceBoxSize;
         request.reflectionProbeProjectionBoxCenter = dependencies.reflectionProbeProjectionBoxCenter;

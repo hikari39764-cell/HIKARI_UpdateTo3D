@@ -111,8 +111,6 @@ bool MatchesSearch(const AssetRecord &record, const char *searchText);
 
 nlohmann::json ReadImportSettings(const AssetRecord &record);
 
-bool IsBrokenRecord(const AssetRecord &record);
-
 bool MatchesScope(const AssetRecord &record,
                   const AssetUsageSummary *usageSummary,
                   AssetBrowserScope scope);

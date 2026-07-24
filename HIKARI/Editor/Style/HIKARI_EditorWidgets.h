@@ -82,6 +82,7 @@ namespace HIKARI::EDITOR {
         float width = -1.0f);
 
     bool BeginPropertyTable(const char* id, float labelWidth = 152.0f);
+    bool BeginMetricTable(const char* id, float labelWidth = 210.0f);
     void PropertyLabel(const char* label);
     void EndPropertyTable();
 #endif

@@ -45,18 +45,6 @@ namespace HIKARI::EDITOR {
             return "GameObject_" + std::to_string(id.value);
         }
 
-        const char* DefaultPrimitiveName(ProceduralMeshKind kind) {
-            switch (kind) {
-            case ProceduralMeshKind::Plane: return "Plane";
-            case ProceduralMeshKind::GridPlane: return "Grid Plane";
-            case ProceduralMeshKind::Sphere: return "Sphere";
-            case ProceduralMeshKind::Cylinder: return "Cylinder";
-            case ProceduralMeshKind::Capsule: return "Capsule";
-            case ProceduralMeshKind::Box:
-            default: return "Box";
-            }
-        }
-
         SceneObjectData BuildBaseObject(
             DocumentSceneBase& scene,
             const AssetGuid* modelGuid,
@@ -118,7 +106,8 @@ namespace HIKARI::EDITOR {
         const ProceduralMeshSettings settings =
             SanitizeProceduralMeshSettings(request.mesh);
         if (objectRequest.name.empty()) {
-            objectRequest.name = DefaultPrimitiveName(settings.kind);
+            objectRequest.name =
+                GetProceduralMeshDisplayName(settings.kind);
         }
 
         SceneObjectData object = BuildBaseObject(
