@@ -10,7 +10,7 @@ namespace HIKARI::ASSETS::GEOMETRY {
         CharacterStatic,
     };
 
-    struct ClusterCookSettings {
+    struct ClusteredGeometryCookSettings {
         uint32_t maxTrianglesPerCluster = RENDER3D::CLUSTER::kHcmeshMaxTrianglesPerCluster;
         uint32_t minTrianglesPerCluster = 32;
         uint32_t maxVerticesPerCluster = RENDER3D::CLUSTER::kHcmeshMaxVerticesPerCluster;
@@ -76,7 +76,7 @@ namespace HIKARI::ASSETS::GEOMETRY {
     bool CookClusteredGeometryFromModel(
         const ModelAsset& model,
         const AssetGuid& sourceGuid,
-        const ClusterCookSettings& settings,
+        const ClusteredGeometryCookSettings& settings,
         RENDER3D::CLUSTER::ClusteredGeometryAsset& outAsset,
         RENDER3D::CLUSTER::ClusteredGeometryBuildReport& outReport);
 

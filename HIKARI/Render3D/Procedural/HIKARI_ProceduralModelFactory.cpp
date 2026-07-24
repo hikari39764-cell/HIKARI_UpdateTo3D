@@ -170,10 +170,10 @@ namespace HIKARI::PROCEDURAL {
                 "ProceduralCluster" / fileName).lexically_normal();
         }
 
-        ASSETS::GEOMETRY::ClusterCookSettings
-            MakeProceduralClusterCookSettings() {
+        ASSETS::GEOMETRY::ClusteredGeometryCookSettings
+            MakeProceduralClusteredGeometryCookSettings() {
 
-            ASSETS::GEOMETRY::ClusterCookSettings settings{};
+            ASSETS::GEOMETRY::ClusteredGeometryCookSettings settings{};
             settings.maxSurfaceLodCount = 1u;
             settings.buildSurfaceLods = false;
             settings.partitionLargeStaticSurfaces = true;
@@ -201,7 +201,7 @@ namespace HIKARI::PROCEDURAL {
             if (!ASSETS::GEOMETRY::CookClusteredGeometryFromModel(
                     *model,
                     sourceGuid,
-                    MakeProceduralClusterCookSettings(),
+                    MakeProceduralClusteredGeometryCookSettings(),
                     clusteredGeometry,
                     report)) {
                 HIKARI_LOG_WARN(

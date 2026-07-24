@@ -25,6 +25,12 @@
     <Filter Include="Header Files\Assets\Geometry">
       <UniqueIdentifier>{2A7B6D31-7E7D-43F7-BE56-FA1348F2D1EF}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Header Files\Assets\Geometry\Cooking">
+      <UniqueIdentifier>{652FC18E-2C31-44C2-83B9-8F3643991E18}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\Assets\Geometry\Cooking\Internal">
+      <UniqueIdentifier>{7FC854CD-231C-41AF-99E6-C7708E3EAD16}</UniqueIdentifier>
+    </Filter>
     <Filter Include="Header Files\Assets\Collision">
       <UniqueIdentifier>{4C69CC9D-567B-47B7-9416-0DD4B91DB49D}</UniqueIdentifier>
     </Filter>
@@ -237,6 +243,12 @@
     </Filter>
     <Filter Include="Header Files\Render3D\Shadow">
       <UniqueIdentifier>{7B8DB028-C4E2-5EF6-9581-41E384A4F362}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\Render3D\Shadow\Internal">
+      <UniqueIdentifier>{ED5F8DB4-06F4-4A29-916F-F9502FC6A6FA}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\Render3D\Shadow\Pipeline">
+      <UniqueIdentifier>{3A389F55-2EE0-45C6-A981-22A0BC10AE2E}</UniqueIdentifier>
     </Filter>
     <Filter Include="Header Files\Render3D\Temporal">
       <UniqueIdentifier>{D4D296D8-7CD6-49CB-A813-9F9C41F3E522}</UniqueIdentifier>
@@ -478,6 +490,9 @@
     <Filter Include="Source Files\Assets\Geometry">
       <UniqueIdentifier>{887BC03A-331F-42B2-8F04-25D88029705F}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Source Files\Assets\Geometry\Cooking">
+      <UniqueIdentifier>{39FF6C81-943B-4186-BBBB-B111E1388163}</UniqueIdentifier>
+    </Filter>
     <Filter Include="Source Files\Assets\Collision">
       <UniqueIdentifier>{693E00D9-5F18-4616-BB80-884F824607D2}</UniqueIdentifier>
     </Filter>
@@ -681,6 +696,24 @@
     </Filter>
     <Filter Include="Source Files\Render3D\Shadow">
       <UniqueIdentifier>{92D6DF23-C71A-5E90-BCDE-2559131213D9}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Render3D\Shadow\Cache">
+      <UniqueIdentifier>{3DDB08F9-D708-4D0B-82BE-8F312A730A9E}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Render3D\Shadow\GpuDriven">
+      <UniqueIdentifier>{6D3A73F6-05F8-4E62-BE03-814B8BDC1B0C}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Render3D\Shadow\Internal">
+      <UniqueIdentifier>{BC0B5A60-569D-44FE-A43F-F2A93B133050}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Render3D\Shadow\Pipeline">
+      <UniqueIdentifier>{F4D8C6D1-F3E8-431D-B101-41D62D269D08}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Render3D\Shadow\Recording">
+      <UniqueIdentifier>{29D29417-A56C-4C8B-851A-74A25F787503}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Render3D\Shadow\Resources">
+      <UniqueIdentifier>{61855BCB-C038-440A-BE52-1660C7FC8F40}</UniqueIdentifier>
     </Filter>
     <Filter Include="Source Files\Render3D\Temporal">
       <UniqueIdentifier>{38B3F552-9B16-43C5-A5B0-05C6145C2DD0}</UniqueIdentifier>
@@ -967,6 +1000,9 @@
       <Filter>Source Files\Diagnostics</Filter>
     </ClCompile>
     <ClCompile Include="HIKARI\Gfx\D3D12\HIKARI_DxgiFormatName.cpp">
+      <Filter>Source Files\Gfx\D3D12</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Gfx\D3D12\HIKARI_D3D12BufferFactory.cpp">
       <Filter>Source Files\Gfx\D3D12</Filter>
     </ClCompile>
     <ClCompile Include="HIKARI\Gfx\HIKARI_D3D12DebugTools.cpp">
@@ -1544,6 +1580,24 @@
     </ClCompile>
     <ClCompile Include="HIKARI\Assets\Geometry\HIKARI_ClusteredGeometryCooker.cpp">
       <Filter>Source Files\Assets\Geometry</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Assets\Geometry\Cooking\HIKARI_ClusteredGeometryAssembler.cpp">
+      <Filter>Source Files\Assets\Geometry\Cooking</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Assets\Geometry\Cooking\HIKARI_ClusteredGeometryCookReport.cpp">
+      <Filter>Source Files\Assets\Geometry\Cooking</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Assets\Geometry\Cooking\HIKARI_ClusteredGeometryLodBuilder.cpp">
+      <Filter>Source Files\Assets\Geometry\Cooking</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Assets\Geometry\Cooking\HIKARI_ClusteredGeometrySourcePreparation.cpp">
+      <Filter>Source Files\Assets\Geometry\Cooking</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Assets\Geometry\Cooking\HIKARI_ClusteredGeometrySurfacePartitioner.cpp">
+      <Filter>Source Files\Assets\Geometry\Cooking</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Assets\Geometry\Cooking\HIKARI_ClusterTriangleGroupBuilder.cpp">
+      <Filter>Source Files\Assets\Geometry\Cooking</Filter>
     </ClCompile>
     <ClCompile Include="HIKARI\Assets\Geometry\HIKARI_ClusteredGeometryValidator.cpp">
       <Filter>Source Files\Assets\Geometry</Filter>
@@ -2322,8 +2376,38 @@
     <ClCompile Include="HIKARI\Render3D\Shadow\HIKARI_ShadowLightFrame.cpp">
       <Filter>Source Files\Render3D\Shadow</Filter>
     </ClCompile>
-    <ClCompile Include="HIKARI\Render3D\Shadow\HIKARI_ShadowRecordExecutor.cpp">
-      <Filter>Source Files\Render3D\Shadow</Filter>
+    <ClCompile Include="HIKARI\Render3D\Shadow\Cache\HIKARI_ShadowCacheCoordinator.cpp">
+      <Filter>Source Files\Render3D\Shadow\Cache</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Render3D\Shadow\GpuDriven\HIKARI_ShadowGpuSceneBuilder.cpp">
+      <Filter>Source Files\Render3D\Shadow\GpuDriven</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Render3D\Shadow\GpuDriven\HIKARI_ShadowContentHash.cpp">
+      <Filter>Source Files\Render3D\Shadow\GpuDriven</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Render3D\Shadow\GpuDriven\HIKARI_ShadowMaterialFrame.cpp">
+      <Filter>Source Files\Render3D\Shadow\GpuDriven</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Render3D\Shadow\GpuDriven\HIKARI_ShadowSceneSourceAnalysis.cpp">
+      <Filter>Source Files\Render3D\Shadow\GpuDriven</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Render3D\Shadow\Internal\HIKARI_ShadowRendererState.cpp">
+      <Filter>Source Files\Render3D\Shadow\Internal</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Render3D\Shadow\Pipeline\HIKARI_ShadowPipelineState.cpp">
+      <Filter>Source Files\Render3D\Shadow\Pipeline</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Render3D\Shadow\Recording\HIKARI_ShadowFrameBindings.cpp">
+      <Filter>Source Files\Render3D\Shadow\Recording</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Render3D\Shadow\Recording\HIKARI_ShadowPassRecorder.cpp">
+      <Filter>Source Files\Render3D\Shadow\Recording</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Render3D\Shadow\Resources\HIKARI_ShadowFrameResources.cpp">
+      <Filter>Source Files\Render3D\Shadow\Resources</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Render3D\Shadow\Resources\HIKARI_ShadowMapResources.cpp">
+      <Filter>Source Files\Render3D\Shadow\Resources</Filter>
     </ClCompile>
     <ClCompile Include="HIKARI\Render3D\Debug\HIKARI_MeshWireDebugRenderer.cpp">
       <Filter>Source Files\Render3D\Debug</Filter>
@@ -3478,6 +3562,9 @@
     <ClInclude Include="HIKARI\Assets\Geometry\HIKARI_ClusteredGeometryCooker.h">
       <Filter>Header Files\Assets\Geometry</Filter>
     </ClInclude>
+    <ClInclude Include="HIKARI\Assets\Geometry\Cooking\Internal\HIKARI_ClusteredGeometryCookInternal.h">
+      <Filter>Header Files\Assets\Geometry\Cooking\Internal</Filter>
+    </ClInclude>
     <ClInclude Include="HIKARI\Assets\Geometry\HIKARI_ClusteredGeometryValidator.h">
       <Filter>Header Files\Assets\Geometry</Filter>
     </ClInclude>
@@ -3650,6 +3737,9 @@
       <Filter>Header Files\Diagnostics</Filter>
     </ClInclude>
     <ClInclude Include="HIKARI\Gfx\D3D12\HIKARI_D3D12BufferAlignment.h">
+      <Filter>Header Files\Gfx\D3D12</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Gfx\D3D12\HIKARI_D3D12BufferFactory.h">
       <Filter>Header Files\Gfx\D3D12</Filter>
     </ClInclude>
     <ClInclude Include="HIKARI\Gfx\D3D12\HIKARI_DxgiFormatName.h">
@@ -4099,8 +4189,11 @@
     <ClInclude Include="HIKARI\Render3D\Shadow\HIKARI_ShadowLightFrame.h">
       <Filter>Header Files\Render3D\Shadow</Filter>
     </ClInclude>
-    <ClInclude Include="HIKARI\Render3D\Shadow\HIKARI_ShadowRecordExecutor.h">
-      <Filter>Header Files\Render3D\Shadow</Filter>
+    <ClInclude Include="HIKARI\Render3D\Shadow\Internal\HIKARI_ShadowRendererInternal.h">
+      <Filter>Header Files\Render3D\Shadow\Internal</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Render3D\Shadow\Pipeline\HIKARI_ShadowRootParameters.h">
+      <Filter>Header Files\Render3D\Shadow\Pipeline</Filter>
     </ClInclude>
     <ClInclude Include="HIKARI\Editor\HIKARI_TimePanel.h">
       <Filter>Header Files\Editor\Panels</Filter>

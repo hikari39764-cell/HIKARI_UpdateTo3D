@@ -154,13 +154,13 @@ namespace HIKARI::ASSETS::IMPORT_POLICY {
             return options;
         }
 
-        GEOMETRY::ClusterCookSettings BuildClusterCookSettings(
+        GEOMETRY::ClusteredGeometryCookSettings BuildClusteredGeometryCookSettings(
             const nlohmann::json& settings,
             ModelGeometryCookProfile profile) {
 
             const nlohmann::json& cluster =
                 ClusterSettingsOrEmpty(settings);
-            GEOMETRY::ClusterCookSettings cook{};
+            GEOMETRY::ClusteredGeometryCookSettings cook{};
             cook.maxTrianglesPerCluster = 64u;
             cook.maxVerticesPerCluster = 128u;
             cook.maxClustersPerPage = 64u;
@@ -498,8 +498,8 @@ namespace HIKARI::ASSETS::IMPORT_POLICY {
         const ModelGeometryCookProfile profile =
             ParseGeometryCookProfile(settings);
         policy.clusterOptions = BuildClusterOptions(settings, profile);
-        policy.clusterCookSettings =
-            BuildClusterCookSettings(settings, profile);
+        policy.clusteredGeometryCookSettings =
+            BuildClusteredGeometryCookSettings(settings, profile);
         return policy;
     }
 

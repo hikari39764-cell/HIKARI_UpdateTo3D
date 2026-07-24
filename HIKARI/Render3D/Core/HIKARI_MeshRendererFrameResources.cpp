@@ -1,80 +1,14 @@
 #include "HIKARI_MeshRendererFrameResources.h"
 
-#include <cstring>
-
 #include <d3dx12.h>
 
 #include "Gfx/D3D12/HIKARI_D3D12BufferAlignment.h"
+#include "Gfx/D3D12/HIKARI_D3D12BufferFactory.h"
 #include "Gfx/HIKARI_DescriptorHeapLayout.h"
 
 namespace HIKARI::MESHRENDERER {
 
     namespace {
-
-        bool CreateMappedUploadBuffer(
-            ID3D12Device* device,
-            UINT64 byteSize,
-            Microsoft::WRL::ComPtr<ID3D12Resource>& resource,
-            void** mapped) {
-
-            if (device == nullptr || byteSize == 0 || mapped == nullptr) {
-                return false;
-            }
-
-            resource.Reset();
-            *mapped = nullptr;
-            const auto heap = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
-            const auto desc = CD3DX12_RESOURCE_DESC::Buffer(byteSize);
-            if (FAILED(device->CreateCommittedResource(
-                &heap,
-                D3D12_HEAP_FLAG_NONE,
-                &desc,
-                D3D12_RESOURCE_STATE_GENERIC_READ,
-                nullptr,
-                IID_PPV_ARGS(resource.GetAddressOf())))) {
-                return false;
-            }
-
-            return SUCCEEDED(resource->Map(0, nullptr, mapped));
-        }
-
-        bool CreateDefaultBuffer(
-            ID3D12Device* device,
-            UINT64 byteSize,
-            Microsoft::WRL::ComPtr<ID3D12Resource>& resource) {
-
-            if (device == nullptr || byteSize == 0) {
-                return false;
-            }
-
-            resource.Reset();
-            const auto heap = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
-            const auto desc = CD3DX12_RESOURCE_DESC::Buffer(byteSize);
-            return SUCCEEDED(device->CreateCommittedResource(
-                &heap,
-                D3D12_HEAP_FLAG_NONE,
-                &desc,
-                D3D12_RESOURCE_STATE_COMMON,
-                nullptr,
-                IID_PPV_ARGS(resource.GetAddressOf())));
-        }
-
-        bool CreateGpuResidentMappedBuffer(
-            ID3D12Device* device,
-            UINT64 byteSize,
-            Microsoft::WRL::ComPtr<ID3D12Resource>& uploadResource,
-            Microsoft::WRL::ComPtr<ID3D12Resource>& defaultResource,
-            void** mapped) {
-
-            if (!CreateMappedUploadBuffer(device, byteSize, uploadResource, mapped) ||
-                !CreateDefaultBuffer(device, byteSize, defaultResource)) {
-                return false;
-            }
-            if (mapped != nullptr && *mapped != nullptr) {
-                std::memset(*mapped, 0, static_cast<size_t>(byteSize));
-            }
-            return true;
-        }
 
         void CommitMappedBufferRangesToGpu(
             ID3D12GraphicsCommandList* commandList,
@@ -181,49 +115,49 @@ namespace HIKARI::MESHRENDERER {
             ++frameIndex) {
 
             MeshRendererFrameResources& frame = frames_[frameIndex];
-            if (!CreateMappedUploadBuffer(
+            if (!GFX::D3D12_BUFFER::CreateMappedUploadBuffer(
                     device,
                     cameraBytes,
                     frame.cameraCB,
                     reinterpret_cast<void**>(&frame.cameraMapped)) ||
-                !CreateMappedUploadBuffer(
+                !GFX::D3D12_BUFFER::CreateMappedUploadBuffer(
                     device,
                     cameraBytes,
                     frame.cullingCameraCB,
                     reinterpret_cast<void**>(&frame.cullingCameraMapped)) ||
-                !CreateMappedUploadBuffer(
+                !GFX::D3D12_BUFFER::CreateMappedUploadBuffer(
                     device,
                     objectBytes,
                     frame.objectCB,
                     reinterpret_cast<void**>(&frame.objectMapped)) ||
-                !CreateGpuResidentMappedBuffer(
+                !GFX::D3D12_BUFFER::CreateGpuResidentMappedBuffer(
                     device,
                     objectDataBytes,
                     frame.objectDataUploadBuffer,
                     frame.objectDataBuffer,
                     reinterpret_cast<void**>(&frame.objectDataMapped)) ||
-                !CreateGpuResidentMappedBuffer(
+                !GFX::D3D12_BUFFER::CreateGpuResidentMappedBuffer(
                     device,
                     materialDataBytes,
                     frame.materialDataUploadBuffer,
                     frame.materialDataBuffer,
                     reinterpret_cast<void**>(&frame.materialDataMapped)) ||
-                !CreateMappedUploadBuffer(
+                !GFX::D3D12_BUFFER::CreateMappedUploadBuffer(
                     device,
                     lightBytes,
                     frame.lightCB,
                     reinterpret_cast<void**>(&frame.lightMapped)) ||
-                !CreateMappedUploadBuffer(
+                !GFX::D3D12_BUFFER::CreateMappedUploadBuffer(
                     device,
                     shadowBytes,
                     frame.shadowCB,
                     reinterpret_cast<void**>(&frame.shadowMapped)) ||
-                !CreateMappedUploadBuffer(
+                !GFX::D3D12_BUFFER::CreateMappedUploadBuffer(
                     device,
                     skyEnvironmentBytes,
                     frame.skyEnvironmentCB,
                     reinterpret_cast<void**>(&frame.skyEnvironmentMapped)) ||
-                !CreateMappedUploadBuffer(
+                !GFX::D3D12_BUFFER::CreateMappedUploadBuffer(
                     device,
                     jointPaletteBytes,
                     frame.jointPaletteCB,

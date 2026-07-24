@@ -15,7 +15,7 @@ namespace HIKARI::ASSETS::IMPORT_POLICY {
         bool loadTextures = true;
         ModelImporterKind importer = ModelImporterKind::Gltf;
         ModelClusterCookOptions clusterOptions{};
-        GEOMETRY::ClusterCookSettings clusterCookSettings{};
+        GEOMETRY::ClusteredGeometryCookSettings clusteredGeometryCookSettings{};
     };
 
     ModelImportPolicy ResolveModelImportPolicy(

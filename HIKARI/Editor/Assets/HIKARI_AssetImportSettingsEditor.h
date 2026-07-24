@@ -4,7 +4,7 @@
 
 namespace HIKARI::EDITOR::ASSET_IMPORT_SETTINGS {
 
-    bool DrawModelClusterCookSettings(
+    bool DrawModelClusteredGeometryCookSettings(
         nlohmann::json& settings,
         bool drawSectionHeader = false);
 

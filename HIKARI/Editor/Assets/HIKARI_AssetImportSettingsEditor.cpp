@@ -29,7 +29,7 @@ namespace HIKARI::EDITOR::ASSET_IMPORT_SETTINGS {
 
     } // namespace
 
-    bool DrawModelClusterCookSettings(
+    bool DrawModelClusteredGeometryCookSettings(
         nlohmann::json& settings,
         bool drawSectionHeader) {
 

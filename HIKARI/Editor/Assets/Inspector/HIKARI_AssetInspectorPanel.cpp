@@ -347,7 +347,7 @@ void AssetInspectorPanel::Draw(AssetDatabase &assetDatabase,
         dirty =
             DrawBoolSetting("Load Textures", settings, "loadTextures", true) ||
             dirty;
-        dirty = EDITOR::ASSET_IMPORT_SETTINGS::DrawModelClusterCookSettings(
+        dirty = EDITOR::ASSET_IMPORT_SETTINGS::DrawModelClusteredGeometryCookSettings(
                     settings, true) ||
                 dirty;
       } else if (record->type == AssetType::Scene) {

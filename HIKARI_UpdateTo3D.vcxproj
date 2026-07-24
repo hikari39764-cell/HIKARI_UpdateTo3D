@@ -279,6 +279,7 @@
     <ClCompile Include="HIKARI\Diagnostics\HIKARI_DebugLogBuffer.cpp" />
     <ClCompile Include="HIKARI\Diagnostics\HIKARI_CpuFrameProfiler.cpp" />
     <ClCompile Include="HIKARI\Gfx\D3D12\HIKARI_DxgiFormatName.cpp" />
+    <ClCompile Include="HIKARI\Gfx\D3D12\HIKARI_D3D12BufferFactory.cpp" />
     <ClCompile Include="HIKARI\Gfx\HIKARI_D3D12DebugTools.cpp" />
     <ClCompile Include="HIKARI\Gfx\HIKARI_DescriptorAllocator.cpp" />
     <ClCompile Include="HIKARI\Gfx\HIKARI_GpuDeferredReleaseQueue.cpp" />
@@ -470,7 +471,17 @@
     <ClCompile Include="HIKARI\Render3D\Shadow\HIKARI_ShadowMapRenderer.cpp" />
     <ClCompile Include="HIKARI\Render3D\Shadow\HIKARI_ShadowCachePolicy.cpp" />
     <ClCompile Include="HIKARI\Render3D\Shadow\HIKARI_ShadowLightFrame.cpp" />
-    <ClCompile Include="HIKARI\Render3D\Shadow\HIKARI_ShadowRecordExecutor.cpp" />
+    <ClCompile Include="HIKARI\Render3D\Shadow\Cache\HIKARI_ShadowCacheCoordinator.cpp" />
+    <ClCompile Include="HIKARI\Render3D\Shadow\GpuDriven\HIKARI_ShadowGpuSceneBuilder.cpp" />
+    <ClCompile Include="HIKARI\Render3D\Shadow\GpuDriven\HIKARI_ShadowContentHash.cpp" />
+    <ClCompile Include="HIKARI\Render3D\Shadow\GpuDriven\HIKARI_ShadowMaterialFrame.cpp" />
+    <ClCompile Include="HIKARI\Render3D\Shadow\GpuDriven\HIKARI_ShadowSceneSourceAnalysis.cpp" />
+    <ClCompile Include="HIKARI\Render3D\Shadow\Internal\HIKARI_ShadowRendererState.cpp" />
+    <ClCompile Include="HIKARI\Render3D\Shadow\Pipeline\HIKARI_ShadowPipelineState.cpp" />
+    <ClCompile Include="HIKARI\Render3D\Shadow\Recording\HIKARI_ShadowFrameBindings.cpp" />
+    <ClCompile Include="HIKARI\Render3D\Shadow\Recording\HIKARI_ShadowPassRecorder.cpp" />
+    <ClCompile Include="HIKARI\Render3D\Shadow\Resources\HIKARI_ShadowFrameResources.cpp" />
+    <ClCompile Include="HIKARI\Render3D\Shadow\Resources\HIKARI_ShadowMapResources.cpp" />
     <ClCompile Include="HIKARI\Render3D\Diagnostics\HIKARI_EnvironmentDiagnostics.cpp" />
     <ClCompile Include="HIKARI\Render3D\Lighting\HIKARI_IblEnvironment.cpp" />
     <ClCompile Include="HIKARI\Render3D\Lighting\HIKARI_LightProbeVolumeRuntime.cpp" />
@@ -629,6 +640,12 @@
     <ClCompile Include="HIKARI\Assets\Collision\HIKARI_ModelCollisionSetupGeometry.cpp" />
     <ClCompile Include="HIKARI\Assets\Collision\HIKARI_ModelCollisionSetup.cpp" />
     <ClCompile Include="HIKARI\Assets\Geometry\HIKARI_ClusteredGeometryCooker.cpp" />
+    <ClCompile Include="HIKARI\Assets\Geometry\Cooking\HIKARI_ClusteredGeometryAssembler.cpp" />
+    <ClCompile Include="HIKARI\Assets\Geometry\Cooking\HIKARI_ClusteredGeometryCookReport.cpp" />
+    <ClCompile Include="HIKARI\Assets\Geometry\Cooking\HIKARI_ClusteredGeometryLodBuilder.cpp" />
+    <ClCompile Include="HIKARI\Assets\Geometry\Cooking\HIKARI_ClusteredGeometrySourcePreparation.cpp" />
+    <ClCompile Include="HIKARI\Assets\Geometry\Cooking\HIKARI_ClusteredGeometrySurfacePartitioner.cpp" />
+    <ClCompile Include="HIKARI\Assets\Geometry\Cooking\HIKARI_ClusterTriangleGroupBuilder.cpp" />
     <ClCompile Include="HIKARI\Assets\Geometry\HIKARI_ClusteredGeometryValidator.cpp" />
     <ClCompile Include="HIKARI\Assets\Geometry\HIKARI_HcmeshCompatibility.cpp" />
     <ClCompile Include="HIKARI\Assets\Geometry\HIKARI_HcmeshFormat.cpp" />
@@ -1023,7 +1040,8 @@
     <ClInclude Include="HIKARI\Render3D\Shadow\HIKARI_ShadowCachePolicy.h" />
     <ClInclude Include="HIKARI\Render3D\Shadow\HIKARI_ShadowCacheTypes.h" />
     <ClInclude Include="HIKARI\Render3D\Shadow\HIKARI_ShadowLightFrame.h" />
-    <ClInclude Include="HIKARI\Render3D\Shadow\HIKARI_ShadowRecordExecutor.h" />
+    <ClInclude Include="HIKARI\Render3D\Shadow\Internal\HIKARI_ShadowRendererInternal.h" />
+    <ClInclude Include="HIKARI\Render3D\Shadow\Pipeline\HIKARI_ShadowRootParameters.h" />
     <ClInclude Include="HIKARI\Render3D\Procedural\HIKARI_ProceduralModelFactory.h" />
     <ClInclude Include="HIKARI\Render3D\Procedural\HIKARI_ProceduralMeshBuilder.h" />
     <ClInclude Include="HIKARI\Render3D\Procedural\HIKARI_ProceduralMeshTypes.h" />
@@ -1311,6 +1329,7 @@
     <ClInclude Include="HIKARI\Assets\Collision\HIKARI_ModelCollisionSetupGeometry.h" />
     <ClInclude Include="HIKARI\Assets\Collision\HIKARI_ModelCollisionSetup.h" />
     <ClInclude Include="HIKARI\Assets\Geometry\HIKARI_ClusteredGeometryCooker.h" />
+    <ClInclude Include="HIKARI\Assets\Geometry\Cooking\Internal\HIKARI_ClusteredGeometryCookInternal.h" />
     <ClInclude Include="HIKARI\Assets\Geometry\HIKARI_ClusteredGeometryValidator.h" />
     <ClInclude Include="HIKARI\Assets\Geometry\HIKARI_HcmeshCompatibility.h" />
     <ClInclude Include="HIKARI\Assets\Geometry\HIKARI_HcmeshFormat.h" />
@@ -1412,6 +1431,7 @@
     <ClInclude Include="HIKARI\Diagnostics\HIKARI_DebugLogBuffer.h" />
     <ClInclude Include="HIKARI\Diagnostics\HIKARI_CpuFrameProfiler.h" />
     <ClInclude Include="HIKARI\Gfx\D3D12\HIKARI_D3D12BufferAlignment.h" />
+    <ClInclude Include="HIKARI\Gfx\D3D12\HIKARI_D3D12BufferFactory.h" />
     <ClInclude Include="HIKARI\Gfx\D3D12\HIKARI_DxgiFormatName.h" />
     <ClInclude Include="HIKARI\Gfx\HIKARI_D3D12DebugTools.h" />
     <ClInclude Include="HIKARI\Gfx\HIKARI_DXCheck.h" />

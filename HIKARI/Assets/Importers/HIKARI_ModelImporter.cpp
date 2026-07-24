@@ -189,7 +189,7 @@ namespace HIKARI {
             const RENDER3D::CLUSTER::ClusteredGeometryBuildReport* clusteredReport,
             const ASSETS::GEOMETRY::ClusteredGeometryValidationResult* clusteredValidation,
             ModelGeometryCookProfile clusterProfile,
-            const ASSETS::GEOMETRY::ClusterCookSettings* clusterSettings,
+            const ASSETS::GEOMETRY::ClusteredGeometryCookSettings* clusterSettings,
             bool hcmeshReady,
             const std::string& hcmeshMessage,
             const MaterialAlphaPolicyStats& alphaPolicyStats) {
@@ -909,8 +909,8 @@ namespace HIKARI {
                 record.meta.importSettingsJson);
         const ModelGeometryCookProfile clusterProfile = importPolicy.clusterOptions.profile;
         const bool buildClusterGeometry = importPolicy.clusterOptions.buildClusterGeometry;
-        const ASSETS::GEOMETRY::ClusterCookSettings& clusterSettings =
-            importPolicy.clusterCookSettings;
+        const ASSETS::GEOMETRY::ClusteredGeometryCookSettings& clusterSettings =
+            importPolicy.clusteredGeometryCookSettings;
         const std::filesystem::path absoluteSource = PROJECT_PATHS::ResolveProjectPath(context.projectRoot, record.sourcePath);
 
         reportStage("Parsing model source", 0.08f, false);
