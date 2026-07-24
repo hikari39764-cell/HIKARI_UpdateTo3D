@@ -7,7 +7,7 @@
 #include "HIKARI_EditorContext.h"
 #include "Render3D/HIKARI_Math3D.h"
 #include "Scene/HIKARI_GameObject.h"
-#include "Scene/Scenes/HIKARI_DocumentSceneBase.h"
+#include "Scene/Document/HIKARI_DocumentSceneBase.h"
 
 #undef max
 #undef min

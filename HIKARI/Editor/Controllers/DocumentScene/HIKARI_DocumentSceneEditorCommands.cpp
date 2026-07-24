@@ -4,7 +4,7 @@
 #include <utility>
 
 #include "Editor/History/HIKARI_CinematicsHistoryCommand.h"
-#include "Scene/Scenes/HIKARI_DocumentSceneBase.h"
+#include "Scene/Document/HIKARI_DocumentSceneBase.h"
 
 namespace HIKARI {
     namespace {

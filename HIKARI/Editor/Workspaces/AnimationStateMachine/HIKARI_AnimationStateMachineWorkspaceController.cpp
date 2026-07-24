@@ -4,7 +4,7 @@
 #include <utility>
 
 #include "Assets/Animation/HIKARI_AnimationStateMachineAssetStore.h"
-#include "Scene/Scenes/HIKARI_DocumentSceneBase.h"
+#include "Scene/Document/HIKARI_DocumentSceneBase.h"
 
 namespace HIKARI::EDITOR {
 

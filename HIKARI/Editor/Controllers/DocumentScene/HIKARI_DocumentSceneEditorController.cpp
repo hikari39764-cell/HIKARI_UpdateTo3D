@@ -14,7 +14,7 @@
 #include "Project/HIKARI_ProjectSettings.h"
 #include "Render3D/Lighting/HIKARI_SkyRenderer.h"
 #include "Runtime/HIKARI_RuntimeResourceRefreshService.h"
-#include "Scene/Scenes/HIKARI_DocumentSceneBase.h"
+#include "Scene/Document/HIKARI_DocumentSceneBase.h"
 
 #include <utility>
 

@@ -1,4 +1,4 @@
-﻿#include "HIKARI_LightingBakeService.h"
+#include "HIKARI_LightingBakeService.h"
 
 #include "Assets/HIKARI_AssetRegistry.h"
 #include "Assets/HIKARI_AssetTypes.h"
@@ -7,7 +7,7 @@
 #include "Core/Text/HIKARI_AsciiCase.h"
 #include "Project/Paths/HIKARI_ProjectPath.h"
 #include "Scene/HIKARI_SceneDocument.h"
-#include "Scene/Scenes/HIKARI_DocumentSceneBase.h"
+#include "Scene/Document/HIKARI_DocumentSceneBase.h"
 #include "Tools/Baking/HIKARI_ReflectionProbeBaker.h"
 
 #include <algorithm>

@@ -5,7 +5,7 @@
 #include "Core/HIKARI_Logger.h"
 #include "Editor/Platform/HIKARI_EditorShellActions.h"
 #include "Render3D/Diagnostics/HIKARI_EnvironmentDiagnostics.h"
-#include "Scene/Scenes/HIKARI_DocumentSceneBase.h"
+#include "Scene/Document/HIKARI_DocumentSceneBase.h"
 #include "Tools/Baking/HIKARI_LightingBakeService.h"
 
 #if defined(HIKARI_WITH_EDITOR)

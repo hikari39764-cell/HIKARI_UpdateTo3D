@@ -21,7 +21,7 @@
 #include "Input/Runtime/HIKARI_InputService.h"
 #include "Scene/HIKARI_GameObject.h"
 #include "Scene/HIKARI_World.h"
-#include "Scene/Scenes/HIKARI_DocumentSceneBase.h"
+#include "Scene/Document/HIKARI_DocumentSceneBase.h"
 #endif
 
 namespace HIKARI::RUNTIME_TOOLS {

@@ -2,7 +2,7 @@
 
 #include <string>
 
-#include "HIKARI_DocumentSceneBase.h"
+#include "Scene/Document/HIKARI_DocumentSceneBase.h"
 
 namespace HIKARI {
 

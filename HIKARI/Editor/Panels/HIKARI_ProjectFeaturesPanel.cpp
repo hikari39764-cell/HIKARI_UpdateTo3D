@@ -5,7 +5,7 @@
 #include <utility>
 
 #include "Scene/Features/HIKARI_RuntimeFeatureCatalog.h"
-#include "Scene/Scenes/HIKARI_DocumentSceneBase.h"
+#include "Scene/Document/HIKARI_DocumentSceneBase.h"
 
 #if defined(HIKARI_WITH_EDITOR)
 #include "imgui.h"

@@ -3,7 +3,7 @@
 #include "Editor/Play/HIKARI_EditorPlaySession.h"
 #include "Render3D/Settings/HIKARI_RenderQualityProfileStore.h"
 #include "Render3D/Settings/HIKARI_RenderQualitySettings.h"
-#include "Scene/Scenes/HIKARI_DocumentSceneBase.h"
+#include "Scene/Document/HIKARI_DocumentSceneBase.h"
 
 namespace HIKARI {
 

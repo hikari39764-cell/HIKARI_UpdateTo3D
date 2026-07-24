@@ -4,7 +4,7 @@
 #include "Editor/SystemAuthoring/HIKARI_SystemAuthoringRegistry.h"
 #include "Editor/Tools/HIKARI_EditorToolHost.h"
 #include "Input/Runtime/HIKARI_InputService.h"
-#include "Scene/Scenes/HIKARI_DocumentSceneBase.h"
+#include "Scene/Document/HIKARI_DocumentSceneBase.h"
 
 #if defined(HIKARI_WITH_EDITOR)
 #include "imgui.h"

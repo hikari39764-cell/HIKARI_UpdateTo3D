@@ -14,7 +14,7 @@
 #include "Scene/Components/HIKARI_CameraComponent.h"
 #include "Scene/Debug/HIKARI_ComponentGizmoRenderer.h"
 #include "Scene/HIKARI_GameObject.h"
-#include "Scene/Scenes/HIKARI_DocumentSceneBase.h"
+#include "Scene/Document/HIKARI_DocumentSceneBase.h"
 #include "Vfx/Post/HIKARI_PostSystem.h"
 
 #include <algorithm>

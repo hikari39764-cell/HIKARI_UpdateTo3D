@@ -1,4 +1,4 @@
-﻿#include "HIKARI_ReflectionProbeBaker.h"
+#include "HIKARI_ReflectionProbeBaker.h"
 
 #include <algorithm>
 #include <filesystem>
@@ -8,7 +8,7 @@
 #include "Core/HIKARI_Logger.h"
 #include "Gfx/D3D12/HIKARI_DxgiFormatName.h"
 #include "Project/Paths/HIKARI_ProjectPath.h"
-#include "Scene/Scenes/HIKARI_DocumentSceneBase.h"
+#include "Scene/Document/HIKARI_DocumentSceneBase.h"
 #include "Tools/Baking/HIKARI_ReflectionProbeCaptureValidator.h"
 
 namespace HIKARI::TOOLS::BAKING {

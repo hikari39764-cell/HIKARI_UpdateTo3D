@@ -6,7 +6,7 @@
 #include "Editor/Workspaces/ModelCollision/HIKARI_ModelCollisionViewportOverlay.h"
 #include "Editor/Workspaces/ModelCollision/HIKARI_ModelCollisionWorkspaceInteraction.h"
 #include "Render3D/Views/HIKARI_EditorInteractiveViewRenderer.h"
-#include "Scene/Scenes/HIKARI_DocumentSceneBase.h"
+#include "Scene/Document/HIKARI_DocumentSceneBase.h"
 #include <algorithm>
 
 #if defined(HIKARI_WITH_EDITOR)

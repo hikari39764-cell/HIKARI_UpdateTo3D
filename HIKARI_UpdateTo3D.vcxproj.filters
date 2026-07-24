@@ -298,6 +298,36 @@
     <Filter Include="Header Files\Scene\Scenes">
       <UniqueIdentifier>{2DD67FF5-5054-5A33-B6C2-86F7E144F277}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Header Files\Scene\Document">
+      <UniqueIdentifier>{BA60103F-8CEB-4DA5-A6D1-47B78ACF9578}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\Scene\Document\Internal">
+      <UniqueIdentifier>{1C738483-F8E0-45B6-B260-AB8B2E8A4E8E}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\Scene\Document\Assets">
+      <UniqueIdentifier>{C721D21D-D8FD-4F94-B8DC-194953A285A7}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\Scene\Document\Baking">
+      <UniqueIdentifier>{D47C0C94-FF42-45B7-B01E-CF6322DB5124}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\Scene\Document\Baking\Internal">
+      <UniqueIdentifier>{4F65384C-74F3-4D25-897D-4C6CFCE73ACD}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\Scene\Document\Camera">
+      <UniqueIdentifier>{9090E5EB-FDBA-458E-A698-25D15D90940E}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\Scene\Document\Editor">
+      <UniqueIdentifier>{032B0B98-EA01-4DBF-8B18-EC890018CD29}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\Scene\Document\Lighting">
+      <UniqueIdentifier>{74B68EFA-FE8A-43A1-B02F-3A92C929AA79}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\Scene\Document\Persistence">
+      <UniqueIdentifier>{CC584239-5DDE-4AFD-A89C-7FC8E7A8E241}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\Scene\Document\Runtime">
+      <UniqueIdentifier>{707A5F0A-02FB-4F61-90B5-7D2D3B03D31F}</UniqueIdentifier>
+    </Filter>
     <Filter Include="Header Files\Scene\Serialization">
       <UniqueIdentifier>{77CB0B58-F53A-54E9-B326-C8CDB53D7982}</UniqueIdentifier>
     </Filter>
@@ -705,6 +735,30 @@
     </Filter>
     <Filter Include="Source Files\Scene\Scenes">
       <UniqueIdentifier>{0992EEE0-C100-5625-A00B-129F161A9799}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Scene\Document">
+      <UniqueIdentifier>{00C3A674-6D1D-4E88-9218-DFA379B55E70}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Scene\Document\Assets">
+      <UniqueIdentifier>{C8651C26-6CB9-493C-86B0-FF7B8BF1FD84}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Scene\Document\Baking">
+      <UniqueIdentifier>{79079F70-09F9-4C27-B4D2-A6E2C9AB7112}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Scene\Document\Baking\Internal">
+      <UniqueIdentifier>{10AB2CA3-AD1B-40E7-96E6-A6D02213F482}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Scene\Document\Camera">
+      <UniqueIdentifier>{65CBB2BB-70BD-44AB-839A-13D8F3814954}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Scene\Document\Lighting">
+      <UniqueIdentifier>{527835D0-F40B-462A-9CCB-E202E76F8552}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Scene\Document\Persistence">
+      <UniqueIdentifier>{B58ACCE8-AB65-4808-9309-E2049FC70994}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Scene\Document\Runtime">
+      <UniqueIdentifier>{5003E699-7A3D-4D7A-B068-6142413E55B6}</UniqueIdentifier>
     </Filter>
     <Filter Include="Source Files\Scene\Serialization">
       <UniqueIdentifier>{D1BA8550-A781-5589-B985-1DA0CA6F48C0}</UniqueIdentifier>
@@ -1650,8 +1704,38 @@
     <ClCompile Include="HIKARI\Gameplay\Motion\HIKARI_CharacterMotionStateService.cpp">
       <Filter>Source Files\Gameplay\Motion</Filter>
     </ClCompile>
-    <ClCompile Include="HIKARI\Scene\Scenes\HIKARI_DocumentSceneBase.cpp">
-      <Filter>Source Files\Scene\Scenes</Filter>
+    <ClCompile Include="HIKARI\Scene\Document\HIKARI_DocumentSceneBase.cpp">
+      <Filter>Source Files\Scene\Document</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Scene\Document\Assets\HIKARI_DocumentSceneAssetBindings.cpp">
+      <Filter>Source Files\Scene\Document\Assets</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Scene\Document\Baking\HIKARI_DocumentSceneBakeCoordinator.cpp">
+      <Filter>Source Files\Scene\Document\Baking</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Scene\Document\Baking\HIKARI_LightProbeBakeWorkflow.cpp">
+      <Filter>Source Files\Scene\Document\Baking</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Scene\Document\Baking\HIKARI_ProbeBakeCaptureRenderer.cpp">
+      <Filter>Source Files\Scene\Document\Baking</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Scene\Document\Baking\HIKARI_ReflectionProbeBakeWorkflow.cpp">
+      <Filter>Source Files\Scene\Document\Baking</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Scene\Document\Baking\Internal\HIKARI_DocumentSceneBakeSupport.cpp">
+      <Filter>Source Files\Scene\Document\Baking\Internal</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Scene\Document\Camera\HIKARI_DocumentSceneCameraRuntime.cpp">
+      <Filter>Source Files\Scene\Document\Camera</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Scene\Document\Lighting\HIKARI_DocumentSceneLightingRuntime.cpp">
+      <Filter>Source Files\Scene\Document\Lighting</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Scene\Document\Persistence\HIKARI_DocumentScenePersistence.cpp">
+      <Filter>Source Files\Scene\Document\Persistence</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Scene\Document\Runtime\HIKARI_DocumentSceneRuntime.cpp">
+      <Filter>Source Files\Scene\Document\Runtime</Filter>
     </ClCompile>
     <ClCompile Include="HIKARI\Scene\Scenes\HIKARI_GameDocumentScene.cpp">
       <Filter>Source Files\Scene\Scenes</Filter>
@@ -2950,8 +3034,35 @@
     <ClInclude Include="HIKARI\Scene\Prefab\HIKARI_PrefabRegistry.h">
       <Filter>Header Files\Scene\Prefab</Filter>
     </ClInclude>
-    <ClInclude Include="HIKARI\Scene\Scenes\HIKARI_DocumentSceneBase.h">
-      <Filter>Header Files\Scene\Scenes</Filter>
+    <ClInclude Include="HIKARI\Scene\Document\HIKARI_DocumentSceneBase.h">
+      <Filter>Header Files\Scene\Document</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Scene\Document\Assets\HIKARI_DocumentSceneAssetBindings.h">
+      <Filter>Header Files\Scene\Document\Assets</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Scene\Document\Baking\HIKARI_DocumentSceneBakeCoordinator.h">
+      <Filter>Header Files\Scene\Document\Baking</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Scene\Document\Baking\Internal\HIKARI_DocumentSceneBakeSupport.h">
+      <Filter>Header Files\Scene\Document\Baking\Internal</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Scene\Document\Camera\HIKARI_DocumentSceneCameraRuntimeState.h">
+      <Filter>Header Files\Scene\Document\Camera</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Scene\Document\Editor\HIKARI_DocumentSceneEditorState.h">
+      <Filter>Header Files\Scene\Document\Editor</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Scene\Document\Internal\HIKARI_DocumentSceneState.h">
+      <Filter>Header Files\Scene\Document\Internal</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Scene\Document\Lighting\HIKARI_DocumentSceneLightingRuntimeState.h">
+      <Filter>Header Files\Scene\Document\Lighting</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Scene\Document\Persistence\HIKARI_DocumentSceneIdentityState.h">
+      <Filter>Header Files\Scene\Document\Persistence</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Scene\Document\Runtime\HIKARI_DocumentSceneRuntimeState.h">
+      <Filter>Header Files\Scene\Document\Runtime</Filter>
     </ClInclude>
     <ClInclude Include="HIKARI\Scene\Scenes\HIKARI_GameDocumentScene.h">
       <Filter>Header Files\Scene\Scenes</Filter>

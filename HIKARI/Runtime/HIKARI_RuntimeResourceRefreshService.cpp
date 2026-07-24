@@ -11,7 +11,7 @@
 #pragma warning(push)
 #pragma warning(disable: 4100)
 #endif
-#include "Scene/Scenes/HIKARI_DocumentSceneBase.h"
+#include "Scene/Document/HIKARI_DocumentSceneBase.h"
 #if defined(_MSC_VER)
 #pragma warning(pop)
 #endif

@@ -6,7 +6,7 @@
 #include "Assets/HIKARI_AssetDatabase.h"
 #include "Scene/HIKARI_GameObject.h"
 #include "Scene/HIKARI_SceneDocument.h"
-#include "Scene/Scenes/HIKARI_DocumentSceneBase.h"
+#include "Scene/Document/HIKARI_DocumentSceneBase.h"
 
 namespace HIKARI::EDITOR {
 

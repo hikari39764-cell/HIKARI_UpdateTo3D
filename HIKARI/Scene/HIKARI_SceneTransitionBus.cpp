@@ -6,7 +6,7 @@
 #include "HIKARI_IScene.h"
 #include "HIKARI_SceneManager.h"
 #include "Assets/HIKARI_AssetGuid.h"
-#include "Scene/Scenes/HIKARI_DocumentSceneBase.h"
+#include "Scene/Document/HIKARI_DocumentSceneBase.h"
 #include "Vfx/Transition/HIKARI_TransitionProfile.h"
 
 namespace HIKARI {

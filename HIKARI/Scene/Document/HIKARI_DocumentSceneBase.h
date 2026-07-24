@@ -7,55 +7,39 @@
 #include <vector>
 
 #include "Assets/HIKARI_AssetDatabase.h"
+#include "Assets/HIKARI_AssetGuid.h"
 #include "Assets/HIKARI_AssetRegistry.h"
-#include "Assets/Sequence/HIKARI_SequenceAssetStore.h"
-#include "Assets/Animation/HIKARI_AnimationStateMachineAssetStore.h"
-#include "Animation/Runtime/HIKARI_AnimationPoseService.h"
-#include "Animation/StateMachine/HIKARI_AnimationStateMachineRuntimeService.h"
-#include "Core/HIKARI_FixedStepClock.h"
+#include "Assets/HIKARI_AssetTypes.h"
 #include "Render3D/Core/HIKARI_Camera3D.h"
+#include "Render3D/Core/HIKARI_ModelManager.h"
 #include "Render3D/Core/HIKARI_RenderView.h"
 #include "Render3D/Debug/HIKARI_DebugCameraController3D.h"
-#include "Render3D/Core/HIKARI_ModelManager.h"
 #include "Render3D/Lighting/HIKARI_SceneEnvironment.h"
 #include "Render3D/Lighting/HIKARI_SkyManager.h"
-#include "Physics/HIKARI_PhysicsWorldService.h"
-#include "Gameplay/Motion/HIKARI_MotionIntentService.h"
-#include "Gameplay/Motion/HIKARI_CharacterMotionStateService.h"
-#include "Physics/HIKARI_KinematicMotionService.h"
-#include "Physics/HIKARI_PhysicsCollisionGeometryStore.h"
-#include "Physics/HIKARI_PhysicsRuntimeStatusService.h"
-#include "Physics/HIKARI_PhysicsProjectSettings.h"
-#if defined(HIKARI_WITH_EDITOR)
-#include "Editor/Gizmos/HIKARI_LightProbeVolumeGizmoRenderer.h"
-#include "Editor/Gizmos/HIKARI_ReflectionProbeGizmoRenderer.h"
-#endif
+#include "Scene/Debug/HIKARI_ComponentGizmoRenderer.h"
+#include "Scene/Debug/HIKARI_ViewportDebugState.h"
+#include "Scene/Features/HIKARI_RuntimeFeatureCatalog.h"
+#include "Scene/HIKARI_CameraDirector.h"
+#include "Scene/HIKARI_CinematicCameraPlayback.h"
 #include "Scene/HIKARI_ComponentRegistry.h"
 #include "Scene/HIKARI_ComponentSystemPolicy.h"
-#include "Scene/HIKARI_CameraDirector.h"
-#include "Scene/Camera/HIKARI_CameraRigService.h"
-#include "Scene/HIKARI_CinematicCameraPlayback.h"
 #include "Scene/HIKARI_IScene.h"
 #include "Scene/HIKARI_SceneDocument.h"
 #include "Scene/HIKARI_SceneRuntimeBuilder.h"
-#include "Scene/HIKARI_RuntimeWorldServices.h"
-#include "Scene/HIKARI_PresentationTransformService.h"
 #include "Scene/HIKARI_SystemScheduler.h"
 #include "Scene/HIKARI_SystemTypeRegistry.h"
 #include "Scene/HIKARI_World.h"
-#include "Scene/Features/HIKARI_RuntimeFeatureCatalog.h"
 #include "Scene/Features/HIKARI_RuntimeExtension.h"
 #include "Scene/Sequencer/Runtime/HIKARI_SequencePlaybackService.h"
-#include "Scene/Serialization/HIKARI_SceneSerializer.h"
-#include "Scene/Debug/HIKARI_ComponentGizmoRenderer.h"
-#include "Scene/Debug/HIKARI_ViewportDebugState.h"
 #include "Tools/Baking/HIKARI_LightingBakeReport.h"
 
 namespace HIKARI {
 
+    class DocumentSceneAssetBindings;
+    class DocumentSceneBakeCoordinator;
+    struct DocumentSceneState;
+
     struct PbrMaterialAssetData;
-    struct ReflectionProbeBakeJob;
-    struct LightProbeBakeJob;
 
     class DocumentSceneBase : public IScene {
     public:
@@ -177,7 +161,7 @@ namespace HIKARI {
             ConsumeSequencePlaybackEvents();
         bool BeginRuntimePlay();
         bool EndRuntimePlay();
-        bool IsRuntimePlayActive() const { return runtimePlayActive_; }
+        bool IsRuntimePlayActive() const;
         bool RequestOpenSceneAsset(const AssetGuid& sceneGuid);
         bool OpenSceneAssetNow(const AssetGuid& sceneGuid);
         bool OpenStartupSceneAsset();
@@ -226,113 +210,11 @@ namespace HIKARI {
         virtual bool DrawDebugHelpers() const;
         virtual bool UseEnvironmentLighting() const;
         bool HasRuntimeSceneCameraDriver() const;
-        void ConfigureModelTextureResolver();
-        bool ProcessReflectionProbeBakeJob();
-        bool ProcessLightProbeBakeJob();
-        bool RenderSceneForReflectionProbeCaptureFace(
-            const Camera3D& faceCamera,
-            const SceneEnvironment& captureEnvironment,
-            uint32_t faceIndex);
-        bool RenderSceneForLightProbeCaptureFace(
-            const Camera3D& faceCamera,
-            const SceneEnvironment& captureEnvironment,
-            uint32_t faceIndex);
-        std::string ResolveModelTexturePathFromAssets(
-            const std::string& sourceTexturePath,
-            MaterialTextureUsage usage) const;
-        const AssetRecord* FindUniqueTextureAssetByFilename(
-            const std::string& filename,
-            const std::string& sourceTexturePath) const;
 
-    protected:
-        std::string sceneId_;
-        std::string scenePath_{};
-
-        Camera3D camera_{};
-        Camera3D gameplayCamera_{};
-        CameraDirector cameraDirector_{};
-        CAMERA::CameraRigService cameraRigService_{};
-        CinematicPlaybackHandle currentCameraSequenceHandle_{};
-        RENDER3D::ResolvedCameraFrame resolvedCameraFrame_{};
-        DebugCameraController3D debugCamera_{};
-        DebugCameraController3D runtimePreviewCamera_{};
-        Camera3D editorCameraSnapshot_{};
-        Camera3D editorCameraPreviewSnapshot_{};
-        DebugCameraController3D editorDebugCameraSnapshot_{};
-        ComponentGizmoState editorComponentGizmoSnapshot_{};
-        ViewportOverlayState editorViewportOverlaySnapshot_{};
-        ViewportPerformanceState editorViewportPerformanceSnapshot_{};
-        ViewportDebugViewState editorViewportDebugViewSnapshot_{};
-        SceneObjectId editorSelectedGizmoObjectSnapshot_{};
-        SceneDocument editorSceneDocumentSnapshot_{};
-        SceneEnvironment editorSceneEnvironmentSnapshot_{};
-        SceneObjectId editorCameraPreviewObjectId_{};
-        CameraOverrideToken editorCameraPreviewToken_{};
-        bool editorCameraCutPending_ = false;
-        bool runtimePreviewCameraActive_ = false;
-        bool runtimeSceneCameraActive_ = false;
-        bool runtimePlayActive_ = false;
-        bool runtimeInputContextSnapshotValid_ = false;
-        bool editorInputContextWasActive_ = false;
-        bool gameplayInputContextWasActive_ = false;
-        bool editorSceneDocumentSnapshotValid_ = false;
-        bool editorSceneDocumentDirtySnapshot_ = false;
-        bool runtimeInitialized_ = false;
-        World world_{};
-        FixedStepClock fixedStepClock_{};
-        RuntimePlayStateService runtimePlayStateService_{};
-        GameplayCameraService gameplayCameraService_{};
-        ANIMATION::AnimationPoseService animationPoseService_{};
-        ANIMATION::AnimationStateMachineRuntimeService
-            animationStateMachineRuntimeService_{};
-        GAMEPLAY::MotionIntentService motionIntentService_{};
-        GAMEPLAY::CharacterMotionStateService
-            characterMotionStateService_{};
-        PHYSICS::KinematicMotionService kinematicMotionService_{};
-        PHYSICS::PhysicsWorldService physicsWorldService_{};
-        PHYSICS::PhysicsCollisionGeometryStore
-            physicsCollisionGeometryStore_{};
-        PHYSICS::PhysicsRuntimeStatusService
-            physicsRuntimeStatusService_{};
-        PHYSICS::PhysicsProjectSettings physicsProjectSettings_{};
-        PresentationTransformService presentationTransformService_{};
-        RuntimeExtensionHost runtimeExtensionHost_{};
-        RuntimeFeatureCatalog runtimeFeatureCatalog_{};
-        RuntimeFeatureInstallReport runtimeFeatureInstallReport_{};
-        ComponentSystemPolicy componentSystemPolicy_{};
-        SystemTypeRegistry systemTypeRegistry_{};
-        SystemScheduler systemScheduler_{};
-        ModelManager modelManager_{};
-        SkyManager skyManager_{};
-        SceneEnvironment environment_{};
-        bool environmentLightingEnabled_ = true;
-
-        AssetDatabase assetDatabase_{};
-        AssetRegistry assetRegistry_{};
-        SequenceAssetStore sequenceAssetStore_{};
-        AnimationStateMachineAssetStore animationStateMachineAssetStore_{};
-        SEQUENCER::SequencePlaybackService sequencePlaybackService_{};
-        ComponentRegistry componentRegistry_{};
-        SceneSerializer sceneSerializer_{};
-        SceneRuntimeBuilder runtimeBuilder_{};
-        SceneDocument sceneDocument_{};
-        uint64_t sceneDocumentRevision_ = 0;
-        AssetGuid currentSceneAssetGuid_{};
-        bool sceneDocumentDirty_ = false;
-#if defined(HIKARI_WITH_EDITOR)
-        EDITOR::ReflectionProbeGizmoRenderer reflectionProbeGizmoRenderer_{};
-        EDITOR::LightProbeVolumeGizmoRenderer lightProbeVolumeGizmoRenderer_{};
-#endif
-        ComponentGizmoRenderer componentGizmoRenderer_{};
-        ComponentGizmoState componentGizmoState_{};
-        ViewportOverlayState viewportOverlayState_{};
-        ViewportPerformanceState viewportPerformanceState_{};
-        ViewportDebugViewState viewportDebugViewState_{};
-        SceneObjectId selectedGizmoObjectId_{};
-        std::unique_ptr<ReflectionProbeBakeJob> reflectionProbeBakeJob_{};
-        std::unique_ptr<LightProbeBakeJob> lightProbeBakeJob_{};
-        TOOLS::BAKING::LightingBakeReport lastLightingBakeReport_{};
-        bool hasLastLightingBakeReport_ = false;
+    private:
+        friend class DocumentSceneAssetBindings;
+        friend class DocumentSceneBakeCoordinator;
+        std::unique_ptr<DocumentSceneState> state_;
     };
 
 } // namespace HIKARI
