@@ -1,0 +1,21 @@
+{
+  "displayName": "T_Rope_Normal",
+  "guid": "62bbe21f8d1b9a23595eb5cd623b963b",
+  "importSettings": {
+    "allowResize": false,
+    "colorSpace": "Linear",
+    "compression": "BC7",
+    "debugOutputFormat": "DDS",
+    "dimension": "Texture2D",
+    "forcePowerOfTwo": false,
+    "maxSize": 4096,
+    "mipPolicy": "Generate",
+    "outputFormat": "HTEX",
+    "usage": "Normal"
+  },
+  "importerId": "TextureImporter",
+  "importerVersion": 5,
+  "metaVersion": 1,
+  "sourcePath": "Assets/New Folder 2/T_Rope_Normal.png",
+  "type": "Texture"
+}

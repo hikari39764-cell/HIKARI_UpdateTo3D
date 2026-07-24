@@ -9,7 +9,7 @@
 #include "RuntimeTools/HIKARI_PortableObjectToolsPanel.h"
 #endif
 #if defined(HIKARI_WITH_EDITOR)
-#include "Editor/Controllers/HIKARI_DocumentSceneEditorController.h"
+#include "Editor/Controllers/DocumentScene/HIKARI_DocumentSceneEditorController.h"
 #include "Editor/Play/HIKARI_EditorPlaySession.h"
 #endif
 

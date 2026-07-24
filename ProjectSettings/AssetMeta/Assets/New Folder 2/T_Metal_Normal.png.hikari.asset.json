@@ -1,0 +1,21 @@
+{
+  "displayName": "T_Metal_Normal",
+  "guid": "eba1ed38b02ae066e15f59753d338b26",
+  "importSettings": {
+    "allowResize": false,
+    "colorSpace": "Linear",
+    "compression": "BC7",
+    "debugOutputFormat": "DDS",
+    "dimension": "Texture2D",
+    "forcePowerOfTwo": false,
+    "maxSize": 4096,
+    "mipPolicy": "Generate",
+    "outputFormat": "HTEX",
+    "usage": "Normal"
+  },
+  "importerId": "TextureImporter",
+  "importerVersion": 5,
+  "metaVersion": 1,
+  "sourcePath": "Assets/New Folder 2/T_Metal_Normal.png",
+  "type": "Texture"
+}

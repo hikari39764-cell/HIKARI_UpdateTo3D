@@ -109,6 +109,9 @@
     <Filter Include="Header Files\Editor\Controllers">
       <UniqueIdentifier>{E28B7FA2-22E4-5153-995B-8B37C61D9D2D}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Header Files\Editor\Controllers\DocumentScene">
+      <UniqueIdentifier>{D8E4C3B7-6A19-4F5A-8C2E-1B7F903D42A6}</UniqueIdentifier>
+    </Filter>
     <Filter Include="Header Files\Editor\Inspectors">
       <UniqueIdentifier>{24C4DCE0-5996-5C8A-AE2D-2720AA4F83B9}</UniqueIdentifier>
     </Filter>
@@ -291,6 +294,18 @@
     </Filter>
     <Filter Include="Header Files\Scene\Serialization">
       <UniqueIdentifier>{77CB0B58-F53A-54E9-B326-C8CDB53D7982}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\Scene\Serialization\Environment">
+      <UniqueIdentifier>{5D94CE03-F206-443B-9001-162FF021C720}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\Scene\Serialization\Lighting">
+      <UniqueIdentifier>{AAFD507D-97F9-48AB-87C0-BB6A3EF710A3}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\Scene\Serialization\Objects">
+      <UniqueIdentifier>{620121EB-6999-4447-B99A-645F2DB6789C}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\Scene\Serialization\Systems">
+      <UniqueIdentifier>{565FAEEF-0E88-4838-ADAD-B267B9EDD66E}</UniqueIdentifier>
     </Filter>
     <Filter Include="Header Files\Scene\Systems">
       <UniqueIdentifier>{E97E3424-93C4-5609-9AA9-CDB26446660B}</UniqueIdentifier>
@@ -499,6 +514,9 @@
     <Filter Include="Source Files\Editor\Controllers">
       <UniqueIdentifier>{556FDF65-8B17-5D07-B27B-266BB695A766}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Source Files\Editor\Controllers\DocumentScene">
+      <UniqueIdentifier>{A13F6E2C-9D74-4B08-B5C1-7E3A2F689D40}</UniqueIdentifier>
+    </Filter>
     <Filter Include="Source Files\Editor\Inspectors">
       <UniqueIdentifier>{D68F333D-6EA5-561A-AE86-4F0B43E15014}</UniqueIdentifier>
     </Filter>
@@ -673,6 +691,18 @@
     <Filter Include="Source Files\Scene\Serialization">
       <UniqueIdentifier>{D1BA8550-A781-5589-B985-1DA0CA6F48C0}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Source Files\Scene\Serialization\Environment">
+      <UniqueIdentifier>{FDECE78C-A37F-434C-A59E-2220005E0720}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Scene\Serialization\Lighting">
+      <UniqueIdentifier>{6630C5A1-646F-4363-945E-882D7E0A5997}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Scene\Serialization\Objects">
+      <UniqueIdentifier>{E44623E8-FE11-456B-A31E-7E12E95C6581}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Scene\Serialization\Systems">
+      <UniqueIdentifier>{823FB2AD-1B27-4A81-B79F-F532DE91C544}</UniqueIdentifier>
+    </Filter>
     <Filter Include="Source Files\Scene\Systems">
       <UniqueIdentifier>{E560D4F1-8CA3-5F5B-BD6E-26E4A9BA2659}</UniqueIdentifier>
     </Filter>
@@ -723,6 +753,114 @@
     </Filter>
     <Filter Include="Source Files\Vfx\Transition">
       <UniqueIdentifier>{C8DEB0DF-3131-59CA-83DA-6A3F64FC300C}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\Editor\Workspaces\AnimationStateMachine">
+      <UniqueIdentifier>{A7E00000-0000-4000-8000-000000002004}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Editor\Workspaces\AnimationStateMachine">
+      <UniqueIdentifier>{A7E00000-0000-4000-8000-000000002005}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\Editor\Assets\Workspace">
+      <UniqueIdentifier>{A7E00000-0000-4000-8000-000000002000}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Editor\Assets\Workspace">
+      <UniqueIdentifier>{A7E00000-0000-4000-8000-000000002001}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Editor\Workspaces\Cinematics">
+      <UniqueIdentifier>{A7E00000-0000-4000-8000-000000002002}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Editor\Workspaces\ModelCollision">
+      <UniqueIdentifier>{A7E00000-0000-4000-8000-000000002003}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\Editor\Assets\Browser">
+      <UniqueIdentifier>{A7E00000-0000-4000-8000-000000001000}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\Editor\Assets\Inspector">
+      <UniqueIdentifier>{A7E00000-0000-4000-8000-000000001001}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\Editor\Environment">
+      <UniqueIdentifier>{A7E00000-0000-4000-8000-000000001002}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\Editor\Performance">
+      <UniqueIdentifier>{A7E00000-0000-4000-8000-000000001003}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\Editor\Platform">
+      <UniqueIdentifier>{A7E00000-0000-4000-8000-000000001004}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\Editor\Quality">
+      <UniqueIdentifier>{A7E00000-0000-4000-8000-000000001005}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\Editor\Scene">
+      <UniqueIdentifier>{A7E00000-0000-4000-8000-000000001006}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\Editor\Scene\Inspector">
+      <UniqueIdentifier>{A7E00000-0000-4000-8000-000000001007}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\Editor\Views\Director">
+      <UniqueIdentifier>{A7E00000-0000-4000-8000-000000001008}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\Editor\Widgets">
+      <UniqueIdentifier>{A7E00000-0000-4000-8000-000000001009}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\Editor\Workspaces\Camera">
+      <UniqueIdentifier>{A7E00000-0000-4000-8000-00000000100A}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Editor\Assets\Browser">
+      <UniqueIdentifier>{A7E00000-0000-4000-8000-00000000100B}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Editor\Assets\Inspector">
+      <UniqueIdentifier>{A7E00000-0000-4000-8000-00000000100C}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Editor\Environment">
+      <UniqueIdentifier>{A7E00000-0000-4000-8000-00000000100D}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Editor\Performance">
+      <UniqueIdentifier>{A7E00000-0000-4000-8000-00000000100E}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Editor\Platform">
+      <UniqueIdentifier>{A7E00000-0000-4000-8000-00000000100F}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Editor\Quality">
+      <UniqueIdentifier>{A7E00000-0000-4000-8000-000000001010}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Editor\Scene">
+      <UniqueIdentifier>{A7E00000-0000-4000-8000-000000001011}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Editor\Scene\Inspector">
+      <UniqueIdentifier>{A7E00000-0000-4000-8000-000000001012}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Editor\Views\Director">
+      <UniqueIdentifier>{A7E00000-0000-4000-8000-000000001013}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Editor\Widgets">
+      <UniqueIdentifier>{A7E00000-0000-4000-8000-000000001014}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Editor\Workspaces\Camera">
+      <UniqueIdentifier>{A7E00000-0000-4000-8000-000000001015}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\Editor\Workspaces\Camera\Overview">
+      <UniqueIdentifier>{A7E00000-0000-4000-8000-000000001016}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Editor\Workspaces\Camera\Overview">
+      <UniqueIdentifier>{A7E00000-0000-4000-8000-000000001017}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\Editor\Workspaces\Camera\Timeline">
+      <UniqueIdentifier>{A7E00000-0000-4000-8000-000000001018}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Editor\Workspaces\Camera\Timeline">
+      <UniqueIdentifier>{A7E00000-0000-4000-8000-000000001019}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\Editor\Workspaces\Cinematics">
+      <UniqueIdentifier>{A7E00000-0000-4000-8000-00000000101A}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\Editor\Workspaces\ModelCollision">
+      <UniqueIdentifier>{A7E00000-0000-4000-8000-00000000101B}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\Editor\Workspaces\Sequence">
+      <UniqueIdentifier>{A7E00000-0000-4000-8000-00000000101C}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Editor\Workspaces\Sequence">
+      <UniqueIdentifier>{A7E00000-0000-4000-8000-00000000101D}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
@@ -996,11 +1134,11 @@
     <ClCompile Include="HIKARI\Editor\Tools\HIKARI_EditorToolHost.cpp">
       <Filter>Source Files\Editor\Tools</Filter>
     </ClCompile>
-    <ClCompile Include="HIKARI\Editor\Views\HIKARI_DirectorViewPanel.cpp">
-      <Filter>Source Files\Editor\Views</Filter>
+    <ClCompile Include="HIKARI\Editor\Views\Director\HIKARI_DirectorViewPanel.cpp">
+      <Filter>Source Files\Editor\Views\Director</Filter>
     </ClCompile>
-    <ClCompile Include="HIKARI\Editor\Views\HIKARI_EditorDirectorCameraController.cpp">
-      <Filter>Source Files\Editor\Views</Filter>
+    <ClCompile Include="HIKARI\Editor\Views\Director\HIKARI_EditorDirectorCameraController.cpp">
+      <Filter>Source Files\Editor\Views\Director</Filter>
     </ClCompile>
     <ClCompile Include="HIKARI\Editor\Views\HIKARI_EditorViewInputRouter.cpp">
       <Filter>Source Files\Editor\Views</Filter>
@@ -1011,98 +1149,92 @@
     <ClCompile Include="HIKARI\Editor\Workspaces\HIKARI_EditorWorkspaceHost.cpp">
       <Filter>Source Files\Editor\Workspaces</Filter>
     </ClCompile>
-    <ClCompile Include="HIKARI\Editor\Workspaces\HIKARI_CameraOverviewPanel.cpp">
-      <Filter>Source Files\Editor\Workspaces</Filter>
+    <ClCompile Include="HIKARI\Editor\Workspaces\Camera\Timeline\HIKARI_CameraTimelinePanel.cpp">
+      <Filter>Source Files\Editor\Workspaces\Camera\Timeline</Filter>
     </ClCompile>
-    <ClCompile Include="HIKARI\Editor\Workspaces\HIKARI_CameraTimelinePanel.cpp">
-      <Filter>Source Files\Editor\Workspaces</Filter>
+    <ClCompile Include="HIKARI\Editor\Workspaces\Camera\Timeline\HIKARI_CameraTimelineCanvas.cpp">
+      <Filter>Source Files\Editor\Workspaces\Camera\Timeline</Filter>
     </ClCompile>
-    <ClCompile Include="HIKARI\Editor\Workspaces\HIKARI_CameraTimelineCanvas.cpp">
-      <Filter>Source Files\Editor\Workspaces</Filter>
+    <ClCompile Include="HIKARI\Editor\Workspaces\Camera\Timeline\HIKARI_CameraTimelineKeyframeClipboard.cpp">
+      <Filter>Source Files\Editor\Workspaces\Camera\Timeline</Filter>
     </ClCompile>
-    <ClCompile Include="HIKARI\Editor\Workspaces\HIKARI_CameraTimelineKeyframeClipboard.cpp">
-      <Filter>Source Files\Editor\Workspaces</Filter>
+    <ClCompile Include="HIKARI\Editor\Workspaces\Camera\Timeline\HIKARI_CameraTimelineKeyframeDrag.cpp">
+      <Filter>Source Files\Editor\Workspaces\Camera\Timeline</Filter>
     </ClCompile>
-    <ClCompile Include="HIKARI\Editor\Workspaces\HIKARI_CameraTimelineKeyframeDrag.cpp">
-      <Filter>Source Files\Editor\Workspaces</Filter>
+    <ClCompile Include="HIKARI\Editor\Workspaces\Camera\Timeline\HIKARI_CameraTimelineKeyframeAuthoring.cpp">
+      <Filter>Source Files\Editor\Workspaces\Camera\Timeline</Filter>
     </ClCompile>
-    <ClCompile Include="HIKARI\Editor\Workspaces\HIKARI_CameraTimelineKeyframeAuthoring.cpp">
-      <Filter>Source Files\Editor\Workspaces</Filter>
+    <ClCompile Include="HIKARI\Editor\Workspaces\Camera\Timeline\HIKARI_CameraTimelineKeyframeEditor.cpp">
+      <Filter>Source Files\Editor\Workspaces\Camera\Timeline</Filter>
     </ClCompile>
-    <ClCompile Include="HIKARI\Editor\Workspaces\HIKARI_CameraTimelineKeyframeEditor.cpp">
-      <Filter>Source Files\Editor\Workspaces</Filter>
+    <ClCompile Include="HIKARI\Editor\Workspaces\Camera\Timeline\HIKARI_CameraTimelineKeyframeInspector.cpp">
+      <Filter>Source Files\Editor\Workspaces\Camera\Timeline</Filter>
     </ClCompile>
-    <ClCompile Include="HIKARI\Editor\Workspaces\HIKARI_CameraTimelineKeyframeInspector.cpp">
-      <Filter>Source Files\Editor\Workspaces</Filter>
+    <ClCompile Include="HIKARI\Editor\Workspaces\Camera\Timeline\HIKARI_CameraTimelineKeyframeToolbar.cpp">
+      <Filter>Source Files\Editor\Workspaces\Camera\Timeline</Filter>
     </ClCompile>
-    <ClCompile Include="HIKARI\Editor\Workspaces\HIKARI_CameraTimelineKeyframeToolbar.cpp">
-      <Filter>Source Files\Editor\Workspaces</Filter>
+    <ClCompile Include="HIKARI\Editor\Workspaces\Camera\Timeline\HIKARI_CameraTimelineSelection.cpp">
+      <Filter>Source Files\Editor\Workspaces\Camera\Timeline</Filter>
     </ClCompile>
-    <ClCompile Include="HIKARI\Editor\Workspaces\HIKARI_CameraTimelineSelection.cpp">
-      <Filter>Source Files\Editor\Workspaces</Filter>
+    <ClCompile Include="HIKARI\Editor\Workspaces\Camera\Timeline\HIKARI_CameraTimelineShotEditor.cpp">
+      <Filter>Source Files\Editor\Workspaces\Camera\Timeline</Filter>
     </ClCompile>
-    <ClCompile Include="HIKARI\Editor\Workspaces\HIKARI_CameraTimelineShotEditor.cpp">
-      <Filter>Source Files\Editor\Workspaces</Filter>
+    <ClCompile Include="HIKARI\Editor\Workspaces\Cinematics\HIKARI_CinematicsWorkspaceController.cpp">
+      <Filter>Source Files\Editor\Workspaces\Cinematics</Filter>
     </ClCompile>
-    <ClCompile Include="HIKARI\Editor\Workspaces\HIKARI_CinematicsWorkspaceController.cpp">
-      <Filter>Source Files\Editor\Workspaces</Filter>
+    <ClCompile Include="HIKARI\Editor\Workspaces\Cinematics\HIKARI_CinematicsWorkspaceWindows.cpp">
+      <Filter>Source Files\Editor\Workspaces\Cinematics</Filter>
     </ClCompile>
-    <ClCompile Include="HIKARI\Editor\Workspaces\HIKARI_CinematicsWorkspaceWindows.cpp">
-      <Filter>Source Files\Editor\Workspaces</Filter>
+    <ClCompile Include="HIKARI\Editor\Workspaces\ModelCollision\HIKARI_ModelCollisionHistory.cpp">
+      <Filter>Source Files\Editor\Workspaces\ModelCollision</Filter>
     </ClCompile>
-    <ClCompile Include="HIKARI\Editor\Workspaces\HIKARI_ModelCollisionHistory.cpp">
-      <Filter>Source Files\Editor\Workspaces</Filter>
+    <ClCompile Include="HIKARI\Editor\Workspaces\ModelCollision\HIKARI_ModelCollisionPreviewScene.cpp">
+      <Filter>Source Files\Editor\Workspaces\ModelCollision</Filter>
     </ClCompile>
-    <ClCompile Include="HIKARI\Editor\Workspaces\HIKARI_ModelCollisionPreviewScene.cpp">
-      <Filter>Source Files\Editor\Workspaces</Filter>
+    <ClCompile Include="HIKARI\Editor\Workspaces\ModelCollision\HIKARI_ModelCollisionSourceOutline.cpp">
+      <Filter>Source Files\Editor\Workspaces\ModelCollision</Filter>
     </ClCompile>
-    <ClCompile Include="HIKARI\Editor\Workspaces\HIKARI_ModelCollisionSourceOutline.cpp">
-      <Filter>Source Files\Editor\Workspaces</Filter>
+    <ClCompile Include="HIKARI\Editor\Workspaces\ModelCollision\HIKARI_ModelCollisionWorkspaceInteraction.cpp">
+      <Filter>Source Files\Editor\Workspaces\ModelCollision</Filter>
     </ClCompile>
-    <ClCompile Include="HIKARI\Editor\Workspaces\HIKARI_ModelCollisionWorkspaceInteraction.cpp">
-      <Filter>Source Files\Editor\Workspaces</Filter>
+    <ClCompile Include="HIKARI\Editor\Workspaces\ModelCollision\HIKARI_ModelCollisionRaycast.cpp">
+      <Filter>Source Files\Editor\Workspaces\ModelCollision</Filter>
     </ClCompile>
-    <ClCompile Include="HIKARI\Editor\Workspaces\HIKARI_ModelCollisionRaycast.cpp">
-      <Filter>Source Files\Editor\Workspaces</Filter>
+    <ClCompile Include="HIKARI\Editor\Workspaces\ModelCollision\HIKARI_ModelCollisionViewportOverlay.cpp">
+      <Filter>Source Files\Editor\Workspaces\ModelCollision</Filter>
     </ClCompile>
-    <ClCompile Include="HIKARI\Editor\Workspaces\HIKARI_ModelCollisionViewportOverlay.cpp">
-      <Filter>Source Files\Editor\Workspaces</Filter>
+    <ClCompile Include="HIKARI\Editor\Workspaces\ModelCollision\HIKARI_ModelCollisionWorkspaceController.cpp">
+      <Filter>Source Files\Editor\Workspaces\ModelCollision</Filter>
     </ClCompile>
-    <ClCompile Include="HIKARI\Editor\Workspaces\HIKARI_ModelCollisionWorkspaceController.cpp">
-      <Filter>Source Files\Editor\Workspaces</Filter>
+    <ClCompile Include="HIKARI\Editor\Workspaces\ModelCollision\HIKARI_ModelCollisionWorkspaceWindows.cpp">
+      <Filter>Source Files\Editor\Workspaces\ModelCollision</Filter>
     </ClCompile>
-    <ClCompile Include="HIKARI\Editor\Workspaces\HIKARI_ModelCollisionWorkspacePanels.cpp">
-      <Filter>Source Files\Editor\Workspaces</Filter>
+    <ClCompile Include="HIKARI\Editor\Workspaces\ModelCollision\HIKARI_ModelCollisionWorkspaceToolbar.cpp">
+      <Filter>Source Files\Editor\Workspaces\ModelCollision</Filter>
     </ClCompile>
-    <ClCompile Include="HIKARI\Editor\Workspaces\HIKARI_ModelCollisionWorkspaceWindows.cpp">
-      <Filter>Source Files\Editor\Workspaces</Filter>
+    <ClCompile Include="HIKARI\Editor\Workspaces\AnimationStateMachine\HIKARI_AnimationStateMachineWorkspaceController.cpp">
+      <Filter>Source Files\Editor\Workspaces\AnimationStateMachine</Filter>
     </ClCompile>
-    <ClCompile Include="HIKARI\Editor\Workspaces\HIKARI_ModelCollisionWorkspaceToolbar.cpp">
-      <Filter>Source Files\Editor\Workspaces</Filter>
+    <ClCompile Include="HIKARI\Editor\Workspaces\AnimationStateMachine\HIKARI_AnimationStateMachineDocumentWorkflow.cpp">
+      <Filter>Source Files\Editor\Workspaces\AnimationStateMachine</Filter>
     </ClCompile>
-    <ClCompile Include="HIKARI\Editor\Workspaces\HIKARI_AnimationStateMachineWorkspaceController.cpp">
-      <Filter>Source Files\Editor\Workspaces</Filter>
+    <ClCompile Include="HIKARI\Editor\Workspaces\AnimationStateMachine\HIKARI_AnimationStateMachineWorkspaceWindows.cpp">
+      <Filter>Source Files\Editor\Workspaces\AnimationStateMachine</Filter>
     </ClCompile>
-    <ClCompile Include="HIKARI\Editor\Workspaces\HIKARI_AnimationStateMachineDocumentWorkflow.cpp">
-      <Filter>Source Files\Editor\Workspaces</Filter>
+    <ClCompile Include="HIKARI\Editor\Workspaces\AnimationStateMachine\HIKARI_AnimationStateMachineDetailsPanel.cpp">
+      <Filter>Source Files\Editor\Workspaces\AnimationStateMachine</Filter>
     </ClCompile>
-    <ClCompile Include="HIKARI\Editor\Workspaces\HIKARI_AnimationStateMachineWorkspaceWindows.cpp">
-      <Filter>Source Files\Editor\Workspaces</Filter>
+    <ClCompile Include="HIKARI\Editor\Workspaces\AnimationStateMachine\HIKARI_AnimationStateMachineMotionEditor.cpp">
+      <Filter>Source Files\Editor\Workspaces\AnimationStateMachine</Filter>
     </ClCompile>
-    <ClCompile Include="HIKARI\Editor\Workspaces\HIKARI_AnimationStateMachineDetailsPanel.cpp">
-      <Filter>Source Files\Editor\Workspaces</Filter>
+    <ClCompile Include="HIKARI\Editor\Workspaces\AnimationStateMachine\HIKARI_AnimationStateMachineRuntimeDebug.cpp">
+      <Filter>Source Files\Editor\Workspaces\AnimationStateMachine</Filter>
     </ClCompile>
-    <ClCompile Include="HIKARI\Editor\Workspaces\HIKARI_AnimationStateMachineMotionEditor.cpp">
-      <Filter>Source Files\Editor\Workspaces</Filter>
+    <ClCompile Include="HIKARI\Editor\Workspaces\AnimationStateMachine\HIKARI_AnimationStateMachineGraphPanel.cpp">
+      <Filter>Source Files\Editor\Workspaces\AnimationStateMachine</Filter>
     </ClCompile>
-    <ClCompile Include="HIKARI\Editor\Workspaces\HIKARI_AnimationStateMachineRuntimeDebug.cpp">
-      <Filter>Source Files\Editor\Workspaces</Filter>
-    </ClCompile>
-    <ClCompile Include="HIKARI\Editor\Workspaces\HIKARI_AnimationStateMachineGraphPanel.cpp">
-      <Filter>Source Files\Editor\Workspaces</Filter>
-    </ClCompile>
-    <ClCompile Include="HIKARI\Editor\Workspaces\HIKARI_AnimationStateMachineGraphMenu.cpp">
-      <Filter>Source Files\Editor\Workspaces</Filter>
+    <ClCompile Include="HIKARI\Editor\Workspaces\AnimationStateMachine\HIKARI_AnimationStateMachineGraphMenu.cpp">
+      <Filter>Source Files\Editor\Workspaces\AnimationStateMachine</Filter>
     </ClCompile>
     <ClCompile Include="HIKARI\Editor\Export\HIKARI_GameExporter.cpp">
       <Filter>Source Files\Editor\Export</Filter>
@@ -1158,14 +1290,14 @@
     <ClCompile Include="HIKARI\Editor\Documents\HIKARI_SequenceEditorDocumentController.cpp">
       <Filter>Source Files\Editor\Documents</Filter>
     </ClCompile>
-    <ClCompile Include="HIKARI\Editor\Workspaces\HIKARI_SequenceLibraryPanel.cpp">
-      <Filter>Source Files\Editor\Workspaces</Filter>
+    <ClCompile Include="HIKARI\Editor\Workspaces\Sequence\HIKARI_SequenceLibraryPanel.cpp">
+      <Filter>Source Files\Editor\Workspaces\Sequence</Filter>
     </ClCompile>
-    <ClCompile Include="HIKARI\Editor\Workspaces\HIKARI_SequenceBindingPanel.cpp">
-      <Filter>Source Files\Editor\Workspaces</Filter>
+    <ClCompile Include="HIKARI\Editor\Workspaces\Sequence\HIKARI_SequenceBindingPanel.cpp">
+      <Filter>Source Files\Editor\Workspaces\Sequence</Filter>
     </ClCompile>
-    <ClCompile Include="HIKARI\Editor\Workspaces\HIKARI_SequenceEditorDocumentToolbar.cpp">
-      <Filter>Source Files\Editor\Workspaces</Filter>
+    <ClCompile Include="HIKARI\Editor\Workspaces\Sequence\HIKARI_SequenceEditorDocumentToolbar.cpp">
+      <Filter>Source Files\Editor\Workspaces\Sequence</Filter>
     </ClCompile>
     <ClCompile Include="HIKARI\Editor\DragDrop\HIKARI_EditorAssetDragDrop.cpp">
       <Filter>Source Files\Editor\DragDrop</Filter>
@@ -1197,17 +1329,44 @@
     <ClCompile Include="HIKARI\Editor\Style\HIKARI_EditorWidgets.cpp">
       <Filter>Source Files\Editor\Style</Filter>
     </ClCompile>
-    <ClCompile Include="HIKARI\Editor\Panels\HIKARI_EnvironmentPanel.cpp">
-      <Filter>Source Files\Editor\Panels</Filter>
+    <ClCompile Include="HIKARI\Editor\Environment\HIKARI_EnvironmentPanel.cpp">
+      <Filter>Source Files\Editor\Environment</Filter>
     </ClCompile>
-    <ClCompile Include="HIKARI\Editor\Panels\HIKARI_QualityPanel.cpp">
-      <Filter>Source Files\Editor\Panels</Filter>
+    <ClCompile Include="HIKARI\Editor\Quality\HIKARI_QualityPanel.cpp">
+      <Filter>Source Files\Editor\Quality</Filter>
     </ClCompile>
     <ClCompile Include="HIKARI\Editor\Panels\HIKARI_LightingBakePanel.cpp">
       <Filter>Source Files\Editor\Panels</Filter>
     </ClCompile>
-    <ClCompile Include="HIKARI\Editor\Controllers\HIKARI_DocumentSceneEditorController.cpp">
-      <Filter>Source Files\Editor\Controllers</Filter>
+    <ClCompile Include="HIKARI\Editor\Controllers\DocumentScene\HIKARI_DocumentSceneEditorController.cpp">
+      <Filter>Source Files\Editor\Controllers\DocumentScene</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Editor\Controllers\DocumentScene\HIKARI_DocumentSceneEditorGamePreview.cpp">
+      <Filter>Source Files\Editor\Controllers\DocumentScene</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Editor\Controllers\DocumentScene\HIKARI_DocumentSceneEditorViewport.cpp">
+      <Filter>Source Files\Editor\Controllers\DocumentScene</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Editor\Controllers\DocumentScene\HIKARI_DocumentSceneEditorViewportInteraction.cpp">
+      <Filter>Source Files\Editor\Controllers\DocumentScene</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Editor\Controllers\DocumentScene\HIKARI_DocumentSceneEditorViewportPresentation.cpp">
+      <Filter>Source Files\Editor\Controllers\DocumentScene</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Editor\Controllers\DocumentScene\HIKARI_DocumentSceneEditorDebugView.cpp">
+      <Filter>Source Files\Editor\Controllers\DocumentScene</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Editor\Controllers\DocumentScene\HIKARI_DocumentSceneEditorSceneWorkflow.cpp">
+      <Filter>Source Files\Editor\Controllers\DocumentScene</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Editor\Controllers\DocumentScene\HIKARI_DocumentSceneEditorWorkspaceWindows.cpp">
+      <Filter>Source Files\Editor\Controllers\DocumentScene</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Editor\Controllers\DocumentScene\HIKARI_DocumentSceneEditorCommands.cpp">
+      <Filter>Source Files\Editor\Controllers\DocumentScene</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Editor\Controllers\DocumentScene\HIKARI_DocumentToolbarController.cpp">
+      <Filter>Source Files\Editor\Controllers\DocumentScene</Filter>
     </ClCompile>
     <ClCompile Include="HIKARI\Scene\Debug\HIKARI_ComponentGizmoRenderer.cpp">
       <Filter>Source Files\Scene\Debug</Filter>
@@ -1226,9 +1385,6 @@
     </ClCompile>
     <ClCompile Include="HIKARI\Editor\HIKARI_SelectionSyncService.cpp">
       <Filter>Source Files\Editor</Filter>
-    </ClCompile>
-    <ClCompile Include="HIKARI\Editor\Controllers\HIKARI_DocumentToolbarController.cpp">
-      <Filter>Source Files\Editor\Controllers</Filter>
     </ClCompile>
     <ClCompile Include="HIKARI\Assets\HIKARI_AssetRegistry.cpp">
       <Filter>Source Files\Assets</Filter>
@@ -1382,6 +1538,18 @@
     </ClCompile>
     <ClCompile Include="HIKARI\Scene\Serialization\HIKARI_SceneSerializer.cpp">
       <Filter>Source Files\Scene\Serialization</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Scene\Serialization\Environment\HIKARI_SceneEnvironmentJson.cpp">
+      <Filter>Source Files\Scene\Serialization\Environment</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Scene\Serialization\Lighting\HIKARI_SceneLightingBakeJson.cpp">
+      <Filter>Source Files\Scene\Serialization\Lighting</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Scene\Serialization\Objects\HIKARI_SceneObjectJson.cpp">
+      <Filter>Source Files\Scene\Serialization\Objects</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Scene\Serialization\Systems\HIKARI_SceneSystemsJson.cpp">
+      <Filter>Source Files\Scene\Serialization\Systems</Filter>
     </ClCompile>
     <ClCompile Include="HIKARI\Scene\HIKARI_ComponentRegistry.cpp">
       <Filter>Source Files\Scene</Filter>
@@ -2055,20 +2223,20 @@
     <ClCompile Include="HIKARI\Editor\HIKARI_HierarchyPanel.cpp">
       <Filter>Source Files\Editor\Panels</Filter>
     </ClCompile>
-    <ClCompile Include="HIKARI\Editor\HIKARI_AssetBrowserPanel.cpp">
-      <Filter>Source Files\Editor\Panels</Filter>
+    <ClCompile Include="HIKARI\Editor\Assets\Browser\HIKARI_AssetBrowserPanel.cpp">
+      <Filter>Source Files\Editor\Assets\Browser</Filter>
     </ClCompile>
     <ClCompile Include="HIKARI\Editor\Assets\HIKARI_AssetImportSettingsEditor.cpp">
       <Filter>Source Files\Editor\Assets</Filter>
     </ClCompile>
-    <ClCompile Include="HIKARI\Editor\Panels\HIKARI_AssetInspectorPanel.cpp">
-      <Filter>Source Files\Editor\Panels</Filter>
+    <ClCompile Include="HIKARI\Editor\Assets\Inspector\HIKARI_AssetInspectorPanel.cpp">
+      <Filter>Source Files\Editor\Assets\Inspector</Filter>
     </ClCompile>
-    <ClCompile Include="HIKARI\Editor\Panels\HIKARI_ResourceWorkspacePanel.cpp">
-      <Filter>Source Files\Editor\Panels</Filter>
+    <ClCompile Include="HIKARI\Editor\Assets\Workspace\HIKARI_ResourceWorkspacePanel.cpp">
+      <Filter>Source Files\Editor\Assets\Workspace</Filter>
     </ClCompile>
-    <ClCompile Include="HIKARI\Editor\Panels\HIKARI_PerformanceAuditPanel.cpp">
-      <Filter>Source Files\Editor\Panels</Filter>
+    <ClCompile Include="HIKARI\Editor\Performance\HIKARI_PerformanceAuditPanel.cpp">
+      <Filter>Source Files\Editor\Performance</Filter>
     </ClCompile>
     <ClCompile Include="HIKARI\Editor\Panels\HIKARI_ProjectFeaturesPanel.cpp">
       <Filter>Source Files\Editor\Panels</Filter>
@@ -2130,9 +2298,6 @@
     <ClCompile Include="HIKARI\Editor\HIKARI_DocumentComponentAuthoringService.cpp">
       <Filter>Source Files\Editor\Controllers</Filter>
     </ClCompile>
-    <ClCompile Include="HIKARI\Editor\Controllers\HIKARI_DocumentSceneEditorCommands.cpp">
-      <Filter>Source Files\Editor\Controllers</Filter>
-    </ClCompile>
     <ClCompile Include="HIKARI\Editor\Commands\HIKARI_EditorCommandRouter.cpp">
       <Filter>Source Files\Editor\Controllers</Filter>
     </ClCompile>
@@ -2148,8 +2313,8 @@
     <ClCompile Include="HIKARI\Editor\Panels\HIKARI_SceneCreationPanel.cpp">
       <Filter>Source Files\Editor\Panels</Filter>
     </ClCompile>
-    <ClCompile Include="HIKARI\Editor\Panels\HIKARI_SceneInspectorPanel.cpp">
-      <Filter>Source Files\Editor\Panels</Filter>
+    <ClCompile Include="HIKARI\Editor\Scene\Inspector\HIKARI_SceneInspectorPanel.cpp">
+      <Filter>Source Files\Editor\Scene\Inspector</Filter>
     </ClCompile>
     <ClCompile Include="HIKARI\Editor\Viewport\HIKARI_SceneViewportSelectionService.cpp">
       <Filter>Source Files\Editor\Controllers</Filter>
@@ -2353,6 +2518,132 @@
     </ClCompile>
     <ClCompile Include="HIKARI\Render3D\Upscaling\HIKARI_StreamlineDeployment.cpp">
       <Filter>Source Files\Render3D\Upscaling</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Editor\Workspaces\AnimationStateMachine\HIKARI_AnimationStateMachineGraphSupport.cpp">
+      <Filter>Source Files\Editor\Workspaces\AnimationStateMachine</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Editor\Assets\Workspace\HIKARI_ResourceWorkspaceSections.cpp">
+      <Filter>Source Files\Editor\Assets\Workspace</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Editor\Workspaces\Cinematics\HIKARI_CinematicsCameraWindows.cpp">
+      <Filter>Source Files\Editor\Workspaces\Cinematics</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Editor\Workspaces\Cinematics\HIKARI_CinematicsDirectorViewWindow.cpp">
+      <Filter>Source Files\Editor\Workspaces\Cinematics</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Editor\Workspaces\Cinematics\HIKARI_CinematicsGameViewWindow.cpp">
+      <Filter>Source Files\Editor\Workspaces\Cinematics</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Editor\Workspaces\Cinematics\HIKARI_CinematicsTimelineWindow.cpp">
+      <Filter>Source Files\Editor\Workspaces\Cinematics</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Editor\Workspaces\ModelCollision\HIKARI_ModelCollisionAutoGenerateWindow.cpp">
+      <Filter>Source Files\Editor\Workspaces\ModelCollision</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Editor\Workspaces\ModelCollision\HIKARI_ModelCollisionPendingDialogs.cpp">
+      <Filter>Source Files\Editor\Workspaces\ModelCollision</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Editor\Workspaces\ModelCollision\HIKARI_ModelCollisionPresentation.cpp">
+      <Filter>Source Files\Editor\Workspaces\ModelCollision</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Editor\Workspaces\ModelCollision\HIKARI_ModelCollisionPreviewWindow.cpp">
+      <Filter>Source Files\Editor\Workspaces\ModelCollision</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Editor\Workspaces\ModelCollision\HIKARI_ModelCollisionShapeDetailsWindow.cpp">
+      <Filter>Source Files\Editor\Workspaces\ModelCollision</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Editor\Workspaces\ModelCollision\HIKARI_ModelCollisionShapeListWindow.cpp">
+      <Filter>Source Files\Editor\Workspaces\ModelCollision</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Editor\Workspaces\ModelCollision\HIKARI_ModelCollisionSourceModelWindow.cpp">
+      <Filter>Source Files\Editor\Workspaces\ModelCollision</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Editor\Assets\Browser\HIKARI_AssetBrowserAssetCreation.cpp">
+      <Filter>Source Files\Editor\Assets\Browser</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Editor\Assets\Browser\HIKARI_AssetBrowserCommon.cpp">
+      <Filter>Source Files\Editor\Assets\Browser</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Editor\Assets\Browser\HIKARI_AssetBrowserDropImport.cpp">
+      <Filter>Source Files\Editor\Assets\Browser</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Editor\Assets\Browser\HIKARI_AssetBrowserFiltering.cpp">
+      <Filter>Source Files\Editor\Assets\Browser</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Editor\Assets\Browser\HIKARI_AssetBrowserPresentation.cpp">
+      <Filter>Source Files\Editor\Assets\Browser</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Editor\Assets\Browser\HIKARI_AssetBrowserRecordActions.cpp">
+      <Filter>Source Files\Editor\Assets\Browser</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Editor\Assets\Browser\HIKARI_AssetBrowserRecordViews.cpp">
+      <Filter>Source Files\Editor\Assets\Browser</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Editor\Assets\Browser\HIKARI_AssetBrowserSceneDialogs.cpp">
+      <Filter>Source Files\Editor\Assets\Browser</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Editor\Assets\Browser\HIKARI_AssetBrowserSceneOperations.cpp">
+      <Filter>Source Files\Editor\Assets\Browser</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Editor\Assets\Inspector\HIKARI_MaterialAssetInspectorSection.cpp">
+      <Filter>Source Files\Editor\Assets\Inspector</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Editor\Assets\Inspector\HIKARI_ModelAssetInspectorSection.cpp">
+      <Filter>Source Files\Editor\Assets\Inspector</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Editor\Environment\HIKARI_EnvironmentAssetPickers.cpp">
+      <Filter>Source Files\Editor\Environment</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Editor\Environment\HIKARI_EnvironmentEditComparison.cpp">
+      <Filter>Source Files\Editor\Environment</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Editor\Environment\HIKARI_EnvironmentPresets.cpp">
+      <Filter>Source Files\Editor\Environment</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Editor\Performance\HIKARI_PerformanceAuditRenderSections.cpp">
+      <Filter>Source Files\Editor\Performance</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Editor\Performance\HIKARI_PerformanceAuditRuntimeSections.cpp">
+      <Filter>Source Files\Editor\Performance</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Editor\Performance\HIKARI_PerformanceAuditSnapshot.cpp">
+      <Filter>Source Files\Editor\Performance</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Editor\Performance\HIKARI_PerformanceAuditTimingSections.cpp">
+      <Filter>Source Files\Editor\Performance</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Editor\Platform\HIKARI_EditorShellActions.cpp">
+      <Filter>Source Files\Editor\Platform</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Editor\Quality\HIKARI_EnvironmentQualityControls.cpp">
+      <Filter>Source Files\Editor\Quality</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Editor\Quality\HIKARI_RenderQualityControls.cpp">
+      <Filter>Source Files\Editor\Quality</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Editor\Scene\Inspector\HIKARI_SceneInspectorDialogs.cpp">
+      <Filter>Source Files\Editor\Scene\Inspector</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Editor\Scene\Inspector\HIKARI_SceneInspectorObjectActions.cpp">
+      <Filter>Source Files\Editor\Scene\Inspector</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Editor\Views\Director\HIKARI_DirectorViewState.cpp">
+      <Filter>Source Files\Editor\Views\Director</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Editor\Views\Director\HIKARI_DirectorViewSupport.cpp">
+      <Filter>Source Files\Editor\Views\Director</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Editor\Widgets\HIKARI_PostProfileParameterWidget.cpp">
+      <Filter>Source Files\Editor\Widgets</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Editor\Workspaces\Camera\Overview\HIKARI_CameraOverviewCanvas.cpp">
+      <Filter>Source Files\Editor\Workspaces\Camera\Overview</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Editor\Workspaces\Camera\Overview\HIKARI_CameraOverviewList.cpp">
+      <Filter>Source Files\Editor\Workspaces\Camera\Overview</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Editor\Workspaces\Camera\Overview\HIKARI_CameraOverviewSupport.cpp">
+      <Filter>Source Files\Editor\Workspaces\Camera\Overview</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -2665,11 +2956,11 @@
     <ClInclude Include="HIKARI\Editor\Tools\HIKARI_EditorToolHost.h">
       <Filter>Header Files\Editor\Tools</Filter>
     </ClInclude>
-    <ClInclude Include="HIKARI\Editor\Views\HIKARI_DirectorViewPanel.h">
-      <Filter>Header Files\Editor\Views</Filter>
+    <ClInclude Include="HIKARI\Editor\Views\Director\HIKARI_DirectorViewPanel.h">
+      <Filter>Header Files\Editor\Views\Director</Filter>
     </ClInclude>
-    <ClInclude Include="HIKARI\Editor\Views\HIKARI_EditorDirectorCameraController.h">
-      <Filter>Header Files\Editor\Views</Filter>
+    <ClInclude Include="HIKARI\Editor\Views\Director\HIKARI_EditorDirectorCameraController.h">
+      <Filter>Header Files\Editor\Views\Director</Filter>
     </ClInclude>
     <ClInclude Include="HIKARI\Editor\Views\HIKARI_EditorViewInputRouter.h">
       <Filter>Header Files\Editor\Views</Filter>
@@ -2686,65 +2977,68 @@
     <ClInclude Include="HIKARI\Editor\Workspaces\HIKARI_EditorWorkspaceHost.h">
       <Filter>Header Files\Editor\Workspaces</Filter>
     </ClInclude>
-    <ClInclude Include="HIKARI\Editor\Workspaces\HIKARI_CameraOverviewPanel.h">
-      <Filter>Header Files\Editor\Workspaces</Filter>
+    <ClInclude Include="HIKARI\Editor\Workspaces\Camera\Overview\HIKARI_CameraOverviewPanel.h">
+      <Filter>Header Files\Editor\Workspaces\Camera\Overview</Filter>
     </ClInclude>
-    <ClInclude Include="HIKARI\Editor\Workspaces\HIKARI_CameraTimelinePanel.h">
-      <Filter>Header Files\Editor\Workspaces</Filter>
+    <ClInclude Include="HIKARI\Editor\Workspaces\Camera\Timeline\HIKARI_CameraTimelinePanel.h">
+      <Filter>Header Files\Editor\Workspaces\Camera\Timeline</Filter>
     </ClInclude>
-    <ClInclude Include="HIKARI\Editor\Workspaces\HIKARI_CameraTimelineCanvas.h">
-      <Filter>Header Files\Editor\Workspaces</Filter>
+    <ClInclude Include="HIKARI\Editor\Workspaces\Camera\Timeline\HIKARI_CameraTimelineCanvas.h">
+      <Filter>Header Files\Editor\Workspaces\Camera\Timeline</Filter>
     </ClInclude>
-    <ClInclude Include="HIKARI\Editor\Workspaces\HIKARI_CameraTimelineKeyframeClipboard.h">
-      <Filter>Header Files\Editor\Workspaces</Filter>
+    <ClInclude Include="HIKARI\Editor\Workspaces\Camera\Timeline\HIKARI_CameraTimelineKeyframeClipboard.h">
+      <Filter>Header Files\Editor\Workspaces\Camera\Timeline</Filter>
     </ClInclude>
-    <ClInclude Include="HIKARI\Editor\Workspaces\HIKARI_CameraTimelineKeyframeDrag.h">
-      <Filter>Header Files\Editor\Workspaces</Filter>
+    <ClInclude Include="HIKARI\Editor\Workspaces\Camera\Timeline\HIKARI_CameraTimelineKeyframeDrag.h">
+      <Filter>Header Files\Editor\Workspaces\Camera\Timeline</Filter>
     </ClInclude>
-    <ClInclude Include="HIKARI\Editor\Workspaces\HIKARI_CameraTimelineKeyframeAuthoring.h">
-      <Filter>Header Files\Editor\Workspaces</Filter>
+    <ClInclude Include="HIKARI\Editor\Workspaces\Camera\Timeline\HIKARI_CameraTimelineKeyframeAuthoring.h">
+      <Filter>Header Files\Editor\Workspaces\Camera\Timeline</Filter>
     </ClInclude>
-    <ClInclude Include="HIKARI\Editor\Workspaces\HIKARI_CameraTimelineKeyframeEditor.h">
-      <Filter>Header Files\Editor\Workspaces</Filter>
+    <ClInclude Include="HIKARI\Editor\Workspaces\Camera\Timeline\HIKARI_CameraTimelineKeyframeEditor.h">
+      <Filter>Header Files\Editor\Workspaces\Camera\Timeline</Filter>
     </ClInclude>
-    <ClInclude Include="HIKARI\Editor\Workspaces\HIKARI_CameraTimelineKeyframeInspector.h">
-      <Filter>Header Files\Editor\Workspaces</Filter>
+    <ClInclude Include="HIKARI\Editor\Workspaces\Camera\Timeline\HIKARI_CameraTimelineKeyframeInspector.h">
+      <Filter>Header Files\Editor\Workspaces\Camera\Timeline</Filter>
     </ClInclude>
-    <ClInclude Include="HIKARI\Editor\Workspaces\HIKARI_CameraTimelineKeyframeToolbar.h">
-      <Filter>Header Files\Editor\Workspaces</Filter>
+    <ClInclude Include="HIKARI\Editor\Workspaces\Camera\Timeline\HIKARI_CameraTimelineKeyframeToolbar.h">
+      <Filter>Header Files\Editor\Workspaces\Camera\Timeline</Filter>
     </ClInclude>
-    <ClInclude Include="HIKARI\Editor\Workspaces\HIKARI_CameraTimelineSelection.h">
-      <Filter>Header Files\Editor\Workspaces</Filter>
+    <ClInclude Include="HIKARI\Editor\Workspaces\Camera\Timeline\HIKARI_CameraTimelineSelection.h">
+      <Filter>Header Files\Editor\Workspaces\Camera\Timeline</Filter>
     </ClInclude>
-    <ClInclude Include="HIKARI\Editor\Workspaces\HIKARI_CameraTimelineShotEditor.h">
-      <Filter>Header Files\Editor\Workspaces</Filter>
+    <ClInclude Include="HIKARI\Editor\Workspaces\Camera\Timeline\HIKARI_CameraTimelineShotEditor.h">
+      <Filter>Header Files\Editor\Workspaces\Camera\Timeline</Filter>
     </ClInclude>
-    <ClInclude Include="HIKARI\Editor\Workspaces\HIKARI_CinematicsWorkspaceController.h">
-      <Filter>Header Files\Editor\Workspaces</Filter>
+    <ClInclude Include="HIKARI\Editor\Workspaces\Cinematics\HIKARI_CinematicsWorkspaceController.h">
+      <Filter>Header Files\Editor\Workspaces\Cinematics</Filter>
     </ClInclude>
-    <ClInclude Include="HIKARI\Editor\Workspaces\HIKARI_ModelCollisionHistory.h">
-      <Filter>Header Files\Editor\Workspaces</Filter>
+    <ClInclude Include="HIKARI\Editor\Workspaces\ModelCollision\HIKARI_ModelCollisionHistory.h">
+      <Filter>Header Files\Editor\Workspaces\ModelCollision</Filter>
     </ClInclude>
-    <ClInclude Include="HIKARI\Editor\Workspaces\HIKARI_ModelCollisionPreviewScene.h">
-      <Filter>Header Files\Editor\Workspaces</Filter>
+    <ClInclude Include="HIKARI\Editor\Workspaces\ModelCollision\HIKARI_ModelCollisionPreviewScene.h">
+      <Filter>Header Files\Editor\Workspaces\ModelCollision</Filter>
     </ClInclude>
-    <ClInclude Include="HIKARI\Editor\Workspaces\HIKARI_ModelCollisionSourceOutline.h">
-      <Filter>Header Files\Editor\Workspaces</Filter>
+    <ClInclude Include="HIKARI\Editor\Workspaces\ModelCollision\HIKARI_ModelCollisionPresentation.h">
+      <Filter>Header Files\Editor\Workspaces\ModelCollision</Filter>
     </ClInclude>
-    <ClInclude Include="HIKARI\Editor\Workspaces\HIKARI_ModelCollisionWorkspaceInteraction.h">
-      <Filter>Header Files\Editor\Workspaces</Filter>
+    <ClInclude Include="HIKARI\Editor\Workspaces\ModelCollision\HIKARI_ModelCollisionSourceOutline.h">
+      <Filter>Header Files\Editor\Workspaces\ModelCollision</Filter>
     </ClInclude>
-    <ClInclude Include="HIKARI\Editor\Workspaces\HIKARI_ModelCollisionRaycast.h">
-      <Filter>Header Files\Editor\Workspaces</Filter>
+    <ClInclude Include="HIKARI\Editor\Workspaces\ModelCollision\HIKARI_ModelCollisionWorkspaceInteraction.h">
+      <Filter>Header Files\Editor\Workspaces\ModelCollision</Filter>
     </ClInclude>
-    <ClInclude Include="HIKARI\Editor\Workspaces\HIKARI_ModelCollisionViewportOverlay.h">
-      <Filter>Header Files\Editor\Workspaces</Filter>
+    <ClInclude Include="HIKARI\Editor\Workspaces\ModelCollision\HIKARI_ModelCollisionRaycast.h">
+      <Filter>Header Files\Editor\Workspaces\ModelCollision</Filter>
     </ClInclude>
-    <ClInclude Include="HIKARI\Editor\Workspaces\HIKARI_ModelCollisionWorkspaceController.h">
-      <Filter>Header Files\Editor\Workspaces</Filter>
+    <ClInclude Include="HIKARI\Editor\Workspaces\ModelCollision\HIKARI_ModelCollisionViewportOverlay.h">
+      <Filter>Header Files\Editor\Workspaces\ModelCollision</Filter>
     </ClInclude>
-    <ClInclude Include="HIKARI\Editor\Workspaces\HIKARI_AnimationStateMachineWorkspaceController.h">
-      <Filter>Header Files\Editor\Workspaces</Filter>
+    <ClInclude Include="HIKARI\Editor\Workspaces\ModelCollision\HIKARI_ModelCollisionWorkspaceController.h">
+      <Filter>Header Files\Editor\Workspaces\ModelCollision</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Editor\Workspaces\AnimationStateMachine\HIKARI_AnimationStateMachineWorkspaceController.h">
+      <Filter>Header Files\Editor\Workspaces\AnimationStateMachine</Filter>
     </ClInclude>
     <ClInclude Include="HIKARI\Editor\HIKARI_EditorStyle.h">
       <Filter>Header Files\Editor</Filter>
@@ -2794,14 +3088,14 @@
     <ClInclude Include="HIKARI\Editor\Documents\HIKARI_SequenceEditorDocumentController.h">
       <Filter>Header Files\Editor\Documents</Filter>
     </ClInclude>
-    <ClInclude Include="HIKARI\Editor\Workspaces\HIKARI_SequenceLibraryPanel.h">
-      <Filter>Header Files\Editor\Workspaces</Filter>
+    <ClInclude Include="HIKARI\Editor\Workspaces\Sequence\HIKARI_SequenceLibraryPanel.h">
+      <Filter>Header Files\Editor\Workspaces\Sequence</Filter>
     </ClInclude>
-    <ClInclude Include="HIKARI\Editor\Workspaces\HIKARI_SequenceBindingPanel.h">
-      <Filter>Header Files\Editor\Workspaces</Filter>
+    <ClInclude Include="HIKARI\Editor\Workspaces\Sequence\HIKARI_SequenceBindingPanel.h">
+      <Filter>Header Files\Editor\Workspaces\Sequence</Filter>
     </ClInclude>
-    <ClInclude Include="HIKARI\Editor\Workspaces\HIKARI_SequenceEditorDocumentToolbar.h">
-      <Filter>Header Files\Editor\Workspaces</Filter>
+    <ClInclude Include="HIKARI\Editor\Workspaces\Sequence\HIKARI_SequenceEditorDocumentToolbar.h">
+      <Filter>Header Files\Editor\Workspaces\Sequence</Filter>
     </ClInclude>
     <ClInclude Include="HIKARI\Editor\DragDrop\HIKARI_EditorAssetDragDrop.h">
       <Filter>Header Files\Editor\DragDrop</Filter>
@@ -2890,14 +3184,20 @@
     <ClInclude Include="HIKARI\Render3D\Lighting\HIKARI_SkyManager.h">
       <Filter>Header Files\Render3D\Lighting</Filter>
     </ClInclude>
-    <ClInclude Include="HIKARI\Editor\Panels\HIKARI_EnvironmentPanel.h">
-      <Filter>Header Files\Editor\Panels</Filter>
+    <ClInclude Include="HIKARI\Editor\Environment\HIKARI_EnvironmentPanel.h">
+      <Filter>Header Files\Editor\Environment</Filter>
     </ClInclude>
-    <ClInclude Include="HIKARI\Editor\Panels\HIKARI_QualityPanel.h">
-      <Filter>Header Files\Editor\Panels</Filter>
+    <ClInclude Include="HIKARI\Editor\Quality\HIKARI_QualityPanel.h">
+      <Filter>Header Files\Editor\Quality</Filter>
     </ClInclude>
-    <ClInclude Include="HIKARI\Editor\Controllers\HIKARI_DocumentSceneEditorController.h">
-      <Filter>Header Files\Editor\Controllers</Filter>
+    <ClInclude Include="HIKARI\Editor\Controllers\DocumentScene\HIKARI_DocumentSceneEditorController.h">
+      <Filter>Header Files\Editor\Controllers\DocumentScene</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Editor\Controllers\DocumentScene\HIKARI_DocumentSceneEditorViewportPresentation.h">
+      <Filter>Header Files\Editor\Controllers\DocumentScene</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Editor\Controllers\DocumentScene\HIKARI_DocumentToolbarController.h">
+      <Filter>Header Files\Editor\Controllers\DocumentScene</Filter>
     </ClInclude>
     <ClInclude Include="HIKARI\Scene\Debug\HIKARI_ComponentGizmoRenderer.h">
       <Filter>Header Files\Scene\Debug</Filter>
@@ -2919,9 +3219,6 @@
     </ClInclude>
     <ClInclude Include="HIKARI\Editor\HIKARI_SelectionSyncService.h">
       <Filter>Header Files\Editor</Filter>
-    </ClInclude>
-    <ClInclude Include="HIKARI\Editor\Controllers\HIKARI_DocumentToolbarController.h">
-      <Filter>Header Files\Editor\Controllers</Filter>
     </ClInclude>
     <ClInclude Include="HIKARI\Editor\HIKARI_DocumentComponentAuthoringService.h">
       <Filter>Header Files\Editor</Filter>
@@ -3123,6 +3420,18 @@
     </ClInclude>
     <ClInclude Include="HIKARI\Scene\Serialization\HIKARI_SceneSerializer.h">
       <Filter>Header Files\Scene\Serialization</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Scene\Serialization\Environment\HIKARI_SceneEnvironmentJson.h">
+      <Filter>Header Files\Scene\Serialization\Environment</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Scene\Serialization\Lighting\HIKARI_SceneLightingBakeJson.h">
+      <Filter>Header Files\Scene\Serialization\Lighting</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Scene\Serialization\Objects\HIKARI_SceneObjectJson.h">
+      <Filter>Header Files\Scene\Serialization\Objects</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Scene\Serialization\Systems\HIKARI_SceneSystemsJson.h">
+      <Filter>Header Files\Scene\Serialization\Systems</Filter>
     </ClInclude>
     <ClInclude Include="HIKARI\Scene\HIKARI_ComponentRegistry.h">
       <Filter>Header Files\Scene</Filter>
@@ -3547,6 +3856,9 @@
     <ClInclude Include="HIKARI\Core\Serialization\Json\HIKARI_JsonFile.h">
       <Filter>Header Files\Core\Serialization\Json</Filter>
     </ClInclude>
+    <ClInclude Include="HIKARI\Core\Serialization\Json\HIKARI_JsonMath.h">
+      <Filter>Header Files\Core\Serialization\Json</Filter>
+    </ClInclude>
     <ClInclude Include="HIKARI\Physics\HIKARI_PhysicsSceneBridge.h">
       <Filter>Header Files\Physics</Filter>
     </ClInclude>
@@ -3628,23 +3940,23 @@
     <ClInclude Include="HIKARI\Editor\HIKARI_DebugCameraPanel.h">
       <Filter>Header Files\Editor\Panels</Filter>
     </ClInclude>
-    <ClInclude Include="HIKARI\Editor\HIKARI_AssetBrowserPanel.h">
-      <Filter>Header Files\Editor\Panels</Filter>
+    <ClInclude Include="HIKARI\Editor\Assets\Browser\HIKARI_AssetBrowserPanel.h">
+      <Filter>Header Files\Editor\Assets\Browser</Filter>
     </ClInclude>
     <ClInclude Include="HIKARI\Editor\Assets\HIKARI_AssetImportSettingsEditor.h">
       <Filter>Header Files\Editor\Assets</Filter>
     </ClInclude>
-    <ClInclude Include="HIKARI\Editor\Panels\HIKARI_AssetInspectorPanel.h">
-      <Filter>Header Files\Editor\Panels</Filter>
+    <ClInclude Include="HIKARI\Editor\Assets\Inspector\HIKARI_AssetInspectorPanel.h">
+      <Filter>Header Files\Editor\Assets\Inspector</Filter>
     </ClInclude>
     <ClInclude Include="HIKARI\Editor\Panels\HIKARI_LightingBakePanel.h">
       <Filter>Header Files\Editor\Panels</Filter>
     </ClInclude>
-    <ClInclude Include="HIKARI\Editor\Panels\HIKARI_ResourceWorkspacePanel.h">
-      <Filter>Header Files\Editor\Panels</Filter>
+    <ClInclude Include="HIKARI\Editor\Assets\Workspace\HIKARI_ResourceWorkspacePanel.h">
+      <Filter>Header Files\Editor\Assets\Workspace</Filter>
     </ClInclude>
-    <ClInclude Include="HIKARI\Editor\Panels\HIKARI_PerformanceAuditPanel.h">
-      <Filter>Header Files\Editor\Panels</Filter>
+    <ClInclude Include="HIKARI\Editor\Performance\HIKARI_PerformanceAuditPanel.h">
+      <Filter>Header Files\Editor\Performance</Filter>
     </ClInclude>
     <ClInclude Include="HIKARI\Editor\Panels\HIKARI_ProjectFeaturesPanel.h">
       <Filter>Header Files\Editor\Panels</Filter>
@@ -3700,8 +4012,8 @@
     <ClInclude Include="HIKARI\Editor\Panels\HIKARI_SceneCreationPanel.h">
       <Filter>Header Files\Editor\Panels</Filter>
     </ClInclude>
-    <ClInclude Include="HIKARI\Editor\Panels\HIKARI_SceneInspectorPanel.h">
-      <Filter>Header Files\Editor\Panels</Filter>
+    <ClInclude Include="HIKARI\Editor\Scene\Inspector\HIKARI_SceneInspectorPanel.h">
+      <Filter>Header Files\Editor\Scene\Inspector</Filter>
     </ClInclude>
     <ClInclude Include="HIKARI\Editor\Viewport\HIKARI_SceneViewportSelectionService.h">
       <Filter>Header Files\Editor\Controllers</Filter>
@@ -3897,6 +4209,42 @@
     </ClInclude>
     <ClInclude Include="HIKARI\Core\HIKARI_JsonRead.h">
       <Filter>Header Files\Core</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Editor\Workspaces\AnimationStateMachine\HIKARI_AnimationStateMachineGraphSupport.h">
+      <Filter>Header Files\Editor\Workspaces\AnimationStateMachine</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Editor\Assets\Workspace\HIKARI_ResourceWorkspaceSections.h">
+      <Filter>Header Files\Editor\Assets\Workspace</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Editor\Assets\Browser\HIKARI_AssetBrowserInternal.h">
+      <Filter>Header Files\Editor\Assets\Browser</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Editor\Assets\Inspector\HIKARI_AssetInspectorInternal.h">
+      <Filter>Header Files\Editor\Assets\Inspector</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Editor\Environment\HIKARI_EnvironmentEditComparison.h">
+      <Filter>Header Files\Editor\Environment</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Editor\Environment\HIKARI_EnvironmentPanelSections.h">
+      <Filter>Header Files\Editor\Environment</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Editor\Performance\HIKARI_PerformanceAuditInternal.h">
+      <Filter>Header Files\Editor\Performance</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Editor\Platform\HIKARI_EditorShellActions.h">
+      <Filter>Header Files\Editor\Platform</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Editor\Quality\HIKARI_QualityPanelSections.h">
+      <Filter>Header Files\Editor\Quality</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Editor\Views\Director\HIKARI_DirectorViewInternal.h">
+      <Filter>Header Files\Editor\Views\Director</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Editor\Widgets\HIKARI_PostProfileParameterWidget.h">
+      <Filter>Header Files\Editor\Widgets</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Editor\Workspaces\Camera\Overview\HIKARI_CameraOverviewInternal.h">
+      <Filter>Header Files\Editor\Workspaces\Camera\Overview</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

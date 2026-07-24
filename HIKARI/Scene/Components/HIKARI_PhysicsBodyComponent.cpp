@@ -6,9 +6,13 @@
 #include <string_view>
 
 #include "Core/HIKARI_JsonRead.h"
+#include "Core/Serialization/Json/HIKARI_JsonMath.h"
 #include "Editor/Inspectors/HIKARI_IInspectorBuilder.h"
 
 namespace HIKARI {
+
+    namespace JsonMath = SERIALIZATION::JSON::MATH;
+
     namespace {
         constexpr std::array<const char*, 3> kMotionTypeNames{
             "Static", "Kinematic", "Dynamic"
@@ -43,10 +47,6 @@ namespace HIKARI {
             if (text == "Kinematic") return PHYSICS::PhysicsMotionType::Kinematic;
             if (text == "Dynamic") return PHYSICS::PhysicsMotionType::Dynamic;
             return fallback;
-        }
-
-        nlohmann::json ToJson(const MATH::Vec3& value) {
-            return nlohmann::json::array({ value.x, value.y, value.z });
         }
 
         void DrawVec3(
@@ -87,10 +87,14 @@ namespace HIKARI {
         out["angularDamping"] = angularDamping_;
         out["allowSleeping"] = allowSleeping_;
         out["continuousCollision"] = continuousCollision_;
-        out["initialLinearVelocity"] = ToJson(initialLinearVelocity_);
-        out["initialAngularVelocity"] = ToJson(initialAngularVelocity_);
-        out["lockTranslation"] = ToJson(lockedTranslationAxes_);
-        out["lockRotation"] = ToJson(lockedRotationAxes_);
+        out["initialLinearVelocity"] =
+            JsonMath::ToJsonArray(initialLinearVelocity_);
+        out["initialAngularVelocity"] =
+            JsonMath::ToJsonArray(initialAngularVelocity_);
+        out["lockTranslation"] =
+            JsonMath::ToJsonArray(lockedTranslationAxes_);
+        out["lockRotation"] =
+            JsonMath::ToJsonArray(lockedRotationAxes_);
     }
 
     void PhysicsBodyComponent::Deserialize(const nlohmann::json& in) {

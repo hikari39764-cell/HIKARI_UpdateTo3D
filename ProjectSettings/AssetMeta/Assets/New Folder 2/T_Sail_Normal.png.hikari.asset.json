@@ -1,0 +1,21 @@
+{
+  "displayName": "T_Sail_Normal",
+  "guid": "6caaa54edaed2b738d8afc08ed14ee48",
+  "importSettings": {
+    "allowResize": false,
+    "colorSpace": "Linear",
+    "compression": "BC7",
+    "debugOutputFormat": "DDS",
+    "dimension": "Texture2D",
+    "forcePowerOfTwo": false,
+    "maxSize": 4096,
+    "mipPolicy": "Generate",
+    "outputFormat": "HTEX",
+    "usage": "Normal"
+  },
+  "importerId": "TextureImporter",
+  "importerVersion": 5,
+  "metaVersion": 1,
+  "sourcePath": "Assets/New Folder 2/T_Sail_Normal.png",
+  "type": "Texture"
+}

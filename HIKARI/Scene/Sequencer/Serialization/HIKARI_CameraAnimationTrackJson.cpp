@@ -3,7 +3,11 @@
 #include <string>
 #include <utility>
 
+#include "Core/Serialization/Json/HIKARI_JsonMath.h"
+
 namespace HIKARI {
+
+    namespace JsonMath = SERIALIZATION::JSON::MATH;
 
     namespace {
         using nlohmann::json;
@@ -54,10 +58,6 @@ namespace HIKARI {
                 };
             }
             return fallback;
-        }
-
-        json SerializeVec3(const MATH::Vec3& value) {
-            return json::array({ value.x, value.y, value.z });
         }
 
         void DeserializeTransformTrack(
@@ -207,9 +207,11 @@ namespace HIKARI {
                     channelNode["keyframes"].push_back({
                         { "id", keyframe.id },
                         { "timeSeconds", keyframe.timeSeconds },
-                        { "position", SerializeVec3(keyframe.position) },
+                        { "position",
+                            JsonMath::ToJsonArray(keyframe.position) },
                         { "rotationEulerDeg",
-                            SerializeVec3(keyframe.rotationEulerDeg) },
+                            JsonMath::ToJsonArray(
+                                keyframe.rotationEulerDeg) },
                         { "interpolation", ToString(keyframe.interpolation) }
                     });
                 }

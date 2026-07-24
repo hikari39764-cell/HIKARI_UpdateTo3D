@@ -2,6 +2,7 @@
 #include "Editor/HIKARI_EditorContext.h"
 #include "Editor/Export/HIKARI_GameExporter.h"
 #include "Editor/Menus/HIKARI_EditorDocumentMenu.h"
+#include "Editor/Platform/HIKARI_EditorShellActions.h"
 #include "Editor/Tools/HIKARI_BuiltInEditorTools.h"
 #include "Editor/Tools/HIKARI_EditorToolHost.h"
 #include "Editor/Workspaces/HIKARI_EditorWorkspaceHost.h"
@@ -23,7 +24,6 @@
 #define NOMINMAX
 #endif
 #include <Windows.h>
-#include <shellapi.h>
 #include <shobjidl.h>
 
 #include "imgui.h"
@@ -144,20 +144,6 @@ namespace HIKARI {
             SetExportTarget(target);
             RefreshExportScenes();
             g_showGameExportWindow = true;
-        }
-
-        void OpenFolderInShell(const std::filesystem::path& directory) {
-            if (directory.empty()) {
-                return;
-            }
-
-            ShellExecuteW(
-                nullptr,
-                L"open",
-                directory.wstring().c_str(),
-                nullptr,
-                nullptr,
-                SW_SHOWNORMAL);
         }
 
         std::optional<std::filesystem::path> PickFolderWithInitializedCom(
@@ -425,7 +411,8 @@ namespace HIKARI {
                     ImGui::BeginDisabled();
                 }
                 if (ImGui::Button("Open Folder")) {
-                    OpenFolderInShell(currentOutputPath);
+                    EDITOR::SHELL::OpenFolderInExplorer(
+                        currentOutputPath);
                 }
                 if (!canOpenOutput) {
                     ImGui::EndDisabled();

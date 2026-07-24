@@ -8,7 +8,7 @@
     "geometryPipeline": "MeshShader",
     "lightProbeVolumeSampling": "FastSmooth",
     "sceneDepthPrepass": false,
-    "sceneResolution": "1440p",
+    "sceneResolution": "2160p",
     "taaDepthRejection": 0.0024999999441206455,
     "taaHistoryWeight": 0.9200000166893005,
     "taaLuminanceRejection": 0.550000011920929,

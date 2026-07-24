@@ -1,6 +1,6 @@
 {
   "camera": {
-    "defaultCameraObjectId": null
+    "defaultCameraObjectId": 6
   },
   "cinematics": {
     "defaultSequenceId": 1,
@@ -427,6 +427,7 @@
         4,
         8
       ],
+      "enabled": true,
       "intensity": 1.1299999952316284,
       "origin": [
         -30.850000381469727,

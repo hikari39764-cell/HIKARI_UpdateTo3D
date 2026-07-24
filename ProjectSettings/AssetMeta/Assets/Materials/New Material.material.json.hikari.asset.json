@@ -1,0 +1,15 @@
+{
+  "displayName": "New Material",
+  "guid": "7cd0ac4ccdb960c1d78c15a697700d54",
+  "importSettings": {
+    "cookMaterial": true,
+    "outputFormat": "HMAT",
+    "shaderModel": "PBR",
+    "sourceFormat": ".material.json"
+  },
+  "importerId": "MaterialImporter",
+  "importerVersion": 4,
+  "metaVersion": 1,
+  "sourcePath": "Assets/Materials/New Material.material.json",
+  "type": "Material"
+}

@@ -1,0 +1,21 @@
+{
+  "displayName": "T_Deck_Normal",
+  "guid": "aed6b5d7ba2d8274027f9d5f4834d51d",
+  "importSettings": {
+    "allowResize": false,
+    "colorSpace": "Linear",
+    "compression": "BC7",
+    "debugOutputFormat": "DDS",
+    "dimension": "Texture2D",
+    "forcePowerOfTwo": false,
+    "maxSize": 4096,
+    "mipPolicy": "Generate",
+    "outputFormat": "HTEX",
+    "usage": "Normal"
+  },
+  "importerId": "TextureImporter",
+  "importerVersion": 5,
+  "metaVersion": 1,
+  "sourcePath": "Assets/New Folder 2/T_Deck_Normal.png",
+  "type": "Texture"
+}

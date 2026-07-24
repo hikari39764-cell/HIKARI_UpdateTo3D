@@ -10,9 +10,13 @@
 #include "Assets/Collision/HIKARI_ModelCollisionSetupGeometry.h"
 #include "Core/IO/HIKARI_FileReplacementTransaction.h"
 #include "Core/Serialization/Json/HIKARI_JsonFile.h"
+#include "Core/Serialization/Json/HIKARI_JsonMath.h"
 #include "Core/Math/HIKARI_MathValidation.h"
 
 namespace HIKARI::ASSETS::COLLISION {
+
+    namespace JsonMath = ::HIKARI::SERIALIZATION::JSON::MATH;
+
     namespace {
         const char* ToString(CollisionGeometryShapeType type) noexcept {
             switch (type) {
@@ -46,10 +50,6 @@ namespace HIKARI::ASSETS::COLLISION {
                 return CollisionGeometryShapeType::TriangleMesh;
             }
             return CollisionGeometryShapeType::Box;
-        }
-
-        nlohmann::json SerializeVec3(const MATH::Vec3& value) {
-            return nlohmann::json::array({ value.x, value.y, value.z });
         }
 
         MATH::Vec3 ReadVec3(
@@ -128,10 +128,11 @@ namespace HIKARI::ASSETS::COLLISION {
                     { "id", shape.id },
                     { "name", shape.name },
                     { "type", ToString(shape.type) },
-                    { "center", SerializeVec3(shape.center) },
-                    { "rotationEulerDegrees", SerializeVec3(
-                        shape.rotationEulerDegrees) },
-                    { "size", SerializeVec3(shape.size) },
+                    { "center", JsonMath::ToJsonArray(shape.center) },
+                    { "rotationEulerDegrees",
+                        JsonMath::ToJsonArray(
+                            shape.rotationEulerDegrees) },
+                    { "size", JsonMath::ToJsonArray(shape.size) },
                     { "radius", shape.radius },
                     { "height", shape.height },
                     { "enabled", shape.enabled },

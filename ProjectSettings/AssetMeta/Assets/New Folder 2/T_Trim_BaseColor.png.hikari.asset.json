@@ -1,0 +1,21 @@
+{
+  "displayName": "T_Trim_BaseColor",
+  "guid": "5bba2f6f3df2a367021f9c586643b102",
+  "importSettings": {
+    "allowResize": false,
+    "colorSpace": "Srgb",
+    "compression": "BC7",
+    "debugOutputFormat": "DDS",
+    "dimension": "Texture2D",
+    "forcePowerOfTwo": false,
+    "maxSize": 4096,
+    "mipPolicy": "Generate",
+    "outputFormat": "HTEX",
+    "usage": "BaseColor"
+  },
+  "importerId": "TextureImporter",
+  "importerVersion": 5,
+  "metaVersion": 1,
+  "sourcePath": "Assets/New Folder 2/T_Trim_BaseColor.png",
+  "type": "Texture"
+}

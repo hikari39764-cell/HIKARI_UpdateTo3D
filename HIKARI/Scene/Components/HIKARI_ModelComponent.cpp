@@ -1,6 +1,8 @@
 #include "HIKARI_ModelComponent.h"
 
 #include "Assets/HIKARI_AssetTypes.h"
+#include "Core/Serialization/Json/HIKARI_JsonMath.h"
+#include "Editor/Widgets/HIKARI_PostProfileParameterWidget.h"
 #include "Editor/Inspectors/HIKARI_IInspectorBuilder.h"
 #include "Render3D/Core/HIKARI_Material.h"
 #include "Render3D/Core/HIKARI_MeshRenderer.h"
@@ -20,6 +22,8 @@
 #endif
 
 namespace HIKARI {
+
+    namespace JsonMath = SERIALIZATION::JSON::MATH;
 
     namespace {
         bool ResolveParamRef(const MaterialFxProfile& profile, const std::string& key, VFX::ParamChannelRef& outRef, VFX::ParamType* outType = nullptr) {
@@ -104,55 +108,6 @@ namespace HIKARI {
             return path.empty() ? "<empty>" : path.c_str();
         }
 
-        bool DrawParamControl(const VFX::ParamDesc& param, DirectX::XMFLOAT4& slotValue) {
-            float value[4] = { slotValue.x, slotValue.y, slotValue.z, slotValue.w };
-            bool changed = false;
-            const std::string labelText = param.label.empty() ? param.key : param.label;
-            const char* label = labelText.empty() ? "<unnamed>" : labelText.c_str();
-            if (param.ref.channel >= 4) {
-                return false;
-            }
-            switch (param.type) {
-            case VFX::ParamType::Float:
-                changed = ImGui::DragFloat(label, &value[param.ref.channel], param.speed, param.minValues[0], param.maxValues[0]);
-                break;
-            case VFX::ParamType::Float2:
-                if (param.ref.channel > 2) break;
-                changed = ImGui::DragFloat2(label, &value[param.ref.channel], param.speed, param.minValues[0], param.maxValues[0]);
-                break;
-            case VFX::ParamType::Float3:
-                if (param.ref.channel > 1) break;
-                changed = ImGui::DragFloat3(label, &value[param.ref.channel], param.speed, param.minValues[0], param.maxValues[0]);
-                break;
-            case VFX::ParamType::Float4:
-                if (param.ref.channel > 0) break;
-                changed = ImGui::DragFloat4(label, &value[param.ref.channel], param.speed, param.minValues[0], param.maxValues[0]);
-                break;
-            case VFX::ParamType::Color3:
-                if (param.ref.channel > 1) break;
-                changed = ImGui::ColorEdit3(label, &value[param.ref.channel]);
-                break;
-            case VFX::ParamType::Color:
-            case VFX::ParamType::Color4:
-                if (param.ref.channel > 0) break;
-                changed = ImGui::ColorEdit4(label, &value[param.ref.channel]);
-                break;
-            case VFX::ParamType::Toggle: {
-                bool enabled = value[param.ref.channel] >= 0.5f;
-                if (ImGui::Checkbox(label, &enabled)) {
-                    value[param.ref.channel] = enabled ? 1.0f : 0.0f;
-                    changed = true;
-                }
-                break;
-            }
-            default:
-                break;
-            }
-            if (changed) {
-                slotValue = { value[0], value[1], value[2], value[3] };
-            }
-            return changed;
-        }
 #endif
 
         bool DrawMaterialFxParamInspector(
@@ -665,7 +620,8 @@ namespace HIKARI {
         if (materialFxValuesInitialized_) {
             out["materialFxParamValues"] = nlohmann::json::array();
             for (const DirectX::XMFLOAT4& value : materialFxParamValues_) {
-                out["materialFxParamValues"].push_back(nlohmann::json::array({ value.x, value.y, value.z, value.w }));
+                out["materialFxParamValues"].push_back(
+                    JsonMath::ToJsonArray(value));
             }
         }
     }
@@ -925,7 +881,9 @@ namespace HIKARI {
                             }
                             ImGui::PushID(static_cast<int>(paramIndex));
                             DirectX::XMFLOAT4 slotValue = visibleFxValues[slot];
-                            if (DrawParamControl(param, slotValue)) {
+                            if (EDITOR::DrawPostProfileParameter(
+                                    param,
+                                    slotValue)) {
                                 visibleFxValues[slot] = slotValue;
                                 ensureWritableFxValues();
                                 materialFxParamValues_[slot] = slotValue;

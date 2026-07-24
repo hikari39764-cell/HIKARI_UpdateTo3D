@@ -15,11 +15,11 @@ namespace HIKARI::PHYSICS::JOLT_BACKEND {
     namespace {
         constexpr JPH::ObjectLayer kCharacterLayer = 1;
         constexpr uint64_t kCharacterUserDataTag = uint64_t{ 1 } << 63u;
-
+		// 物理キャラクターのユーザーデータをエンコードするためのタグ
         uint32_t BodyIdKey(const JPH::BodyID& bodyId) noexcept {
             return bodyId.GetIndexAndSequenceNumber();
         }
-
+		// 物理キャラクターのユーザーデータをエンコードする関数
         uint64_t EncodeCharacterUserData(
             PhysicsCharacterHandle handle) noexcept {
             return kCharacterUserDataTag |
@@ -27,7 +27,7 @@ namespace HIKARI::PHYSICS::JOLT_BACKEND {
                     << 32u) |
                 static_cast<uint64_t>(handle.slot);
         }
-
+		// 物理キャラクターのユーザーデータをデコードする関数
         PhysicsCharacterHandle DecodeCharacterUserData(
             uint64_t value) noexcept {
             if ((value & kCharacterUserDataTag) == 0u) {
@@ -39,7 +39,7 @@ namespace HIKARI::PHYSICS::JOLT_BACKEND {
                 (value >> 32u) & 0x7FFFFFFFu);
             return result;
         }
-
+		// 物理キャラクターの作成情報が有限であるかどうかをチェックする関数
         bool IsFinite(const PhysicsCharacterCreateInfo& info) noexcept {
             const auto finite = [](float value) {
                 return std::isfinite(value);

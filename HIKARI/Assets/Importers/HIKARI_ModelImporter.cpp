@@ -20,11 +20,14 @@
 #include "Core/IO/HIKARI_FileReplacementTransaction.h"
 #include "Core/HIKARI_Logger.h"
 #include "Core/Serialization/Json/HIKARI_JsonFile.h"
+#include "Core/Serialization/Json/HIKARI_JsonMath.h"
 #include "Project/Paths/HIKARI_ProjectPath.h"
 #include "HIKARI_TextureImportBackend_DirectXTex.h"
 #include "Render3D/Core/HIKARI_ModelManager.h"
 
 namespace HIKARI {
+
+    namespace JsonMath = SERIALIZATION::JSON::MATH;
 
     namespace {
 
@@ -49,18 +52,6 @@ namespace HIKARI {
                 return {};
             }
             return (libraryRoot / "AssetDatabase" / "Artifacts" / (guid + ".artifact.json")).lexically_normal();
-        }
-
-        nlohmann::json ToJson(const MATH::Vec3& value) {
-            return nlohmann::json::array({ value.x, value.y, value.z });
-        }
-
-        nlohmann::json ToJson(const MATH::Vec2& value) {
-            return nlohmann::json::array({ value.x, value.y });
-        }
-
-        nlohmann::json ToJson(const MATH::Vec4& value) {
-            return nlohmann::json::array({ value.x, value.y, value.z, value.w });
         }
 
         const char* ToString(AlphaMode alphaMode) {
@@ -165,8 +156,8 @@ namespace HIKARI {
             nlohmann::json json{
                 { "textureIndex", slot.textureIndex },
                 { "texCoord", slot.texCoord },
-                { "uvScale", ToJson(slot.uvScale) },
-                { "uvOffset", ToJson(slot.uvOffset) },
+                { "uvScale", JsonMath::ToJsonArray(slot.uvScale) },
+                { "uvOffset", JsonMath::ToJsonArray(slot.uvOffset) },
                 { "uvRotation", slot.uvRotation },
                 { "scale", slot.scale },
                 { "strength", slot.strength },
@@ -239,12 +230,18 @@ namespace HIKARI {
             for (const MaterialAsset& material : model.materials) {
                 materials.push_back({
                     { "name", material.name },
-                    { "baseColorFactor", ToJson(material.baseColorFactor) },
+                    { "baseColorFactor",
+                        JsonMath::ToJsonArray(
+                            material.baseColorFactor) },
                     { "metallicFactor", material.metallicFactor },
                     { "roughnessFactor", material.roughnessFactor },
                     { "specularFactor", material.specularFactor },
-                    { "specularColorFactor", ToJson(material.specularColorFactor) },
-                    { "emissiveFactor", ToJson(material.emissiveFactor) },
+                    { "specularColorFactor",
+                        JsonMath::ToJsonArray(
+                            material.specularColorFactor) },
+                    { "emissiveFactor",
+                        JsonMath::ToJsonArray(
+                            material.emissiveFactor) },
                     { "emissiveStrength", material.emissiveStrength },
                     { "alphaMode", ToString(material.alphaMode) },
                     { "doubleSided", material.doubleSided },

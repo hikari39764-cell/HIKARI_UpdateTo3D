@@ -3,6 +3,7 @@
 #include "Assets/Lighting/HIKARI_LightingBakeManifest.h"
 #include "Assets/Lighting/HIKARI_LightProbeVolumeFormat.h"
 #include "Core/HIKARI_Logger.h"
+#include "Editor/Platform/HIKARI_EditorShellActions.h"
 #include "Render3D/Diagnostics/HIKARI_EnvironmentDiagnostics.h"
 #include "Scene/Scenes/HIKARI_DocumentSceneBase.h"
 #include "Tools/Baking/HIKARI_LightingBakeService.h"
@@ -12,12 +13,6 @@
 #endif
 
 #include <algorithm>
-
-#if defined(_WIN32)
-#define WIN32_LEAN_AND_MEAN
-#include <Windows.h>
-#include <shellapi.h>
-#endif
 
 namespace HIKARI {
 
@@ -172,26 +167,13 @@ namespace HIKARI {
                 return false;
             }
 
-#if defined(_WIN32)
-            const HINSTANCE result = ShellExecuteW(
-                nullptr,
-                L"open",
-                folder.wstring().c_str(),
-                nullptr,
-                nullptr,
-                SW_SHOWNORMAL);
-
-            if (reinterpret_cast<intptr_t>(result) <= 32) {
+            if (!EDITOR::SHELL::OpenFolderInExplorer(folder)) {
                 outMessage = "Failed to open bake folder: " + folder.generic_string();
                 return false;
             }
 
             outMessage = "Opened bake folder: " + folder.generic_string();
             return true;
-#else
-            outMessage = "Open folder is not implemented on this platform: " + folder.generic_string();
-            return false;
-#endif
         }
 
     } // namespace

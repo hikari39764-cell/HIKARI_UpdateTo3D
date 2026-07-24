@@ -10,6 +10,7 @@
 #include "Assets/HIKARI_AssetRegistry.h"
 #include "Assets/HIKARI_AssetTypes.h"
 #include "Core/HIKARI_JsonRead.h"
+#include "Core/Serialization/Json/HIKARI_JsonMath.h"
 #include "Editor/Inspectors/HIKARI_IInspectorBuilder.h"
 #include "Editor/Inspectors/HIKARI_PhysicsCollisionFilterInspector.h"
 #include "Physics/HIKARI_PhysicsBodyValidator.h"
@@ -21,6 +22,9 @@
 #include "Scene/HIKARI_WorldServiceRegistry.h"
 
 namespace HIKARI {
+
+    namespace JsonMath = SERIALIZATION::JSON::MATH;
+
     namespace {
         constexpr std::array<const char*, 3> kShapeTypeNames{
             "Box", "Sphere", "Capsule"
@@ -97,10 +101,6 @@ namespace HIKARI {
             return fallback;
         }
 
-        nlohmann::json ToJson(const MATH::Vec3& value) {
-            return nlohmann::json::array({ value.x, value.y, value.z });
-        }
-
         void DrawVec3(
             IInspectorBuilder& builder,
             std::string_view prefix,
@@ -117,9 +117,10 @@ namespace HIKARI {
         out["fitMode"] = ToString(fitMode_);
         out["shape"] = ToString(shapeType_);
         out["collisionAssetId"] = collisionGeometryAssetId_;
-        out["center"] = ToJson(center_);
-        out["rotation"] = ToJson(rotationEulerDegrees_);
-        out["size"] = ToJson(size_);
+        out["center"] = JsonMath::ToJsonArray(center_);
+        out["rotation"] =
+            JsonMath::ToJsonArray(rotationEulerDegrees_);
+        out["size"] = JsonMath::ToJsonArray(size_);
         out["radius"] = radius_;
         out["height"] = height_;
         out["trigger"] = trigger_;

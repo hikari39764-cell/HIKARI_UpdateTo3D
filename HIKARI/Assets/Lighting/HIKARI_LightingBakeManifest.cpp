@@ -7,14 +7,13 @@
 
 #include "Core/HIKARI_JsonRead.h"
 #include "Core/Serialization/Json/HIKARI_JsonFile.h"
+#include "Core/Serialization/Json/HIKARI_JsonMath.h"
 
 namespace HIKARI::ASSETS::LIGHTING {
 
-    namespace {
+    namespace JsonMath = ::HIKARI::SERIALIZATION::JSON::MATH;
 
-        nlohmann::json ToJson(const MATH::Vec3& value) {
-            return nlohmann::json::array({ value.x, value.y, value.z });
-        }
+    namespace {
 
         std::string NormalizeInfluenceShape(std::string value) {
             return value == "Box" ? "Box" : "Sphere";
@@ -101,15 +100,23 @@ namespace HIKARI::ASSETS::LIGHTING {
             return nlohmann::json{
                 { "id", record.id },
                 { "name", record.name },
-                { "position", ToJson(record.position) },
+                { "position", JsonMath::ToJsonArray(record.position) },
                 { "radius", record.radius },
                 { "intensity", record.intensity },
                 { "influenceShape", NormalizeInfluenceShape(record.influenceShape) },
-                { "influenceBoxCenter", ToJson(record.influenceBoxCenter) },
-                { "influenceBoxSize", ToJson(record.influenceBoxSize) },
+                { "influenceBoxCenter",
+                    JsonMath::ToJsonArray(
+                        record.influenceBoxCenter) },
+                { "influenceBoxSize",
+                    JsonMath::ToJsonArray(
+                        record.influenceBoxSize) },
                 { "projectionShape", NormalizeProjectionShape(record.projectionShape) },
-                { "projectionBoxCenter", ToJson(record.projectionBoxCenter) },
-                { "projectionBoxSize", ToJson(record.projectionBoxSize) },
+                { "projectionBoxCenter",
+                    JsonMath::ToJsonArray(
+                        record.projectionBoxCenter) },
+                { "projectionBoxSize",
+                    JsonMath::ToJsonArray(
+                        record.projectionBoxSize) },
                 { "blendDistance", record.blendDistance },
                 { "priority", record.priority },
                 { "captureCubemapPath", record.captureCubemapPath },
@@ -124,9 +131,9 @@ namespace HIKARI::ASSETS::LIGHTING {
                 { "id", record.id },
                 { "name", record.name },
                 { "type", record.type },
-                { "position", ToJson(record.position) },
-                { "origin", ToJson(record.origin) },
-                { "size", ToJson(record.size) },
+                { "position", JsonMath::ToJsonArray(record.position) },
+                { "origin", JsonMath::ToJsonArray(record.origin) },
+                { "size", JsonMath::ToJsonArray(record.size) },
                 { "countX", record.countX },
                 { "countY", record.countY },
                 { "countZ", record.countZ },

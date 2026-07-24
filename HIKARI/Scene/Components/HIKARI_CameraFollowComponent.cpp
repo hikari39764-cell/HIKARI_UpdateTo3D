@@ -5,17 +5,16 @@
 #include <numbers>
 
 #include "Core/HIKARI_JsonRead.h"
+#include "Core/Serialization/Json/HIKARI_JsonMath.h"
 #include "Editor/Inspectors/HIKARI_IInspectorBuilder.h"
 #include "Input/Runtime/HIKARI_InputTypes.h"
 
 namespace HIKARI {
 
+    namespace JsonMath = SERIALIZATION::JSON::MATH;
+
     namespace {
         constexpr float kMinimumRange = 0.01f;
-
-        nlohmann::json ToJson(const MATH::Vec3& value) {
-            return nlohmann::json::array({ value.x, value.y, value.z });
-        }
 
         float RadiansToDegrees(float radians) noexcept {
             return radians * 180.0f / std::numbers::pi_v<float>;
@@ -27,7 +26,7 @@ namespace HIKARI {
         out["priority"] = priority_;
         out["targetObjectId"] = targetObjectId_.value;
         out["useOwnerAsFallbackTarget"] = useOwnerAsFallbackTarget_;
-        out["pivotOffset"] = ToJson(pivotOffset_);
+        out["pivotOffset"] = JsonMath::ToJsonArray(pivotOffset_);
         out["initialYawDegrees"] = initialYawDegrees_;
         out["initialPitchDegrees"] = initialPitchDegrees_;
         out["initialDistance"] = initialDistance_;

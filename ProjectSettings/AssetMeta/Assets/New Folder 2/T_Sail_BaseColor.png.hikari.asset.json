@@ -1,0 +1,21 @@
+{
+  "displayName": "T_Sail_BaseColor",
+  "guid": "71edad1d63238d4d3a8b7fc64eaa8c4f",
+  "importSettings": {
+    "allowResize": false,
+    "colorSpace": "Srgb",
+    "compression": "BC7",
+    "debugOutputFormat": "DDS",
+    "dimension": "Texture2D",
+    "forcePowerOfTwo": false,
+    "maxSize": 4096,
+    "mipPolicy": "Generate",
+    "outputFormat": "HTEX",
+    "usage": "BaseColor"
+  },
+  "importerId": "TextureImporter",
+  "importerVersion": 5,
+  "metaVersion": 1,
+  "sourcePath": "Assets/New Folder 2/T_Sail_BaseColor.png",
+  "type": "Texture"
+}

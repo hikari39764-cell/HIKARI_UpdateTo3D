@@ -1,0 +1,21 @@
+{
+  "displayName": "T_Trim_Normal",
+  "guid": "5194ab042675712f9404c5171ab31904",
+  "importSettings": {
+    "allowResize": false,
+    "colorSpace": "Linear",
+    "compression": "BC7",
+    "debugOutputFormat": "DDS",
+    "dimension": "Texture2D",
+    "forcePowerOfTwo": false,
+    "maxSize": 4096,
+    "mipPolicy": "Generate",
+    "outputFormat": "HTEX",
+    "usage": "Normal"
+  },
+  "importerId": "TextureImporter",
+  "importerVersion": 5,
+  "metaVersion": 1,
+  "sourcePath": "Assets/New Folder 2/T_Trim_Normal.png",
+  "type": "Texture"
+}

@@ -3,15 +3,12 @@
 #include <algorithm>
 
 #include "Core/HIKARI_JsonRead.h"
+#include "Core/Serialization/Json/HIKARI_JsonMath.h"
 #include "Editor/Inspectors/HIKARI_IInspectorBuilder.h"
 
 namespace HIKARI {
 
-    namespace {
-        nlohmann::json ToJson(const MATH::Vec3& value) {
-            return nlohmann::json::array({ value.x, value.y, value.z });
-        }
-    }
+    namespace JsonMath = SERIALIZATION::JSON::MATH;
 
     void CameraActivationVolumeComponent::Serialize(
         nlohmann::json& out) const {
@@ -19,7 +16,7 @@ namespace HIKARI {
         out["enabled"] = enabled_;
         out["subjectObjectId"] = subjectObjectId_.value;
         out["cameraObjectId"] = cameraObjectId_.value;
-        out["halfExtents"] = ToJson(halfExtents_);
+        out["halfExtents"] = JsonMath::ToJsonArray(halfExtents_);
         out["priority"] = priority_;
         out["blendSeconds"] = blendSeconds_;
         out["affectsControlBasis"] = affectsControlBasis_;

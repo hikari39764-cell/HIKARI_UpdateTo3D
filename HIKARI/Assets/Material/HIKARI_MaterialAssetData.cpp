@@ -6,22 +6,13 @@
 
 #include "Core/HIKARI_JsonRead.h"
 #include "Core/Serialization/Json/HIKARI_JsonFile.h"
+#include "Core/Serialization/Json/HIKARI_JsonMath.h"
 
 namespace HIKARI {
 
+    namespace JsonMath = SERIALIZATION::JSON::MATH;
+
     namespace {
-        nlohmann::json WriteVec2(const MATH::Vec2& value) {
-            return nlohmann::json::array({ value.x, value.y });
-        }
-
-        nlohmann::json WriteVec3(const MATH::Vec3& value) {
-            return nlohmann::json::array({ value.x, value.y, value.z });
-        }
-
-        nlohmann::json WriteVec4(const MATH::Vec4& value) {
-            return nlohmann::json::array({ value.x, value.y, value.z, value.w });
-        }
-
         MaterialTextureSlotData ReadSlot(const nlohmann::json& node) {
             MaterialTextureSlotData slot{};
             if (!node.is_object()) {
@@ -41,8 +32,8 @@ namespace HIKARI {
                 { "useTexture", slot.useTexture },
                 { "textureAssetGuid", slot.textureAssetGuid.value },
                 { "texCoord", slot.texCoord },
-                { "uvScale", WriteVec2(slot.uvScale) },
-                { "uvOffset", WriteVec2(slot.uvOffset) },
+                { "uvScale", JsonMath::ToJsonArray(slot.uvScale) },
+                { "uvOffset", JsonMath::ToJsonArray(slot.uvOffset) },
                 { "uvRotation", slot.uvRotation }
             };
         }
@@ -106,15 +97,18 @@ namespace HIKARI {
                 { "unlit", data.unlit }
             };
 
-            root["baseColor"]["factor"] = WriteVec4(data.baseColorFactor);
+            root["baseColor"]["factor"] =
+                JsonMath::ToJsonArray(data.baseColorFactor);
             root["normal"]["scale"] = data.normalScale;
             root["metallicRoughness"]["metallicFactor"] = data.metallicFactor;
             root["metallicRoughness"]["roughnessFactor"] = data.roughnessFactor;
             root["occlusion"]["strength"] = data.occlusionStrength;
-            root["emissive"]["factor"] = WriteVec3(data.emissiveFactor);
+            root["emissive"]["factor"] =
+                JsonMath::ToJsonArray(data.emissiveFactor);
             root["emissive"]["strength"] = data.emissiveStrength;
             root["specular"]["factor"] = data.specularFactor;
-            root["specularColor"]["factor"] = WriteVec3(data.specularColorFactor);
+            root["specularColor"]["factor"] =
+                JsonMath::ToJsonArray(data.specularColorFactor);
             return root;
         }
     }
