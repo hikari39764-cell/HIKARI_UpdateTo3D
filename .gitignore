@@ -45,6 +45,10 @@ bld/
 !HIKARI/Scene/Debug/
 !HIKARI/Scene/Debug/**
 
+# OBJ model-loader source code lives in a semantic Obj directory.
+!HIKARI/Assets/Models/Loading/Obj/
+!HIKARI/Assets/Models/Loading/Obj/**
+
 # Visual Studio 2015/2017 cache/options directory
 .vs/
 # Uncomment if you have tasks that create the project's static files in wwwroot
