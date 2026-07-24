@@ -183,17 +183,6 @@ namespace HIKARI::MESHRENDERER {
             cache.clear();
         }
 
-        template <typename T>
-        void RetireD3D12Object(ComPtr<T>& object, const char* debugName) {
-            if (object == nullptr) {
-                return;
-            }
-
-            T* retired = object.Detach();
-            GFX::RetireD3D12ObjectForCurrentFrame(
-                retired,
-                debugName != nullptr ? debugName : "MeshRenderer.D3D12Object");
-        }
     }
 
     void ApplyCompositeBlendState(D3D12_BLEND_DESC& blendState, VFX::CompositeMode composite) {
@@ -665,14 +654,14 @@ namespace HIKARI::MESHRENDERER {
 
     void ShutdownMeshPipelines(MeshPipelineStore& store) {
         InvalidateMeshPipelineVariants(store);
-        RetireD3D12Object(store.pso, "MeshRenderer.StaticPSO");
-        RetireD3D12Object(store.skinnedPso, "MeshRenderer.SkinnedPSO");
-        RetireD3D12Object(store.depthPso, "MeshRenderer.DepthPSO");
-        RetireD3D12Object(store.depthSkinnedPso, "MeshRenderer.DepthSkinnedPSO");
-        RetireD3D12Object(store.geometryPso, "MeshRenderer.GeometryPSO");
-        RetireD3D12Object(store.geometrySkinnedPso, "MeshRenderer.GeometrySkinnedPSO");
-        RetireD3D12Object(store.rootSig, "MeshRenderer.StaticRootSignature");
-        RetireD3D12Object(store.skinnedRootSig, "MeshRenderer.SkinnedRootSignature");
+        GFX::RetireD3D12ObjectForCurrentFrame(store.pso, "MeshRenderer.StaticPSO");
+        GFX::RetireD3D12ObjectForCurrentFrame(store.skinnedPso, "MeshRenderer.SkinnedPSO");
+        GFX::RetireD3D12ObjectForCurrentFrame(store.depthPso, "MeshRenderer.DepthPSO");
+        GFX::RetireD3D12ObjectForCurrentFrame(store.depthSkinnedPso, "MeshRenderer.DepthSkinnedPSO");
+        GFX::RetireD3D12ObjectForCurrentFrame(store.geometryPso, "MeshRenderer.GeometryPSO");
+        GFX::RetireD3D12ObjectForCurrentFrame(store.geometrySkinnedPso, "MeshRenderer.GeometrySkinnedPSO");
+        GFX::RetireD3D12ObjectForCurrentFrame(store.rootSig, "MeshRenderer.StaticRootSignature");
+        GFX::RetireD3D12ObjectForCurrentFrame(store.skinnedRootSig, "MeshRenderer.SkinnedRootSignature");
         store.vsBlob.Reset();
         store.skinnedVsBlob.Reset();
         store.psBlob.Reset();

@@ -12,6 +12,7 @@
 #include <wrl/client.h>
 
 #include "Diagnostics/HIKARI_DebugLogBuffer.h"
+#include "Gfx/D3D12/HIKARI_D3D12BufferAlignment.h"
 #include "Gfx/HIKARI_DXCheck.h"
 #include "Gfx/HIKARI_PixProfiler.h"
 #include "Gfx/HIKARI_ShaderCompiler.h"
@@ -70,10 +71,6 @@ namespace HIKARI::RENDER3D::TEMPORAL {
         TemporalGeometryPassState& State() {
             static TemporalGeometryPassState state{};
             return state;
-        }
-
-        UINT AlignConstantBufferSize(UINT size) {
-            return (size + 255u) & ~255u;
         }
 
         uint32_t GrowCapacity(uint32_t required) {
@@ -149,8 +146,8 @@ namespace HIKARI::RENDER3D::TEMPORAL {
             ReleaseUploadSlot(slot);
             slot.capacity = GrowCapacity(drawCount);
             const UINT geometryStride =
-                AlignConstantBufferSize(sizeof(GeometryConstants));
-            const UINT skinStride = AlignConstantBufferSize(sizeof(SkinConstants));
+                GFX::AlignD3D12ConstantBufferByteSize(sizeof(GeometryConstants));
+            const UINT skinStride = GFX::AlignD3D12ConstantBufferByteSize(sizeof(SkinConstants));
             if (!CreateUploadBuffer(
                     device,
                     static_cast<UINT64>(geometryStride) * slot.capacity,
@@ -442,8 +439,8 @@ namespace HIKARI::RENDER3D::TEMPORAL {
         cmd->SetGraphicsRootSignature(state.rootSignature.Get());
         cmd->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
-        const UINT geometryStride = AlignConstantBufferSize(sizeof(GeometryConstants));
-        const UINT skinStride = AlignConstantBufferSize(sizeof(SkinConstants));
+        const UINT geometryStride = GFX::AlignD3D12ConstantBufferByteSize(sizeof(GeometryConstants));
+        const UINT skinStride = GFX::AlignD3D12ConstantBufferByteSize(sizeof(SkinConstants));
         for (size_t drawIndex = 0; drawIndex < draws.size(); ++drawIndex) {
             const MESHRENDERER::TemporalVelocityDraw& draw = draws[drawIndex];
             const uint64_t historyKey = ResolveHistoryKey(draw);

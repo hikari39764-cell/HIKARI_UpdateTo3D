@@ -172,10 +172,6 @@ namespace HIKARI::MESHRENDERER {
     constexpr UINT kMaxMaterialDataCount =
         RENDER3D::MATERIAL::kDefaultGpuMaterialCapacity;
 
-    constexpr UINT AlignConstantBufferSize(size_t size) {
-        return static_cast<UINT>((size + 255u) & ~255u);
-    }
-
     struct JointPaletteCB {
         MATH::Mat4 jointMatrices[kMaxJointPaletteMatrices]{};
     };

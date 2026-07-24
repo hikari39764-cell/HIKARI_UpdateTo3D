@@ -5,10 +5,15 @@
 #include <deque>
 #include <functional>
 #include <string>
+#include <utility>
+
+#include <wrl/client.h>
 
 struct IUnknown;
 
 namespace HIKARI::GFX {
+
+    struct Context;
 
     class GpuDeferredReleaseQueue {
     public:
@@ -33,8 +38,35 @@ namespace HIKARI::GFX {
         std::deque<PendingRelease> pending_;
     };
 
+    void RetireD3D12ObjectForFrame(
+        IUnknown* object,
+        const Context& context,
+        std::string debugName = {});
+
     void RetireD3D12ObjectForCurrentFrame(
         IUnknown* object,
         std::string debugName = {});
+
+    template <typename T>
+    void RetireD3D12ObjectForFrame(
+        Microsoft::WRL::ComPtr<T>& object,
+        const Context& context,
+        std::string debugName = {}) {
+
+        RetireD3D12ObjectForFrame(
+            object.Detach(),
+            context,
+            std::move(debugName));
+    }
+
+    template <typename T>
+    void RetireD3D12ObjectForCurrentFrame(
+        Microsoft::WRL::ComPtr<T>& object,
+        std::string debugName = {}) {
+
+        RetireD3D12ObjectForCurrentFrame(
+            object.Detach(),
+            std::move(debugName));
+    }
 
 } // namespace HIKARI::GFX

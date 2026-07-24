@@ -33,6 +33,7 @@
 #include "Render3D/Core/HIKARI_MeshRenderer.h"
 #include "Render3D/Debug/HIKARI_Renderer3D_Debug.h"
 #include "Render3D/Material/HIKARI_MaterialRuntimeBuilder.h"
+#include "Render3D/Material/HIKARI_MaterialTextureUsage.h"
 #include "Render3D/Render/HIKARI_ModelRenderer.h"
 #if defined(HIKARI_WITH_EDITOR)
 #include "Render3D/Views/HIKARI_EditorInteractiveViewRenderer.h"
@@ -177,19 +178,6 @@ namespace HIKARI {
                 HasMissingAssetDescriptors(registry, AssetType::Model, dependencies.modelAssetIds) ||
                 HasMissingAssetDescriptors(registry, AssetType::Material, dependencies.materialAssetIds) ||
                 HasMissingAssetDescriptors(registry, AssetType::Sky, dependencies.skyAssetIds);
-        }
-
-        const char* ToModelTextureUsageText(ModelTextureUsage usage) {
-            switch (usage) {
-            case ModelTextureUsage::BaseColor: return "BaseColor";
-            case ModelTextureUsage::Normal: return "Normal";
-            case ModelTextureUsage::MetallicRoughness: return "MetallicRoughness";
-            case ModelTextureUsage::Occlusion: return "Occlusion";
-            case ModelTextureUsage::Emissive: return "Emissive";
-            case ModelTextureUsage::Specular: return "Specular";
-            case ModelTextureUsage::SpecularColor: return "SpecularColor";
-            default: return "Unknown";
-            }
         }
 
         bool IsCookedTextureRuntimePath(const std::filesystem::path& path) {
@@ -968,7 +956,7 @@ namespace HIKARI {
     void DocumentSceneBase::ConfigureModelTextureResolver() {
         modelManager_.ResetTextureResolveStats();
         modelManager_.SetTexturePathResolver(
-            [this](const std::string& sourceTexturePath, ModelTextureUsage usage) -> std::string {
+            [this](const std::string& sourceTexturePath, MaterialTextureUsage usage) -> std::string {
                 return ResolveModelTexturePathFromAssets(sourceTexturePath, usage);
             });
     }
@@ -1013,7 +1001,7 @@ namespace HIKARI {
 
     std::string DocumentSceneBase::ResolveModelTexturePathFromAssets(
         const std::string& sourceTexturePath,
-        ModelTextureUsage usage) const {
+        MaterialTextureUsage usage) const {
 
         if (sourceTexturePath.empty()) {
             return {};
@@ -1049,7 +1037,7 @@ namespace HIKARI {
             modelManager_.RecordTextureResolveFailure(ModelTextureResolveFailureKind::Missing);
             HIKARI_LOG_WARN("[ModelTextureResolver] fallback raw texture source=" +
                 sourceTexturePath +
-                " usage=" + ToModelTextureUsageText(usage) +
+                " usage=" + MaterialTextureUsageName(usage) +
                 " reason=texture asset not found");
             return sourceTexturePath;
         }
@@ -1058,7 +1046,7 @@ namespace HIKARI {
             modelManager_.RecordTextureResolveFailure(ModelTextureResolveFailureKind::Missing);
             HIKARI_LOG_WARN("[ModelTextureResolver] fallback raw texture source=" +
                 sourceTexturePath +
-                " usage=" + ToModelTextureUsageText(usage) +
+                " usage=" + MaterialTextureUsageName(usage) +
                 " reason=resolved asset is not a texture");
             return sourceTexturePath;
         }
@@ -1068,7 +1056,7 @@ namespace HIKARI {
             modelManager_.RecordTextureResolveFailure(ModelTextureResolveFailureKind::Missing);
             HIKARI_LOG_WARN("[ModelTextureResolver] fallback raw texture source=" +
                 sourceTexturePath +
-                " usage=" + ToModelTextureUsageText(usage) +
+                " usage=" + MaterialTextureUsageName(usage) +
                 " reason=texture descriptor missing");
             return sourceTexturePath;
         }

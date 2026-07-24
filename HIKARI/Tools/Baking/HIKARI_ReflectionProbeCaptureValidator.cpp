@@ -9,6 +9,7 @@
 #include <sstream>
 
 #include "Core/HIKARI_Logger.h"
+#include "Gfx/D3D12/HIKARI_DxgiFormatName.h"
 
 namespace HIKARI::TOOLS::BAKING {
 
@@ -17,23 +18,6 @@ namespace HIKARI::TOOLS::BAKING {
         constexpr const char* kFaceNames[6] = {
             "+X", "-X", "+Y", "-Y", "+Z", "-Z"
         };
-
-        const char* FormatName(DXGI_FORMAT format) {
-            switch (format) {
-            case DXGI_FORMAT_R16G16B16A16_FLOAT:
-                return "R16G16B16A16_FLOAT";
-            case DXGI_FORMAT_R32G32B32A32_FLOAT:
-                return "R32G32B32A32_FLOAT";
-            case DXGI_FORMAT_R11G11B10_FLOAT:
-                return "R11G11B10_FLOAT";
-            case DXGI_FORMAT_BC6H_UF16:
-                return "BC6H_UF16";
-            case DXGI_FORMAT_BC6H_SF16:
-                return "BC6H_SF16";
-            default:
-                return "DXGI_FORMAT_OTHER";
-            }
-        }
 
         bool IsSupportedReflectionProbeFormat(DXGI_FORMAT format) {
             switch (format) {
@@ -187,7 +171,7 @@ namespace HIKARI::TOOLS::BAKING {
             }
             if (!result.formatSupported) {
                 AddError(result, "Reflection probe DDS format is not supported: " +
-                    std::string(FormatName(metadata.format)));
+                    std::string(GFX::DxgiFormatName(metadata.format)));
             }
             if (requirePrefilterMips && metadata.mipLevels < 2) {
                 AddError(result, "Prefiltered reflection probe DDS has too few mip levels.");
@@ -227,7 +211,7 @@ namespace HIKARI::TOOLS::BAKING {
                 " cubemap=" + std::string(result.isCubemap ? "true" : "false") +
                 " faces=" + std::to_string(result.arraySize) +
                 " mips=" + std::to_string(result.mipCount) +
-                " format=" + FormatName(result.format) +
+                " format=" + GFX::DxgiFormatName(result.format) +
                 " valid=" + std::string(result.success ? "true" : "false"));
             return result;
         }

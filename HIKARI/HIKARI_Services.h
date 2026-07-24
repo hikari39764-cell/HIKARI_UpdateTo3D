@@ -22,7 +22,7 @@
 #include "Render3D/Material/HIKARI_DefaultPbrResources.h"
 #include "Render3D/Settings/HIKARI_RenderQualitySettings.h"
 #include "Render3D/Resources/HIKARI_ClusterGeometryResourceSystem.h"
-#include "Render3D/Resources/HIKARI_RenderResourceDescriptorPool.h"
+#include "Render3D/Resources/Descriptors/HIKARI_RenderResourceDescriptorPool.h"
 #if defined(HIKARI_WITH_EDITOR)
 #include "Render3D/Views/HIKARI_EditorInteractiveViewRenderer.h"
 #endif

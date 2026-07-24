@@ -1,7 +1,5 @@
 #include "Editor/Controllers/DocumentScene/HIKARI_DocumentSceneEditorViewportPresentation.h"
 
-#include "Editor/Commands/HIKARI_EditorCommandRouter.h"
-#include "Editor/HIKARI_EditorViewportInput.h"
 #include "Render3D/Lighting/HIKARI_SceneLightingRuntimeData.h"
 #include "Render3D/Reflection/HIKARI_ReflectionProbeRuntime.h"
 #include "Scene/Scenes/HIKARI_DocumentSceneBase.h"
@@ -21,35 +19,6 @@ namespace HIKARI {
         namespace DOCUMENT_SCENE {
 
 #if defined(HIKARI_WITH_EDITOR)
-        void HandleTransformGizmoShortcuts(EditorTransformGizmoState& state, bool gameViewFocused) {
-            if (!EDITOR::CanUseEditorShortcut(
-                    EDITOR::EditorShortcutScope::Viewport,
-                    gameViewFocused)) {
-                return;
-            }
-
-            if (ImGui::IsKeyPressed(ImGuiKey_Q) || ImGui::IsKeyPressed(ImGuiKey_Escape)) {
-                state.enabled = false;
-            }
-            if (ImGui::IsKeyPressed(ImGuiKey_W)) {
-                state.enabled = true;
-                state.operation = EditorTransformGizmoOperation::Translate;
-            }
-            if (ImGui::IsKeyPressed(ImGuiKey_E)) {
-                state.enabled = true;
-                state.operation = EditorTransformGizmoOperation::Rotate;
-            }
-            if (ImGui::IsKeyPressed(ImGuiKey_R)) {
-                state.enabled = true;
-                state.operation = EditorTransformGizmoOperation::Scale;
-            }
-            if (ImGui::IsKeyPressed(ImGuiKey_X)) {
-                state.mode = state.mode == EditorTransformGizmoMode::World
-                    ? EditorTransformGizmoMode::Local
-                    : EditorTransformGizmoMode::World;
-            }
-        }
-
         const char* LightProbeVolumeOverlayModeName(LightProbeVolumeOverlayMode mode) {
             switch (mode) {
             case LightProbeVolumeOverlayMode::BoundsOnly: return "Bounds Only";

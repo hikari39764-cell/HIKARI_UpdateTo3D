@@ -163,6 +163,9 @@
     <Filter Include="Header Files\Gfx">
       <UniqueIdentifier>{3BEC404A-27B9-5B6E-8118-810A4F6651D8}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Header Files\Gfx\D3D12">
+      <UniqueIdentifier>{C3ACF7E0-45F5-4169-8CF7-6C0834D67C4B}</UniqueIdentifier>
+    </Filter>
     <Filter Include="Header Files\Diagnostics">
       <UniqueIdentifier>{5BF395A2-83BD-4B0F-A768-98DAAD58F560}</UniqueIdentifier>
     </Filter>
@@ -219,6 +222,9 @@
     </Filter>
     <Filter Include="Header Files\Render3D\Resources">
       <UniqueIdentifier>{4F28FA24-6F02-4E83-8C81-6C6F77A54348}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\Render3D\Resources\Descriptors">
+      <UniqueIdentifier>{78183D56-79A3-42B5-AFB9-774E3EF05038}</UniqueIdentifier>
     </Filter>
     <Filter Include="Header Files\Render3D\Runtime">
       <UniqueIdentifier>{B71F127D-617C-4B76-9D9B-57A2C640F4A3}</UniqueIdentifier>
@@ -336,6 +342,12 @@
     </Filter>
     <Filter Include="Header Files\Vfx">
       <UniqueIdentifier>{E5E496B5-9BAD-53F3-9451-E7C2FED7FBCA}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\Vfx\Parameters">
+      <UniqueIdentifier>{B6F8B0B9-76C3-47E7-9049-76C9BE67F46E}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\Vfx\Serialization">
+      <UniqueIdentifier>{F86C5428-6B08-46C5-83D7-9BE34D2C92E9}</UniqueIdentifier>
     </Filter>
     <Filter Include="Header Files\Vfx\Backends">
       <UniqueIdentifier>{8F665F25-BA11-5B04-9E5C-7058982382C9}</UniqueIdentifier>
@@ -568,6 +580,9 @@
     <Filter Include="Source Files\Gfx">
       <UniqueIdentifier>{4CEBA77A-19AA-5CBC-A6B0-8154FF48D343}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Source Files\Gfx\D3D12">
+      <UniqueIdentifier>{555559E8-AF69-4B9B-90CC-E9EACE7789C8}</UniqueIdentifier>
+    </Filter>
     <Filter Include="Source Files\Diagnostics">
       <UniqueIdentifier>{C3D0C898-A61C-4DBB-8F8A-B8E042730C1E}</UniqueIdentifier>
     </Filter>
@@ -621,6 +636,9 @@
     </Filter>
     <Filter Include="Source Files\Render3D\Resources">
       <UniqueIdentifier>{9C9FEE7C-8594-4D2D-944A-9E75C6BF7735}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Render3D\Resources\Descriptors">
+      <UniqueIdentifier>{55B17E4A-1FBA-47BA-AFE8-6BB32C49321A}</UniqueIdentifier>
     </Filter>
     <Filter Include="Source Files\Render3D\Runtime">
       <UniqueIdentifier>{0871EAD1-5D0E-4D31-BF87-70EF68E42E5E}</UniqueIdentifier>
@@ -738,6 +756,12 @@
     </Filter>
     <Filter Include="Source Files\Vfx">
       <UniqueIdentifier>{743EC9F5-0053-50E6-A9ED-33AFF1E33CB2}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Vfx\Parameters">
+      <UniqueIdentifier>{37DB78A0-8C4C-4CA2-9029-984E6E76DDEB}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Vfx\Serialization">
+      <UniqueIdentifier>{A40F241D-FD53-4333-8817-A4CEE900C798}</UniqueIdentifier>
     </Filter>
     <Filter Include="Source Files\Vfx\Backends">
       <UniqueIdentifier>{95F3BD21-98CF-5520-A8A3-3E421CF57754}</UniqueIdentifier>
@@ -887,6 +911,9 @@
     </ClCompile>
     <ClCompile Include="HIKARI\Diagnostics\HIKARI_CpuFrameProfiler.cpp">
       <Filter>Source Files\Diagnostics</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Gfx\D3D12\HIKARI_DxgiFormatName.cpp">
+      <Filter>Source Files\Gfx\D3D12</Filter>
     </ClCompile>
     <ClCompile Include="HIKARI\Gfx\HIKARI_D3D12DebugTools.cpp">
       <Filter>Source Files\Gfx</Filter>
@@ -1305,6 +1332,9 @@
     <ClCompile Include="HIKARI\Editor\Gizmos\HIKARI_EditorTransformGizmo.cpp">
       <Filter>Source Files\Editor\Gizmos</Filter>
     </ClCompile>
+    <ClCompile Include="HIKARI\Editor\Gizmos\HIKARI_EditorTransformGizmoShortcuts.cpp">
+      <Filter>Source Files\Editor\Gizmos</Filter>
+    </ClCompile>
     <ClCompile Include="HIKARI\Editor\Gizmos\HIKARI_ReflectionProbeGizmoRenderer.cpp">
       <Filter>Source Files\Editor\Gizmos</Filter>
     </ClCompile>
@@ -1655,6 +1685,15 @@
     </ClCompile>
     <ClCompile Include="HIKARI\Vfx\MaterialFx\HIKARI_MaterialFxProfile.cpp">
       <Filter>Source Files\Vfx\MaterialFx</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Vfx\Parameters\HIKARI_VfxParameterValues.cpp">
+      <Filter>Source Files\Vfx\Parameters</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Vfx\Serialization\HIKARI_VfxParameterJson.cpp">
+      <Filter>Source Files\Vfx\Serialization</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Vfx\Serialization\HIKARI_VfxProfileJson.cpp">
+      <Filter>Source Files\Vfx\Serialization</Filter>
     </ClCompile>
     <ClCompile Include="HIKARI\Vfx\Transition\HIKARI_TransitionProfile.cpp">
       <Filter>Source Files\Vfx\Transition</Filter>
@@ -2419,8 +2458,11 @@
     <ClCompile Include="HIKARI\Render3D\Resources\HIKARI_ClusterGeometryResourceSystem.cpp">
       <Filter>Source Files\Render3D\Resources</Filter>
     </ClCompile>
-    <ClCompile Include="HIKARI\Render3D\Resources\HIKARI_RenderResourceDescriptorPool.cpp">
-      <Filter>Source Files\Render3D\Resources</Filter>
+    <ClCompile Include="HIKARI\Render3D\Resources\Descriptors\HIKARI_RenderResourceDescriptorAccess.cpp">
+      <Filter>Source Files\Render3D\Resources\Descriptors</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Render3D\Resources\Descriptors\HIKARI_RenderResourceDescriptorPool.cpp">
+      <Filter>Source Files\Render3D\Resources\Descriptors</Filter>
     </ClCompile>
     <ClCompile Include="HIKARI\Render3D\Resources\HIKARI_RenderResourcePool.cpp">
       <Filter>Source Files\Render3D\Resources</Filter>
@@ -2447,6 +2489,9 @@
       <Filter>Source Files\Render3D\Runtime</Filter>
     </ClCompile>
     <ClCompile Include="HIKARI\Render3D\Material\HIKARI_MaterialRuntimeBuilder.cpp">
+      <Filter>Source Files\Render3D\Material</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Render3D\Material\HIKARI_MaterialTextureUsage.cpp">
       <Filter>Source Files\Render3D\Material</Filter>
     </ClCompile>
     <ClCompile Include="HIKARI\Render3D\Material\HIKARI_DefaultPbrResources.cpp">
@@ -2692,8 +2737,8 @@
     <ClInclude Include="HIKARI\Render3D\Core\HIKARI_Material.h">
       <Filter>Header Files\Render3D\Core</Filter>
     </ClInclude>
-    <ClInclude Include="HIKARI\Render3D\Core\HIKARI_MaterialTextureUsage.h">
-      <Filter>Header Files\Render3D\Core</Filter>
+    <ClInclude Include="HIKARI\Render3D\Material\HIKARI_MaterialTextureUsage.h">
+      <Filter>Header Files\Render3D\Material</Filter>
     </ClInclude>
     <ClInclude Include="HIKARI\Render3D\Core\HIKARI_BoundsUtils.h">
       <Filter>Header Files\Render3D\Core</Filter>
@@ -2877,6 +2922,15 @@
     </ClInclude>
     <ClInclude Include="HIKARI\Vfx\MaterialFx\HIKARI_MaterialFxProfile.h">
       <Filter>Header Files\Vfx\MaterialFx</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Vfx\Parameters\HIKARI_VfxParameterValues.h">
+      <Filter>Header Files\Vfx\Parameters</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Vfx\Serialization\HIKARI_VfxParameterJson.h">
+      <Filter>Header Files\Vfx\Serialization</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Vfx\Serialization\HIKARI_VfxProfileJson.h">
+      <Filter>Header Files\Vfx\Serialization</Filter>
     </ClInclude>
     <ClInclude Include="HIKARI\Vfx\Transition\HIKARI_TransitionProfile.h">
       <Filter>Header Files\Vfx\Transition</Filter>
@@ -3101,6 +3155,9 @@
       <Filter>Header Files\Editor\DragDrop</Filter>
     </ClInclude>
     <ClInclude Include="HIKARI\Editor\Gizmos\HIKARI_EditorTransformGizmo.h">
+      <Filter>Header Files\Editor\Gizmos</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Editor\Gizmos\HIKARI_EditorTransformGizmoShortcuts.h">
       <Filter>Header Files\Editor\Gizmos</Filter>
     </ClInclude>
     <ClInclude Include="HIKARI\Editor\Gizmos\HIKARI_ReflectionProbeGizmoRenderer.h">
@@ -3480,6 +3537,12 @@
     </ClInclude>
     <ClInclude Include="HIKARI\Diagnostics\HIKARI_CpuFrameProfiler.h">
       <Filter>Header Files\Diagnostics</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Gfx\D3D12\HIKARI_D3D12BufferAlignment.h">
+      <Filter>Header Files\Gfx\D3D12</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Gfx\D3D12\HIKARI_DxgiFormatName.h">
+      <Filter>Header Files\Gfx\D3D12</Filter>
     </ClInclude>
     <ClInclude Include="HIKARI\Gfx\HIKARI_D3D12DebugTools.h">
       <Filter>Header Files\Gfx</Filter>
@@ -4116,8 +4179,11 @@
     <ClInclude Include="HIKARI\Render3D\Resources\HIKARI_ClusterGeometryResourceSystem.h">
       <Filter>Header Files\Render3D\Resources</Filter>
     </ClInclude>
-    <ClInclude Include="HIKARI\Render3D\Resources\HIKARI_RenderResourceDescriptorPool.h">
-      <Filter>Header Files\Render3D\Resources</Filter>
+    <ClInclude Include="HIKARI\Render3D\Resources\Descriptors\HIKARI_RenderResourceDescriptorAccess.h">
+      <Filter>Header Files\Render3D\Resources\Descriptors</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Render3D\Resources\Descriptors\HIKARI_RenderResourceDescriptorPool.h">
+      <Filter>Header Files\Render3D\Resources\Descriptors</Filter>
     </ClInclude>
     <ClInclude Include="HIKARI\Render3D\Resources\HIKARI_RenderResourceHandle.h">
       <Filter>Header Files\Render3D\Resources</Filter>

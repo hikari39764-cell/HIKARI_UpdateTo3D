@@ -14,7 +14,7 @@
 #include "Core/Numeric/HIKARI_IntegerConversion.h"
 #include "Gfx/HIKARI_DXCheck.h"
 #include "Gfx/HIKARI_GpuDeferredReleaseQueue.h"
-#include "Render3D/Resources/HIKARI_RenderResourceDescriptorPool.h"
+#include "Render3D/Resources/Descriptors/HIKARI_RenderResourceDescriptorPool.h"
 #include "Render3D/Resources/HIKARI_RenderResourceSystem.h"
 
 namespace HIKARI::RENDER3D {

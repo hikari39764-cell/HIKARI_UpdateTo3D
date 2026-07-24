@@ -5,6 +5,7 @@
 
 #include <d3dx12.h>
 
+#include "Gfx/D3D12/HIKARI_D3D12BufferAlignment.h"
 #include "Gfx/HIKARI_GpuDeferredReleaseQueue.h"
 #include "Gfx/HIKARI_ShaderCompiler.h"
 #include "Gfx/HIKARI_D3D12DebugTools.h"
@@ -36,25 +37,6 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
         };
 
         static_assert(sizeof(GpuTraditionalCommandPayload) == 64u);
-
-        constexpr UINT AlignConstantBufferSize(size_t size) {
-            return static_cast<UINT>((size + 255u) & ~255u);
-        }
-
-        template <typename T>
-        void RetireD3D12Object(
-            Microsoft::WRL::ComPtr<T>& object,
-            const char* debugName) {
-
-            if (object == nullptr) {
-                return;
-            }
-
-            T* retired = object.Detach();
-            GFX::RetireD3D12ObjectForCurrentFrame(
-                retired,
-                debugName != nullptr ? debugName : "GpuTraditionalCommandStream.D3D12Object");
-        }
 
         GpuTraditionalCommandPayload ToDrawPayload(
             const RUNTIME::SurfaceDrawIndexedArgs& args) {
@@ -270,15 +252,15 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
         }
 
         auto resetGpuBuffers = [this]() {
-            RetireD3D12Object(argumentBuffer_, "GpuTraditionalCommandStream.Active.ArgumentBuffer");
-            RetireD3D12Object(skinnedArgumentBuffer_, "GpuTraditionalCommandStream.Active.SkinnedArgumentBuffer");
-            RetireD3D12Object(seedBuffer_, "GpuTraditionalCommandStream.Active.SeedBuffer");
-            RetireD3D12Object(seedUploadBuffer_, "GpuTraditionalCommandStream.Active.SeedUploadBuffer");
-            RetireD3D12Object(payloadBuffer_, "GpuTraditionalCommandStream.Active.PayloadBuffer");
-            RetireD3D12Object(payloadUploadBuffer_, "GpuTraditionalCommandStream.Active.PayloadUploadBuffer");
-            RetireD3D12Object(counterBuffer_, "GpuTraditionalCommandStream.Active.CounterBuffer");
-            RetireD3D12Object(counterResetUploadBuffer_, "GpuTraditionalCommandStream.Active.CounterResetUploadBuffer");
-            RetireD3D12Object(constantsUploadBuffer_, "GpuTraditionalCommandStream.Active.ConstantsUploadBuffer");
+            GFX::RetireD3D12ObjectForCurrentFrame(argumentBuffer_, "GpuTraditionalCommandStream.Active.ArgumentBuffer");
+            GFX::RetireD3D12ObjectForCurrentFrame(skinnedArgumentBuffer_, "GpuTraditionalCommandStream.Active.SkinnedArgumentBuffer");
+            GFX::RetireD3D12ObjectForCurrentFrame(seedBuffer_, "GpuTraditionalCommandStream.Active.SeedBuffer");
+            GFX::RetireD3D12ObjectForCurrentFrame(seedUploadBuffer_, "GpuTraditionalCommandStream.Active.SeedUploadBuffer");
+            GFX::RetireD3D12ObjectForCurrentFrame(payloadBuffer_, "GpuTraditionalCommandStream.Active.PayloadBuffer");
+            GFX::RetireD3D12ObjectForCurrentFrame(payloadUploadBuffer_, "GpuTraditionalCommandStream.Active.PayloadUploadBuffer");
+            GFX::RetireD3D12ObjectForCurrentFrame(counterBuffer_, "GpuTraditionalCommandStream.Active.CounterBuffer");
+            GFX::RetireD3D12ObjectForCurrentFrame(counterResetUploadBuffer_, "GpuTraditionalCommandStream.Active.CounterResetUploadBuffer");
+            GFX::RetireD3D12ObjectForCurrentFrame(constantsUploadBuffer_, "GpuTraditionalCommandStream.Active.ConstantsUploadBuffer");
             seedMapped_ = nullptr;
             payloadMapped_ = nullptr;
             counterResetMapped_ = nullptr;
@@ -289,25 +271,25 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
             payloadBufferState_ = D3D12_RESOURCE_STATE_COMMON;
             counterBufferState_ = D3D12_RESOURCE_STATE_COMMON;
             for (FrameResources& frame : frameResources_) {
-                RetireD3D12Object(frame.argumentBuffer, "GpuTraditionalCommandStream.Frame.ArgumentBuffer");
-                RetireD3D12Object(frame.skinnedArgumentBuffer, "GpuTraditionalCommandStream.Frame.SkinnedArgumentBuffer");
-                RetireD3D12Object(frame.seedBuffer, "GpuTraditionalCommandStream.Frame.SeedBuffer");
-                RetireD3D12Object(frame.seedUploadBuffer, "GpuTraditionalCommandStream.Frame.SeedUploadBuffer");
-                RetireD3D12Object(frame.payloadBuffer, "GpuTraditionalCommandStream.Frame.PayloadBuffer");
-                RetireD3D12Object(frame.payloadUploadBuffer, "GpuTraditionalCommandStream.Frame.PayloadUploadBuffer");
-                RetireD3D12Object(frame.counterBuffer, "GpuTraditionalCommandStream.Frame.CounterBuffer");
-                RetireD3D12Object(frame.counterResetUploadBuffer, "GpuTraditionalCommandStream.Frame.CounterResetUploadBuffer");
-                RetireD3D12Object(frame.constantsUploadBuffer, "GpuTraditionalCommandStream.Frame.ConstantsUploadBuffer");
+                GFX::RetireD3D12ObjectForCurrentFrame(frame.argumentBuffer, "GpuTraditionalCommandStream.Frame.ArgumentBuffer");
+                GFX::RetireD3D12ObjectForCurrentFrame(frame.skinnedArgumentBuffer, "GpuTraditionalCommandStream.Frame.SkinnedArgumentBuffer");
+                GFX::RetireD3D12ObjectForCurrentFrame(frame.seedBuffer, "GpuTraditionalCommandStream.Frame.SeedBuffer");
+                GFX::RetireD3D12ObjectForCurrentFrame(frame.seedUploadBuffer, "GpuTraditionalCommandStream.Frame.SeedUploadBuffer");
+                GFX::RetireD3D12ObjectForCurrentFrame(frame.payloadBuffer, "GpuTraditionalCommandStream.Frame.PayloadBuffer");
+                GFX::RetireD3D12ObjectForCurrentFrame(frame.payloadUploadBuffer, "GpuTraditionalCommandStream.Frame.PayloadUploadBuffer");
+                GFX::RetireD3D12ObjectForCurrentFrame(frame.counterBuffer, "GpuTraditionalCommandStream.Frame.CounterBuffer");
+                GFX::RetireD3D12ObjectForCurrentFrame(frame.counterResetUploadBuffer, "GpuTraditionalCommandStream.Frame.CounterResetUploadBuffer");
+                GFX::RetireD3D12ObjectForCurrentFrame(frame.constantsUploadBuffer, "GpuTraditionalCommandStream.Frame.ConstantsUploadBuffer");
                 frame = FrameResources{};
             }
             activeFrameResourceIndex_ = 0;
         };
 
         resetGpuBuffers();
-        RetireD3D12Object(computeRootSignature_, "GpuTraditionalCommandStream.ComputeRootSignature");
-        RetireD3D12Object(compactPipelineState_, "GpuTraditionalCommandStream.CompactPipelineState");
-        RetireD3D12Object(commandSignature_, "GpuTraditionalCommandStream.CommandSignature");
-        RetireD3D12Object(skinnedCommandSignature_, "GpuTraditionalCommandStream.SkinnedCommandSignature");
+        GFX::RetireD3D12ObjectForCurrentFrame(computeRootSignature_, "GpuTraditionalCommandStream.ComputeRootSignature");
+        GFX::RetireD3D12ObjectForCurrentFrame(compactPipelineState_, "GpuTraditionalCommandStream.CompactPipelineState");
+        GFX::RetireD3D12ObjectForCurrentFrame(commandSignature_, "GpuTraditionalCommandStream.CommandSignature");
+        GFX::RetireD3D12ObjectForCurrentFrame(skinnedCommandSignature_, "GpuTraditionalCommandStream.SkinnedCommandSignature");
         capacity_ = 0;
         seedCursor_ = 0;
         payloadCursor_ = 0;
@@ -351,7 +333,7 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
         auto counterUploadDesc =
             CD3DX12_RESOURCE_DESC::Buffer(kGpuTraditionalCommandStreamCounterBufferBytes);
         const UINT constantsBytes =
-            AlignConstantBufferSize(sizeof(GpuTraditionalCommandStreamCullingConstants));
+            GFX::AlignD3D12ConstantBufferByteSize(sizeof(GpuTraditionalCommandStreamCullingConstants));
         auto constantsDesc = CD3DX12_RESOURCE_DESC::Buffer(constantsBytes);
 
         auto createFrameResources = [&](FrameResources& frame) -> bool {

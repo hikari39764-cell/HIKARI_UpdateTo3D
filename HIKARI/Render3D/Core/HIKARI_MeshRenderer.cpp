@@ -12,6 +12,7 @@
 
 #include "Core/HIKARI_Logger.h"
 #include "Diagnostics/HIKARI_CpuFrameProfiler.h"
+#include "Gfx/D3D12/HIKARI_D3D12BufferAlignment.h"
 #include "Diagnostics/HIKARI_DebugLogBuffer.h"
 #include "Gfx/HIKARI_DescriptorHeapLayout.h"
 #include "Gfx/HIKARI_PixProfiler.h"
@@ -31,7 +32,8 @@
 #include "Render3D/GpuDriven/HIKARI_GpuSceneSurfaceRecord.h"
 #include "Render3D/GpuDriven/HIKARI_GpuDrivenWorkBuilder.h"
 #include "Render3D/Pipeline/HIKARI_RenderFramePipeline.h"
-#include "Render3D/Resources/HIKARI_RenderResourceDescriptorPool.h"
+#include "Render3D/Resources/Descriptors/HIKARI_RenderResourceDescriptorAccess.h"
+#include "Render3D/Resources/Descriptors/HIKARI_RenderResourceDescriptorPool.h"
 #include "Render3D/Resources/HIKARI_TextureResourceSystem.h"
 #include "Render3D/ScreenSpace/HIKARI_ScreenSpaceGeometryAux.h"
 #include "Render3D/ScreenSpace/HIKARI_ScreenSpacePasses.h"
@@ -173,22 +175,6 @@ namespace HIKARI::MESHRENDERER {
             }
         }
 
-        D3D12_GPU_DESCRIPTOR_HANDLE ResolveClusterGeometryPoolSrv() {
-            D3D12_GPU_DESCRIPTOR_HANDLE handle{};
-            ID3D12Device* device = SERVICES::gCtx.device;
-            ID3D12DescriptorHeap* heap = RENDER3D::GetTextureResourceSrvHeap();
-            if (device == nullptr || heap == nullptr) {
-                return handle;
-            }
-
-            const UINT descriptorSize =
-                device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
-            return GFX::DESCRIPTOR::GpuAt(
-                heap,
-                descriptorSize,
-                GFX::DESCRIPTOR::kSystemSrvDynamicBegin);
-        }
-
         bool CreateBuffers(ID3D12Device* device) {
             ID3D12DescriptorHeap* srvHeap = SERVICES::gCtx.srvHeap;
             if (device == nullptr || srvHeap == nullptr) {
@@ -238,7 +224,7 @@ namespace HIKARI::MESHRENDERER {
             if (device == nullptr) {
                 return false;
             }
-            const UINT byteSize = AlignConstantBufferSize(sizeof(T));
+            const UINT byteSize = GFX::AlignD3D12ConstantBufferByteSize(sizeof(T));
             const auto heap = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
             const auto desc = CD3DX12_RESOURCE_DESC::Buffer(byteSize);
             if (FAILED(device->CreateCommittedResource(
@@ -834,7 +820,7 @@ namespace HIKARI::MESHRENDERER {
             workContext.commandList = SERVICES::gCtx.cmdList;
             workContext.viewProj = viewProj;
             workContext.cameraPosition = cameraPosition;
-            workContext.geometryPoolSrv = ResolveClusterGeometryPoolSrv();
+            workContext.geometryPoolSrv = RENDER3D::GetClusterGeometryPoolSrvGpuHandle(SERVICES::gCtx);
             workContext.surfaceGpuSceneGpuAddress =
                 g.surfaceGpuSceneBuffer.GetGpuVirtualAddress();
             workContext.frame = &g.gpuDrivenFrame;

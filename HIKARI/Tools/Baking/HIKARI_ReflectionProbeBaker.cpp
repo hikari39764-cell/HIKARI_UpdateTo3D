@@ -6,6 +6,7 @@
 
 #include "Assets/Importers/HIKARI_IblBaker.h"
 #include "Core/HIKARI_Logger.h"
+#include "Gfx/D3D12/HIKARI_DxgiFormatName.h"
 #include "Project/Paths/HIKARI_ProjectPath.h"
 #include "Scene/Scenes/HIKARI_DocumentSceneBase.h"
 #include "Tools/Baking/HIKARI_ReflectionProbeCaptureValidator.h"
@@ -20,23 +21,6 @@ namespace HIKARI::TOOLS::BAKING {
         void AddError(ReflectionProbeBakeResult& result, std::string message) {
             result.errors.push_back(std::move(message));
             result.success = false;
-        }
-
-        const char* FormatName(DXGI_FORMAT format) {
-            switch (format) {
-            case DXGI_FORMAT_R16G16B16A16_FLOAT:
-                return "R16G16B16A16_FLOAT";
-            case DXGI_FORMAT_R32G32B32A32_FLOAT:
-                return "R32G32B32A32_FLOAT";
-            case DXGI_FORMAT_R11G11B10_FLOAT:
-                return "R11G11B10_FLOAT";
-            case DXGI_FORMAT_BC6H_UF16:
-                return "BC6H_UF16";
-            case DXGI_FORMAT_BC6H_SF16:
-                return "BC6H_SF16";
-            default:
-                return "DXGI_FORMAT_OTHER";
-            }
         }
 
         void MergeValidationMessages(
@@ -189,7 +173,7 @@ namespace HIKARI::TOOLS::BAKING {
         result.capturedFaceCount = captureValidation.arraySize;
         result.captureResolution = captureValidation.width;
         result.captureMipCount = captureValidation.mipCount;
-        result.captureFormat = FormatName(captureValidation.format);
+        result.captureFormat = GFX::DxgiFormatName(captureValidation.format);
         result.faceSummaries = captureValidation.faceSummaries;
         if (!captureValidation.success) {
             result.success = false;
@@ -219,7 +203,7 @@ namespace HIKARI::TOOLS::BAKING {
         MergeValidationMessages(result, prefilterValidation);
         result.prefilterValidated = prefilterValidation.success;
         result.prefilteredMipCount = prefilterValidation.mipCount;
-        result.prefilteredFormat = FormatName(prefilterValidation.format);
+        result.prefilteredFormat = GFX::DxgiFormatName(prefilterValidation.format);
         if (!prefilterValidation.success) {
             result.success = false;
             return result;

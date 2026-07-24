@@ -8,6 +8,7 @@
 
 namespace HIKARI::EDITOR {
 
+	// エディタワークスペースの識別子を表す列挙型
     enum class EditorWorkspaceId : uint8_t {
         Scene,
         Cinematics,
@@ -15,6 +16,7 @@ namespace HIKARI::EDITOR {
         AnimationStateMachine,
     };
 
+	// エディタワークスペースのオープンリクエストを表す構造体
     struct EditorWorkspaceOpenRequest {
         EditorWorkspaceId workspaceId = EditorWorkspaceId::Scene;
         std::optional<SceneObjectId> targetCameraObjectId{};
@@ -22,7 +24,8 @@ namespace HIKARI::EDITOR {
         std::optional<AssetGuid> modelAssetGuid{};
         std::optional<AssetGuid> animationStateMachineAssetGuid{};
     };
-
+    
+	// エディタワークスペースのアクティベーション情報を表す構造体
     struct EditorWorkspaceActivation {
         EditorWorkspaceId previous = EditorWorkspaceId::Scene;
         EditorWorkspaceId current = EditorWorkspaceId::Scene;

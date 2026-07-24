@@ -14,38 +14,6 @@
 namespace HIKARI::RENDER3D::SCREENSPACE {
 
     namespace {
-        uint64_t CurrentRetireFenceValue() {
-            return SERVICES::gCtx.currentFrameRetireFenceValue != 0
-                ? SERVICES::gCtx.currentFrameRetireFenceValue
-                : 0;
-        }
-
-        template <typename T>
-        void RetireD3D12Object(
-            Microsoft::WRL::ComPtr<T>& object,
-            const char* debugName) {
-
-            if (object == nullptr) {
-                return;
-            }
-
-            Microsoft::WRL::ComPtr<T> retired = object;
-            object.Reset();
-
-            GFX::GpuDeferredReleaseQueue* queue = SERVICES::gCtx.deferredReleaseQueue;
-            const uint64_t retireFence = CurrentRetireFenceValue();
-            if (queue != nullptr && retireFence != 0) {
-                queue->Enqueue(
-                    retireFence,
-                    [retired]() mutable {
-                        retired.Reset();
-                    },
-                    debugName != nullptr ? debugName : "ScreenSpaceGeometryAux.D3D12Object");
-                return;
-            }
-
-            retired.Reset();
-        }
     }
 
     bool ScreenSpaceGeometryAux::EnsureSize(uint32_t width, uint32_t height) {
@@ -60,8 +28,8 @@ namespace HIKARI::RENDER3D::SCREENSPACE {
     }
 
     void ScreenSpaceGeometryAux::Release() {
-        RetireD3D12Object(normalRoughness_, "ScreenSpaceGeometryAux.NormalRoughness");
-        RetireD3D12Object(rtvHeap_, "ScreenSpaceGeometryAux.RTVHeap");
+        GFX::RetireD3D12ObjectForCurrentFrame(normalRoughness_, "ScreenSpaceGeometryAux.NormalRoughness");
+        GFX::RetireD3D12ObjectForCurrentFrame(rtvHeap_, "ScreenSpaceGeometryAux.RTVHeap");
         normalRoughnessRtv_ = {};
         normalRoughnessSrvCpu_ = {};
         normalRoughnessSrvGpu_ = {};

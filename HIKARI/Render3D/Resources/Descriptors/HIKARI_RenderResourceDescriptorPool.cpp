@@ -1,4 +1,4 @@
-#include "Render3D/Resources/HIKARI_RenderResourceDescriptorPool.h"
+#include "Render3D/Resources/Descriptors/HIKARI_RenderResourceDescriptorPool.h"
 
 #include "Gfx/HIKARI_DescriptorAllocator.h"
 #include "Gfx/HIKARI_DescriptorHeapLayout.h"

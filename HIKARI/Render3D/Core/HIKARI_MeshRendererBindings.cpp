@@ -12,6 +12,7 @@
 #include "Render3D/Lighting/HIKARI_LightProbeVolumeRuntime.h"
 #include "Render3D/Lighting/HIKARI_SkyRenderer.h"
 #include "Render3D/Reflection/HIKARI_ReflectionProbeRuntime.h"
+#include "Render3D/Resources/Descriptors/HIKARI_RenderResourceDescriptorAccess.h"
 #include "Render3D/Resources/HIKARI_TextureResourceSystem.h"
 #include "Render3D/Shadow/HIKARI_ShadowMapRenderer.h"
 
@@ -258,37 +259,6 @@ namespace HIKARI::MESHRENDERER {
             }
         }
 
-        D3D12_GPU_DESCRIPTOR_HANDLE ResolveMaterialTexturePoolSrv() {
-            D3D12_GPU_DESCRIPTOR_HANDLE handle{};
-            ID3D12Device* device = SERVICES::gCtx.device;
-            ID3D12DescriptorHeap* heap = RENDER3D::GetTextureResourceSrvHeap();
-            if (device == nullptr || heap == nullptr) {
-                return handle;
-            }
-
-            const UINT descriptorSize =
-                device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
-            return GFX::DESCRIPTOR::GpuAt(
-                heap,
-                descriptorSize,
-                GFX::DESCRIPTOR::kUserSrvBegin);
-        }
-
-        D3D12_GPU_DESCRIPTOR_HANDLE ResolveClusterGeometryPoolSrv() {
-            D3D12_GPU_DESCRIPTOR_HANDLE handle{};
-            ID3D12Device* device = SERVICES::gCtx.device;
-            ID3D12DescriptorHeap* heap = RENDER3D::GetTextureResourceSrvHeap();
-            if (device == nullptr || heap == nullptr) {
-                return handle;
-            }
-
-            const UINT descriptorSize =
-                device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
-            return GFX::DESCRIPTOR::GpuAt(
-                heap,
-                descriptorSize,
-                GFX::DESCRIPTOR::kSystemSrvDynamicBegin);
-        }
     }
 	// フレーム全体で共通のリソースをバインドする。これには、カメラ、ライト、シャドウ、スカイ環境の定数バッファが含まれる。ルートシグネチャも設定される。
     void BindFrameCommonResources(
@@ -386,7 +356,7 @@ namespace HIKARI::MESHRENDERER {
             return;
         }
 
-        const D3D12_GPU_DESCRIPTOR_HANDLE texturePoolSrv = ResolveMaterialTexturePoolSrv();
+        const D3D12_GPU_DESCRIPTOR_HANDLE texturePoolSrv = RENDER3D::GetMaterialTexturePoolSrvGpuHandle(SERVICES::gCtx);
         if (texturePoolSrv.ptr != 0) {
             BindDescriptorTableCached(ctx, ROOT_PARAM::TexturePool, texturePoolSrv);
         }
@@ -397,7 +367,7 @@ namespace HIKARI::MESHRENDERER {
             return;
         }
 
-        const D3D12_GPU_DESCRIPTOR_HANDLE clusterPoolSrv = ResolveClusterGeometryPoolSrv();
+        const D3D12_GPU_DESCRIPTOR_HANDLE clusterPoolSrv = RENDER3D::GetClusterGeometryPoolSrvGpuHandle(SERVICES::gCtx);
         if (clusterPoolSrv.ptr != 0) {
             BindDescriptorTableCached(ctx, ROOT_PARAM::ClusterGeometryPool, clusterPoolSrv);
         }

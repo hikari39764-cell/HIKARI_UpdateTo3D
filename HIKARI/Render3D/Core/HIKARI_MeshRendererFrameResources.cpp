@@ -4,6 +4,7 @@
 
 #include <d3dx12.h>
 
+#include "Gfx/D3D12/HIKARI_D3D12BufferAlignment.h"
 #include "Gfx/HIKARI_DescriptorHeapLayout.h"
 
 namespace HIKARI::MESHRENDERER {
@@ -137,19 +138,19 @@ namespace HIKARI::MESHRENDERER {
             return false;
         }
 
-        const UINT cameraBytes = AlignConstantBufferSize(sizeof(CameraCB));
+        const UINT cameraBytes = GFX::AlignD3D12ConstantBufferByteSize(sizeof(CameraCB));
         const UINT objectBytes =
-            AlignConstantBufferSize(sizeof(ObjectCB)) * kMaxObjectCount;
+            GFX::AlignD3D12ConstantBufferByteSize(sizeof(ObjectCB)) * kMaxObjectCount;
         const UINT objectDataBytes =
             static_cast<UINT>(sizeof(ObjectGpuData) * kMaxObjectCount);
         const UINT materialDataBytes =
             static_cast<UINT>(sizeof(MaterialGpuData) * kMaxMaterialDataCount);
-        const UINT lightBytes = AlignConstantBufferSize(sizeof(LightCB));
-        const UINT shadowBytes = AlignConstantBufferSize(sizeof(ShadowCB));
+        const UINT lightBytes = GFX::AlignD3D12ConstantBufferByteSize(sizeof(LightCB));
+        const UINT shadowBytes = GFX::AlignD3D12ConstantBufferByteSize(sizeof(ShadowCB));
         const UINT skyEnvironmentBytes =
-            AlignConstantBufferSize(sizeof(SkyEnvironmentCB));
+            GFX::AlignD3D12ConstantBufferByteSize(sizeof(SkyEnvironmentCB));
         const UINT jointPaletteBytes =
-            AlignConstantBufferSize(sizeof(JointPaletteCB)) * kMaxObjectCount;
+            GFX::AlignD3D12ConstantBufferByteSize(sizeof(JointPaletteCB)) * kMaxObjectCount;
 
         const UINT descriptorSize =
             device->GetDescriptorHandleIncrementSize(

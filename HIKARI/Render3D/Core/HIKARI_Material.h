@@ -2,7 +2,7 @@
 #include <string>
 #include <cstdint>
 #include "Render3D/HIKARI_Math3D.h"
-#include "Render3D/Core/HIKARI_MaterialTextureUsage.h"
+#include "Render3D/Material/HIKARI_MaterialTextureUsage.h"
 #include "Render3D/Resources/HIKARI_RenderResourceHandle.h"
 
 namespace HIKARI {
@@ -42,9 +42,9 @@ namespace HIKARI {
         void SetFeatureBits(uint32_t featureBits);
         uint32_t GetFeatureBits() const;
 
-        void SetTextureSlot(ModelTextureUsage usage, RuntimeTextureSlot slot);
-        const RuntimeTextureSlot& GetTextureSlot(ModelTextureUsage usage) const;
-        bool HasTextureSlot(ModelTextureUsage usage) const;
+        void SetTextureSlot(MaterialTextureUsage usage, RuntimeTextureSlot slot);
+        const RuntimeTextureSlot& GetTextureSlot(MaterialTextureUsage usage) const;
+        bool HasTextureSlot(MaterialTextureUsage usage) const;
 
         void SetMetallicFactor(float value);
         float GetMetallicFactor() const;

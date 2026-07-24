@@ -4,14 +4,14 @@
 #include <string>
 #include <unordered_map>
 #include <vector>
-#include "Render3D/Core/HIKARI_MaterialTextureUsage.h"
+#include "Render3D/Material/HIKARI_MaterialTextureUsage.h"
 #include "Render3D/Core/HIKARI_ModelAsset.h"
 
 namespace HIKARI {
 
     using ModelTexturePathResolver = std::function<std::string(
         const std::string& sourceTexturePath,
-        ModelTextureUsage usage)>;
+        MaterialTextureUsage usage)>;
 
     enum class ModelTextureResolveFailureKind {
         Missing,
@@ -64,7 +64,7 @@ namespace HIKARI {
             const ModelAsset& asset,
             const std::string& textureName,
             const TextureSlot& textureSlot,
-            ModelTextureUsage usage) const;
+            MaterialTextureUsage usage) const;
         void LoadPbrTextureSlots(
             const ModelAsset& asset,
             const MaterialAsset& source,
@@ -73,7 +73,7 @@ namespace HIKARI {
         void ResolvePbrTexturePaths(ModelAsset& asset) const;
         std::string ResolveTexturePath(
             const std::string& sourceTexturePath,
-            ModelTextureUsage usage) const;
+            MaterialTextureUsage usage) const;
 
     private:
         std::vector<std::unique_ptr<ModelAsset>> assets_;

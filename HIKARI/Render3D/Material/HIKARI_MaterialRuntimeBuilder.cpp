@@ -8,52 +8,25 @@
 #include "Render3D/Core/HIKARI_Material.h"
 #include "Render3D/Core/HIKARI_ModelAsset.h"
 #include "Render3D/Material/HIKARI_DefaultPbrResources.h"
+#include "Render3D/Material/HIKARI_MaterialTextureUsage.h"
 #include "Render3D/Resources/HIKARI_TextureResourceSystem.h"
 
 namespace HIKARI {
 
     namespace {
-        RENDER3D::TextureResourceColorSpace ColorSpaceForUsage(ModelTextureUsage usage) {
-            switch (usage) {
-            case ModelTextureUsage::BaseColor:
-            case ModelTextureUsage::Emissive:
-            case ModelTextureUsage::SpecularColor:
-                return RENDER3D::TextureResourceColorSpace::Srgb;
-            case ModelTextureUsage::Normal:
-            case ModelTextureUsage::MetallicRoughness:
-            case ModelTextureUsage::Occlusion:
-            case ModelTextureUsage::Specular:
-            default:
-                return RENDER3D::TextureResourceColorSpace::Linear;
-            }
-        }
-
-        const char* UsageName(ModelTextureUsage usage) {
-            switch (usage) {
-            case ModelTextureUsage::BaseColor: return "baseColor";
-            case ModelTextureUsage::Normal: return "normal";
-            case ModelTextureUsage::MetallicRoughness: return "metallicRoughness";
-            case ModelTextureUsage::Occlusion: return "occlusion";
-            case ModelTextureUsage::Emissive: return "emissive";
-            case ModelTextureUsage::Specular: return "specular";
-            case ModelTextureUsage::SpecularColor: return "specularColor";
-            default: return "unknown";
-            }
-        }
-
-        RuntimeTextureSlot DefaultSlotForUsage(ModelTextureUsage usage)
+        RuntimeTextureSlot DefaultSlotForUsage(MaterialTextureUsage usage)
         {
             switch (usage) {
-            case ModelTextureUsage::BaseColor:
-            case ModelTextureUsage::Occlusion:
-            case ModelTextureUsage::Specular:
-            case ModelTextureUsage::SpecularColor:
+            case MaterialTextureUsage::BaseColor:
+            case MaterialTextureUsage::Occlusion:
+            case MaterialTextureUsage::Specular:
+            case MaterialTextureUsage::SpecularColor:
                 return DefaultPbrResources::WhiteSlot();
-            case ModelTextureUsage::Normal:
+            case MaterialTextureUsage::Normal:
                 return DefaultPbrResources::FlatNormalSlot();
-            case ModelTextureUsage::MetallicRoughness:
+            case MaterialTextureUsage::MetallicRoughness:
                 return DefaultPbrResources::MetallicRoughnessSlot();
-            case ModelTextureUsage::Emissive:
+            case MaterialTextureUsage::Emissive:
                 return DefaultPbrResources::BlackSlot();
             default:
                 return DefaultPbrResources::MissingSlot();
@@ -69,7 +42,7 @@ namespace HIKARI {
 
         RuntimeTextureSlot BuildSlot(
             const MaterialTextureSlotData& slotData,
-            ModelTextureUsage usage,
+            MaterialTextureUsage usage,
             const AssetRegistry& assetRegistry,
             std::string_view debugName) {
 
@@ -93,11 +66,11 @@ namespace HIKARI {
             slot.uvOffset = slotData.uvOffset;
             slot.uvRotation = slotData.uvRotation;
             const std::string textureName =
-                "material_asset/" + std::string(debugName) + "/" + UsageName(usage);
+                "material_asset/" + std::string(debugName) + "/" + MaterialTextureUsageName(usage);
             slot.resource = RENDER3D::LoadTextureResourceWithColorSpace(
                 textureName,
                 slot.resolvedPath,
-                ColorSpaceForUsage(usage));
+                MaterialTextureColorSpace(usage));
             slot.handle = RENDER3D::GetTextureResourceBackendHandle(slot.resource);
             if (slot.handle < 0) {
                 HIKARI_LOG_WARN("[MaterialRuntimeBuilder] texture load failed: " +
@@ -137,20 +110,20 @@ namespace HIKARI {
         outMaterial.SetFeatureBits(featureBits);
 
         // Material JSON は GUID だけを保持し、Runtime では Registry から cooked texture へ解決する。
-        outMaterial.SetTextureSlot(ModelTextureUsage::BaseColor,
-            BuildSlot(data.baseColorTexture, ModelTextureUsage::BaseColor, assetRegistry, debugName));
-        outMaterial.SetTextureSlot(ModelTextureUsage::Normal,
-            BuildSlot(data.normalTexture, ModelTextureUsage::Normal, assetRegistry, debugName));
-        outMaterial.SetTextureSlot(ModelTextureUsage::MetallicRoughness,
-            BuildSlot(data.metallicRoughnessTexture, ModelTextureUsage::MetallicRoughness, assetRegistry, debugName));
-        outMaterial.SetTextureSlot(ModelTextureUsage::Occlusion,
-            BuildSlot(data.occlusionTexture, ModelTextureUsage::Occlusion, assetRegistry, debugName));
-        outMaterial.SetTextureSlot(ModelTextureUsage::Emissive,
-            BuildSlot(data.emissiveTexture, ModelTextureUsage::Emissive, assetRegistry, debugName));
-        outMaterial.SetTextureSlot(ModelTextureUsage::Specular,
-            BuildSlot(data.specularTexture, ModelTextureUsage::Specular, assetRegistry, debugName));
-        outMaterial.SetTextureSlot(ModelTextureUsage::SpecularColor,
-            BuildSlot(data.specularColorTexture, ModelTextureUsage::SpecularColor, assetRegistry, debugName));
+        outMaterial.SetTextureSlot(MaterialTextureUsage::BaseColor,
+            BuildSlot(data.baseColorTexture, MaterialTextureUsage::BaseColor, assetRegistry, debugName));
+        outMaterial.SetTextureSlot(MaterialTextureUsage::Normal,
+            BuildSlot(data.normalTexture, MaterialTextureUsage::Normal, assetRegistry, debugName));
+        outMaterial.SetTextureSlot(MaterialTextureUsage::MetallicRoughness,
+            BuildSlot(data.metallicRoughnessTexture, MaterialTextureUsage::MetallicRoughness, assetRegistry, debugName));
+        outMaterial.SetTextureSlot(MaterialTextureUsage::Occlusion,
+            BuildSlot(data.occlusionTexture, MaterialTextureUsage::Occlusion, assetRegistry, debugName));
+        outMaterial.SetTextureSlot(MaterialTextureUsage::Emissive,
+            BuildSlot(data.emissiveTexture, MaterialTextureUsage::Emissive, assetRegistry, debugName));
+        outMaterial.SetTextureSlot(MaterialTextureUsage::Specular,
+            BuildSlot(data.specularTexture, MaterialTextureUsage::Specular, assetRegistry, debugName));
+        outMaterial.SetTextureSlot(MaterialTextureUsage::SpecularColor,
+            BuildSlot(data.specularColorTexture, MaterialTextureUsage::SpecularColor, assetRegistry, debugName));
 
         return true;
     }

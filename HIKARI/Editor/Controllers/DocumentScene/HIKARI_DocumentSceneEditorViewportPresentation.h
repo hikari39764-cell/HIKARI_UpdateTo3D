@@ -12,9 +12,6 @@ namespace HIKARI {
     namespace EDITOR {
         namespace DOCUMENT_SCENE {
 
-            void HandleTransformGizmoShortcuts(
-                EditorTransformGizmoState& state,
-                bool gameViewFocused);
             void DrawViewportDebugOptions(
                 ViewportOverlayState& overlays,
                 ViewportPerformanceState& performance);

@@ -12,6 +12,7 @@
 #include <unordered_set>
 #include <vector>
 
+#include "Gfx/D3D12/HIKARI_D3D12BufferAlignment.h"
 #include <d3dcompiler.h>
 #include <d3dx12.h>
 #include <wrl/client.h>
@@ -39,6 +40,7 @@
 #include "Render3D/Debug/HIKARI_Renderer3D_Debug.h"
 #include "Render3D/HIKARI_Mesh.h"
 #include "Render3D/Meshlet/HIKARI_MeshletRenderBackend.h"
+#include "Render3D/Resources/Descriptors/HIKARI_RenderResourceDescriptorAccess.h"
 #include "Render3D/Resources/HIKARI_TextureResourceSystem.h"
 #include "Render3D/Shadow/HIKARI_ShadowCachePolicy.h"
 #include "Render3D/Shadow/HIKARI_ShadowLightFrame.h"
@@ -55,10 +57,6 @@ namespace HIKARI::SHADOW {
         constexpr D3D12_RESOURCE_STATES kShadowShaderReadState =
             D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE |
             D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE;
-
-        constexpr UINT AlignConstantBufferSize(size_t size) {
-            return static_cast<UINT>((size + 255u) & ~255u);
-        }
 
         struct ShadowCameraCB {
             MATH::Mat4 lightViewProj{};
@@ -550,7 +548,7 @@ namespace HIKARI::SHADOW {
             }
 
             return g.jointPaletteCB->GetGPUVirtualAddress() +
-                static_cast<UINT64>(AlignConstantBufferSize(sizeof(JointPaletteCB))) *
+                static_cast<UINT64>(GFX::AlignD3D12ConstantBufferByteSize(sizeof(JointPaletteCB))) *
                 objectIndex;
         }
 
@@ -574,7 +572,7 @@ namespace HIKARI::SHADOW {
             }
 
             uint8_t* dst = reinterpret_cast<uint8_t*>(g.jointPaletteMapped) +
-                static_cast<size_t>(AlignConstantBufferSize(sizeof(JointPaletteCB))) *
+                static_cast<size_t>(GFX::AlignD3D12ConstantBufferByteSize(sizeof(JointPaletteCB))) *
                     objectIndex;
             std::memcpy(dst, &cb, sizeof(cb));
             return uploadCount;
@@ -701,38 +699,6 @@ namespace HIKARI::SHADOW {
                 : static_cast<uint32_t>(descriptorIndex);
         }
 
-        D3D12_GPU_DESCRIPTOR_HANDLE ResolveMaterialTexturePoolSrv() {
-            D3D12_GPU_DESCRIPTOR_HANDLE handle{};
-            ID3D12Device* device = SERVICES::gCtx.device;
-            ID3D12DescriptorHeap* heap = RENDER3D::GetTextureResourceSrvHeap();
-            if (device == nullptr || heap == nullptr) {
-                return handle;
-            }
-
-            const UINT descriptorSize =
-                device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
-            return GFX::DESCRIPTOR::GpuAt(
-                heap,
-                descriptorSize,
-                GFX::DESCRIPTOR::kUserSrvBegin);
-        }
-
-        D3D12_GPU_DESCRIPTOR_HANDLE ResolveClusterGeometryPoolSrv() {
-            D3D12_GPU_DESCRIPTOR_HANDLE handle{};
-            ID3D12Device* device = SERVICES::gCtx.device;
-            ID3D12DescriptorHeap* heap = RENDER3D::GetTextureResourceSrvHeap();
-            if (device == nullptr || heap == nullptr) {
-                return handle;
-            }
-
-            const UINT descriptorSize =
-                device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
-            return GFX::DESCRIPTOR::GpuAt(
-                heap,
-                descriptorSize,
-                GFX::DESCRIPTOR::kSystemSrvDynamicBegin);
-        }
-
         void BindShadowGpuDrivenFrameResources(
             ID3D12GraphicsCommandList* cmd,
             ID3D12Resource* meshletVisibleRangeBuffer,
@@ -763,14 +729,14 @@ namespace HIKARI::SHADOW {
                     g.surfaceGpuSceneBuffer.GetSrv());
             }
             const D3D12_GPU_DESCRIPTOR_HANDLE texturePoolSrv =
-                ResolveMaterialTexturePoolSrv();
+                RENDER3D::GetMaterialTexturePoolSrvGpuHandle(SERVICES::gCtx);
             if (texturePoolSrv.ptr != 0) {
                 cmd->SetGraphicsRootDescriptorTable(
                     RECORD::kShadowStaticRootParamTexturePool,
                     texturePoolSrv);
             }
             const D3D12_GPU_DESCRIPTOR_HANDLE clusterPoolSrv =
-                ResolveClusterGeometryPoolSrv();
+                RENDER3D::GetClusterGeometryPoolSrvGpuHandle(SERVICES::gCtx);
             if (clusterPoolSrv.ptr != 0) {
                 cmd->SetGraphicsRootDescriptorTable(
                     RECORD::kShadowStaticRootParamClusterGeometryPool,
@@ -1539,7 +1505,7 @@ namespace HIKARI::SHADOW {
             }
 
             uint8_t* dst = reinterpret_cast<uint8_t*>(g.jointPaletteMapped) +
-                static_cast<size_t>(AlignConstantBufferSize(sizeof(JointPaletteCB))) * objectIndex;
+                static_cast<size_t>(GFX::AlignD3D12ConstantBufferByteSize(sizeof(JointPaletteCB))) * objectIndex;
             std::memcpy(dst, &cb, sizeof(cb));
             return uploadCount;
         }
@@ -1684,11 +1650,11 @@ namespace HIKARI::SHADOW {
         }
 
         bool CreateBuffers(ID3D12Device* device) {
-            const UINT cameraBytes = AlignConstantBufferSize(sizeof(ShadowCameraCB));
-            const UINT objectBytes = AlignConstantBufferSize(sizeof(ShadowObjectCB)) * kMaxCasterObjects;
+            const UINT cameraBytes = GFX::AlignD3D12ConstantBufferByteSize(sizeof(ShadowCameraCB));
+            const UINT objectBytes = GFX::AlignD3D12ConstantBufferByteSize(sizeof(ShadowObjectCB)) * kMaxCasterObjects;
             const UINT materialDataBytes =
                 static_cast<UINT>(sizeof(MESHRENDERER::MaterialGpuData) * MESHRENDERER::kMaxMaterialDataCount);
-            const UINT paletteBytes = AlignConstantBufferSize(sizeof(JointPaletteCB)) * kMaxCasterObjects;
+            const UINT paletteBytes = GFX::AlignD3D12ConstantBufferByteSize(sizeof(JointPaletteCB)) * kMaxCasterObjects;
 
             ID3D12DescriptorHeap* srvHeap = SERVICES::gCtx.srvHeap;
             if (srvHeap == nullptr) {
@@ -2494,7 +2460,7 @@ namespace HIKARI::SHADOW {
             workContext.commandList = SERVICES::gCtx.cmdList;
             workContext.viewProj = g.lightViewProj;
             workContext.cameraPosition = g.lightCullPosition;
-            workContext.geometryPoolSrv = ResolveClusterGeometryPoolSrv();
+            workContext.geometryPoolSrv = RENDER3D::GetClusterGeometryPoolSrvGpuHandle(SERVICES::gCtx);
             workContext.surfaceGpuSceneGpuAddress =
                 g.surfaceGpuSceneBuffer.GetGpuVirtualAddress();
             workContext.frame = &g.gpuDrivenFrame;

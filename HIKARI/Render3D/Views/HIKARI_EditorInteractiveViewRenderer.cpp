@@ -12,7 +12,7 @@
 #include "Render2D/HIKARI_RenderTarget2D.h"
 #include "Render3D/Core/HIKARI_MeshRenderer.h"
 #include "Render3D/Debug/HIKARI_Renderer3D_Debug.h"
-#include "Render3D/Resources/HIKARI_RenderResourceDescriptorPool.h"
+#include "Render3D/Resources/Descriptors/HIKARI_RenderResourceDescriptorPool.h"
 #include "Vfx/Post/HIKARI_PostCommon.h"
 #include "Vfx/Post/HIKARI_PostEffect.h"
 #include "Vfx/Post/HIKARI_PostQuadDrawer.h"

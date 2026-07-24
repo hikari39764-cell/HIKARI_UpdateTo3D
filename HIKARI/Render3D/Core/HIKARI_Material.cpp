@@ -109,28 +109,28 @@ namespace HIKARI {
         return featureBits_;
     }
 
-    void Material::SetTextureSlot(ModelTextureUsage usage, RuntimeTextureSlot slot) {
+    void Material::SetTextureSlot(MaterialTextureUsage usage, RuntimeTextureSlot slot) {
         RuntimeTextureSlot* destination = nullptr;
         switch (usage) {
-        case ModelTextureUsage::BaseColor:
+        case MaterialTextureUsage::BaseColor:
             destination = &baseColorTexture_;
             break;
-        case ModelTextureUsage::Normal:
+        case MaterialTextureUsage::Normal:
             destination = &normalTexture_;
             break;
-        case ModelTextureUsage::MetallicRoughness:
+        case MaterialTextureUsage::MetallicRoughness:
             destination = &metallicRoughnessTexture_;
             break;
-        case ModelTextureUsage::Occlusion:
+        case MaterialTextureUsage::Occlusion:
             destination = &occlusionTexture_;
             break;
-        case ModelTextureUsage::Emissive:
+        case MaterialTextureUsage::Emissive:
             destination = &emissiveTexture_;
             break;
-        case ModelTextureUsage::Specular:
+        case MaterialTextureUsage::Specular:
             destination = &specularTexture_;
             break;
-        case ModelTextureUsage::SpecularColor:
+        case MaterialTextureUsage::SpecularColor:
             destination = &specularColorTexture_;
             break;
         default:
@@ -143,28 +143,28 @@ namespace HIKARI {
         ++revision_;
     }
 
-    const RuntimeTextureSlot& Material::GetTextureSlot(ModelTextureUsage usage) const {
+    const RuntimeTextureSlot& Material::GetTextureSlot(MaterialTextureUsage usage) const {
         switch (usage) {
-        case ModelTextureUsage::BaseColor:
+        case MaterialTextureUsage::BaseColor:
             return baseColorTexture_;
-        case ModelTextureUsage::Normal:
+        case MaterialTextureUsage::Normal:
             return normalTexture_;
-        case ModelTextureUsage::MetallicRoughness:
+        case MaterialTextureUsage::MetallicRoughness:
             return metallicRoughnessTexture_;
-        case ModelTextureUsage::Occlusion:
+        case MaterialTextureUsage::Occlusion:
             return occlusionTexture_;
-        case ModelTextureUsage::Emissive:
+        case MaterialTextureUsage::Emissive:
             return emissiveTexture_;
-        case ModelTextureUsage::Specular:
+        case MaterialTextureUsage::Specular:
             return specularTexture_;
-        case ModelTextureUsage::SpecularColor:
+        case MaterialTextureUsage::SpecularColor:
             return specularColorTexture_;
         default:
             return kEmptyTextureSlot;
         }
     }
 
-    bool Material::HasTextureSlot(ModelTextureUsage usage) const {
+    bool Material::HasTextureSlot(MaterialTextureUsage usage) const {
         return GetTextureSlot(usage).IsActive();
     }
 

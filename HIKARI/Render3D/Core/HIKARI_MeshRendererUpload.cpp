@@ -5,6 +5,7 @@
 #include <cstring>
 
 #include "Core/Math/HIKARI_NormalMatrix.h"
+#include "Gfx/D3D12/HIKARI_D3D12BufferAlignment.h"
 #include "Render3D/Core/HIKARI_ModelAsset.h"
 #include "Render3D/Lighting/HIKARI_IblEnvironment.h"
 #include "Render3D/Lighting/HIKARI_LightProbeVolumeRuntime.h"
@@ -423,7 +424,7 @@ namespace HIKARI::MESHRENDERER {
             return 0;
         }
 
-        constexpr UINT kJointPaletteStride = AlignConstantBufferSize(sizeof(JointPaletteCB));
+        constexpr UINT kJointPaletteStride = GFX::AlignD3D12ConstantBufferByteSize(sizeof(JointPaletteCB));
         uint8_t* dst = reinterpret_cast<uint8_t*>(jointPaletteMapped) + static_cast<size_t>(kJointPaletteStride) * objectIndex;
         JointPaletteCB paletteCb{};
         for (MATH::Mat4& jointMatrix : paletteCb.jointMatrices) {

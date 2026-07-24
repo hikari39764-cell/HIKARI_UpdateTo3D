@@ -173,7 +173,7 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
                 record.primitiveIndex < record.model->meshes[record.meshIndex].primitives.size();
         }
 
-        int ResolveRuntimeTextureSlot(const Material& material, ModelTextureUsage usage) {
+        int ResolveRuntimeTextureSlot(const Material& material, MaterialTextureUsage usage) {
             return material.HasTextureSlot(usage) ? material.GetTextureSlot(usage).handle : -1;
         }
 
@@ -189,7 +189,7 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
         uint64_t HashRuntimeTextureSlot(
             uint64_t hash,
             const Material& material,
-            ModelTextureUsage usage) {
+            MaterialTextureUsage usage) {
 
             const RuntimeTextureSlot& slot = material.GetTextureSlot(usage);
             hash = HashAppend(hash, HashIntSlot(slot.handle));
@@ -205,13 +205,13 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
 
             uint64_t hash = HashString("texture-set");
             if (record.materialOverride != nullptr) {
-                hash = HashRuntimeTextureSlot(hash, *record.materialOverride, ModelTextureUsage::BaseColor);
-                hash = HashRuntimeTextureSlot(hash, *record.materialOverride, ModelTextureUsage::Normal);
-                hash = HashRuntimeTextureSlot(hash, *record.materialOverride, ModelTextureUsage::MetallicRoughness);
-                hash = HashRuntimeTextureSlot(hash, *record.materialOverride, ModelTextureUsage::Occlusion);
-                hash = HashRuntimeTextureSlot(hash, *record.materialOverride, ModelTextureUsage::Emissive);
-                hash = HashRuntimeTextureSlot(hash, *record.materialOverride, ModelTextureUsage::Specular);
-                hash = HashRuntimeTextureSlot(hash, *record.materialOverride, ModelTextureUsage::SpecularColor);
+                hash = HashRuntimeTextureSlot(hash, *record.materialOverride, MaterialTextureUsage::BaseColor);
+                hash = HashRuntimeTextureSlot(hash, *record.materialOverride, MaterialTextureUsage::Normal);
+                hash = HashRuntimeTextureSlot(hash, *record.materialOverride, MaterialTextureUsage::MetallicRoughness);
+                hash = HashRuntimeTextureSlot(hash, *record.materialOverride, MaterialTextureUsage::Occlusion);
+                hash = HashRuntimeTextureSlot(hash, *record.materialOverride, MaterialTextureUsage::Emissive);
+                hash = HashRuntimeTextureSlot(hash, *record.materialOverride, MaterialTextureUsage::Specular);
+                hash = HashRuntimeTextureSlot(hash, *record.materialOverride, MaterialTextureUsage::SpecularColor);
                 return hash;
             }
             if (materialAsset == nullptr) {

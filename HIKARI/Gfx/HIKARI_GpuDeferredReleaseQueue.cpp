@@ -11,6 +11,30 @@ namespace HIKARI::SERVICES {
 }
 
 namespace HIKARI::GFX {
+    namespace {
+        void RetireD3D12ObjectAfterFence(
+            IUnknown* object,
+            GpuDeferredReleaseQueue* queue,
+            uint64_t retireFenceValue,
+            std::string debugName) {
+
+            if (object == nullptr) {
+                return;
+            }
+
+            if (queue != nullptr && retireFenceValue != 0) {
+                queue->Enqueue(
+                    retireFenceValue,
+                    [object]() {
+                        object->Release();
+                    },
+                    std::move(debugName));
+                return;
+            }
+
+            object->Release();
+        }
+    }
 	// GPU による遅延解放のためのキュークラス GpuDeferredReleaseQueue の実装
 	// retireFenceValue と releaseCallback を受け取り、保留リストに追加する
     // retireFenceValue は、GPU がこのリリースを安全に実行できるようになるフェンスの値で、releaseCallback は実際のリリース処理を行うコールバック関数である
@@ -62,27 +86,26 @@ namespace HIKARI::GFX {
         return pending_.size();
     }
 
+    void RetireD3D12ObjectForFrame(
+        IUnknown* object,
+        const Context& context,
+        std::string debugName) {
+
+        RetireD3D12ObjectAfterFence(
+            object,
+            context.deferredReleaseQueue,
+            context.currentFrameRetireFenceValue,
+            std::move(debugName));
+    }
+
     void RetireD3D12ObjectForCurrentFrame(
         IUnknown* object,
         std::string debugName) {
 
-        if (object == nullptr) {
-            return;
-        }
-
-        GpuDeferredReleaseQueue* queue = SERVICES::gCtx.deferredReleaseQueue;
-        const uint64_t retireFenceValue = SERVICES::gCtx.currentFrameRetireFenceValue;
-        if (queue != nullptr && retireFenceValue != 0) {
-            queue->Enqueue(
-                retireFenceValue,
-                [object]() {
-                    object->Release();
-                },
-                std::move(debugName));
-            return;
-        }
-
-        object->Release();
+        RetireD3D12ObjectForFrame(
+            object,
+            SERVICES::gCtx,
+            std::move(debugName));
     }
 
 } // namespace HIKARI::GFX

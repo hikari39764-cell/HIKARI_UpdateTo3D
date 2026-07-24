@@ -16,7 +16,7 @@
 #include "Render2D/HIKARI_RenderTarget2D.h"
 #include "Render3D/Debug/HIKARI_RenderDebugView.h"
 #include "Render3D/Lighting/HIKARI_SceneEnvironment.h"
-#include "Render3D/Resources/HIKARI_RenderResourceDescriptorPool.h"
+#include "Render3D/Resources/Descriptors/HIKARI_RenderResourceDescriptorPool.h"
 #include "Render3D/Settings/HIKARI_RenderQualitySettings.h"
 #include "Render3D/Shadow/HIKARI_ShadowMapRenderer.h"
 #include "Render3D/Temporal/HIKARI_TemporalFrameState.h"
@@ -130,22 +130,6 @@ namespace HIKARI::RENDER3D::VOLUMETRIC {
             (void)ReleaseRenderResourceDescriptor(retired);
         }
 
-        template <typename T>
-        void RetireD3D12Object(StageState& state, ComPtr<T>& object, const char* debugName) {
-            if (!object) return;
-            ComPtr<T> retired = object;
-            object.Reset();
-            if (state.context.deferredReleaseQueue != nullptr &&
-                state.context.currentFrameRetireFenceValue != 0) {
-                state.context.deferredReleaseQueue->Enqueue(
-                    state.context.currentFrameRetireFenceValue,
-                    [retired]() mutable { retired.Reset(); },
-                    debugName != nullptr ? debugName : "VolumetricLighting.Resource");
-                return;
-            }
-            retired.Reset();
-        }
-
         void ReleaseVolume(VolumeResource& volume) {
             ReleaseView(volume.srv);
             ReleaseView(volume.uav);
@@ -156,7 +140,10 @@ namespace HIKARI::RENDER3D::VOLUMETRIC {
         void RetireVolume(StageState& state, VolumeResource& volume) {
             RetireView(state, volume.srv, "VolumetricLighting.VolumeSRV");
             RetireView(state, volume.uav, "VolumetricLighting.VolumeUAV");
-            RetireD3D12Object(state, volume.texture, "VolumetricLighting.Volume");
+            GFX::RetireD3D12ObjectForFrame(
+                volume.texture,
+                state.context,
+                "VolumetricLighting.Volume");
             volume.state = D3D12_RESOURCE_STATE_GENERIC_READ;
         }
 

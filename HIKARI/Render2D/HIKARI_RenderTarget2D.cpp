@@ -11,36 +11,6 @@ using Microsoft::WRL::ComPtr;
 
 namespace HIKARI {
 
-    namespace {
-        template <typename T>
-        void RetireD3D12Object(
-            Microsoft::WRL::ComPtr<T>& object,
-            const HIKARI::GFX::Context& context,
-            const char* debugName)
-        {
-            if (object == nullptr) {
-                return;
-            }
-
-            Microsoft::WRL::ComPtr<T> retired = object;
-            object.Reset();
-
-            HIKARI::GFX::GpuDeferredReleaseQueue* queue = context.deferredReleaseQueue;
-            const uint64_t retireFence = context.currentFrameRetireFenceValue;
-            if (queue != nullptr && retireFence != 0) {
-                queue->Enqueue(
-                    retireFence,
-                    [retired]() mutable {
-                        retired.Reset();
-                    },
-                    debugName != nullptr ? debugName : "RenderTarget2D.D3D12Object");
-                return;
-            }
-
-            retired.Reset();
-        }
-    }
-
     bool RenderTarget2D::Init(
         int width,
         int height,
@@ -90,11 +60,11 @@ namespace HIKARI {
 
     void RenderTarget2D::Finalize()
     {
-        RetireD3D12Object(colorTex_, context_, "RenderTarget2D.Color");
-        RetireD3D12Object(depthTex_, context_, "RenderTarget2D.Depth");
-        RetireD3D12Object(rtvHeap_, context_, "RenderTarget2D.RTVHeap");
-        RetireD3D12Object(srvHeap_, context_, "RenderTarget2D.SRVHeap");
-        RetireD3D12Object(dsvHeap_, context_, "RenderTarget2D.DSVHeap");
+        GFX::RetireD3D12ObjectForFrame(colorTex_, context_, "RenderTarget2D.Color");
+        GFX::RetireD3D12ObjectForFrame(depthTex_, context_, "RenderTarget2D.Depth");
+        GFX::RetireD3D12ObjectForFrame(rtvHeap_, context_, "RenderTarget2D.RTVHeap");
+        GFX::RetireD3D12ObjectForFrame(srvHeap_, context_, "RenderTarget2D.SRVHeap");
+        GFX::RetireD3D12ObjectForFrame(dsvHeap_, context_, "RenderTarget2D.DSVHeap");
         rtvHandle_ = {};
         srvCpuHandle_ = {};
         srvGpuHandle_ = {};

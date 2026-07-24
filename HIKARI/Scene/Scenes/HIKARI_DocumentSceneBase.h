@@ -239,7 +239,7 @@ namespace HIKARI {
             uint32_t faceIndex);
         std::string ResolveModelTexturePathFromAssets(
             const std::string& sourceTexturePath,
-            ModelTextureUsage usage) const;
+            MaterialTextureUsage usage) const;
         const AssetRecord* FindUniqueTextureAssetByFilename(
             const std::string& filename,
             const std::string& sourceTexturePath) const;

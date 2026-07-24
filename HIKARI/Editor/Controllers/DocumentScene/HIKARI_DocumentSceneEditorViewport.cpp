@@ -2,6 +2,7 @@
 #include "Editor/Controllers/DocumentScene/HIKARI_DocumentSceneEditorViewportPresentation.h"
 
 #include "Editor/Authoring/HIKARI_EditorObjectState.h"
+#include "Editor/Gizmos/HIKARI_EditorTransformGizmoShortcuts.h"
 #include "Editor/HIKARI_EditorViewportInput.h"
 #include "Editor/Play/HIKARI_EditorPlaySession.h"
 #include "Editor/Selection/HIKARI_SceneSelectionTransform.h"
@@ -34,7 +35,7 @@ namespace HIKARI {
     using EDITOR::DOCUMENT_SCENE::DrawReflectionProbeLabels;
     using EDITOR::DOCUMENT_SCENE::DrawRenderDebugViewCombo;
     using EDITOR::DOCUMENT_SCENE::DrawViewportDebugOptions;
-    using EDITOR::DOCUMENT_SCENE::HandleTransformGizmoShortcuts;
+    using EDITOR::HandleTransformGizmoShortcuts;
 
     void DocumentSceneEditorController::DrawGameViewportWindow(
         DocumentSceneBase& scene,

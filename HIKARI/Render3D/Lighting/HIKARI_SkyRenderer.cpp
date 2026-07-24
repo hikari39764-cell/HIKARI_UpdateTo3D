@@ -10,6 +10,7 @@
 #include <wrl/client.h>
 
 #include "Core/HIKARI_Logger.h"
+#include "Gfx/D3D12/HIKARI_D3D12BufferAlignment.h"
 #include "Gfx/HIKARI_D3DBlobCompat.h"
 #include "Gfx/HIKARI_PixProfiler.h"
 #include "Gfx/HIKARI_ShaderCompiler.h"
@@ -62,12 +63,8 @@ namespace HIKARI::SKYRENDERER {
 
         State g;
 
-        constexpr UINT AlignConstantBufferSize(size_t size) {
-            return static_cast<UINT>((size + 255u) & ~255u);
-        }
-
         bool CreateBuffers(ID3D12Device* device) {
-            const UINT cbBytes = AlignConstantBufferSize(sizeof(SkyCB));
+            const UINT cbBytes = GFX::AlignD3D12ConstantBufferByteSize(sizeof(SkyCB));
             auto uploadHeap = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
             auto cbDesc = CD3DX12_RESOURCE_DESC::Buffer(cbBytes);
             if (FAILED(device->CreateCommittedResource(&uploadHeap, D3D12_HEAP_FLAG_NONE, &cbDesc, D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, IID_PPV_ARGS(g.cb.GetAddressOf())))) {

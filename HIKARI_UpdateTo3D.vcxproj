@@ -278,6 +278,7 @@
     <ClCompile Include="HIKARI\Render2D\HIKARI_DxTexture.cpp" />
     <ClCompile Include="HIKARI\Diagnostics\HIKARI_DebugLogBuffer.cpp" />
     <ClCompile Include="HIKARI\Diagnostics\HIKARI_CpuFrameProfiler.cpp" />
+    <ClCompile Include="HIKARI\Gfx\D3D12\HIKARI_DxgiFormatName.cpp" />
     <ClCompile Include="HIKARI\Gfx\HIKARI_D3D12DebugTools.cpp" />
     <ClCompile Include="HIKARI\Gfx\HIKARI_DescriptorAllocator.cpp" />
     <ClCompile Include="HIKARI\Gfx\HIKARI_GpuDeferredReleaseQueue.cpp" />
@@ -455,7 +456,8 @@
     <ClCompile Include="HIKARI\Render3D\GpuDriven\HIKARI_GpuDrivenWorkBuilder.cpp" />
     <ClCompile Include="HIKARI\Render3D\Meshlet\HIKARI_MeshletRenderBackend.cpp" />
     <ClCompile Include="HIKARI\Render3D\Resources\HIKARI_ClusterGeometryResourceSystem.cpp" />
-    <ClCompile Include="HIKARI\Render3D\Resources\HIKARI_RenderResourceDescriptorPool.cpp" />
+    <ClCompile Include="HIKARI\Render3D\Resources\Descriptors\HIKARI_RenderResourceDescriptorAccess.cpp" />
+    <ClCompile Include="HIKARI\Render3D\Resources\Descriptors\HIKARI_RenderResourceDescriptorPool.cpp" />
     <ClCompile Include="HIKARI\Render3D\Resources\HIKARI_RenderResourcePool.cpp" />
     <ClCompile Include="HIKARI\Render3D\Resources\HIKARI_RenderResourceSystem.cpp" />
     <ClCompile Include="HIKARI\Render3D\Resources\HIKARI_TextureResourceSystem.cpp" />
@@ -563,6 +565,7 @@
     <ClCompile Include="HIKARI\Editor\Workspaces\Sequence\HIKARI_SequenceEditorDocumentToolbar.cpp" />
     <ClCompile Include="HIKARI\Editor\DragDrop\HIKARI_EditorAssetDragDrop.cpp" />
     <ClCompile Include="HIKARI\Editor\Gizmos\HIKARI_EditorTransformGizmo.cpp" />
+    <ClCompile Include="HIKARI\Editor\Gizmos\HIKARI_EditorTransformGizmoShortcuts.cpp" />
     <ClCompile Include="HIKARI\Editor\Gizmos\HIKARI_LightProbeVolumeGizmoRenderer.cpp" />
     <ClCompile Include="HIKARI\Editor\Gizmos\HIKARI_ReflectionProbeGizmoRenderer.cpp" />
     <ClCompile Include="HIKARI\Editor\Viewport\HIKARI_ViewportAuthoringToolbar.cpp" />
@@ -711,9 +714,13 @@
     <ClCompile Include="HIKARI\Vfx\Runtime\HIKARI_VfxAsset.cpp" />
     <ClCompile Include="HIKARI\Vfx\Post\HIKARI_PostProfile.cpp" />
     <ClCompile Include="HIKARI\Vfx\MaterialFx\HIKARI_MaterialFxProfile.cpp" />
+    <ClCompile Include="HIKARI\Vfx\Parameters\HIKARI_VfxParameterValues.cpp" />
+    <ClCompile Include="HIKARI\Vfx\Serialization\HIKARI_VfxParameterJson.cpp" />
+    <ClCompile Include="HIKARI\Vfx\Serialization\HIKARI_VfxProfileJson.cpp" />
     <ClCompile Include="HIKARI\Vfx\Transition\HIKARI_TransitionProfile.cpp" />
     <ClCompile Include="HIKARI\Vfx\Backends\HIKARI_VfxBackend_EffekseerDX12.cpp" />
     <ClCompile Include="HIKARI\Render3D\Material\HIKARI_MaterialRuntimeBuilder.cpp" />
+    <ClCompile Include="HIKARI\Render3D\Material\HIKARI_MaterialTextureUsage.cpp" />
     <ClCompile Include="HIKARI\Render3D\Material\HIKARI_DefaultPbrResources.cpp" />
     <ClCompile Include="HIKARI\Render3D\Material\HIKARI_GpuMaterialRegistry.cpp" />
     <ClCompile Include="HIKARI\Render3D\Lighting\HIKARI_LightingRuntimeLoader.cpp" />
@@ -958,7 +965,7 @@
     <ClInclude Include="HIKARI\Render3D\HIKARI_LightDebugDraw.h" />
     <ClInclude Include="HIKARI\Render3D\HIKARI_Mesh.h" />
     <ClInclude Include="HIKARI\Render3D\Core\HIKARI_Material.h" />
-    <ClInclude Include="HIKARI\Render3D\Core\HIKARI_MaterialTextureUsage.h" />
+    <ClInclude Include="HIKARI\Render3D\Material\HIKARI_MaterialTextureUsage.h" />
     <ClInclude Include="HIKARI\Render3D\Core\HIKARI_BoundsUtils.h" />
     <ClInclude Include="HIKARI\Render3D\Core\HIKARI_MeshDrawExecutor.h" />
     <ClInclude Include="HIKARI\Render3D\Core\HIKARI_MeshPassResources.h" />
@@ -1085,6 +1092,9 @@
     <ClInclude Include="HIKARI\Vfx\Common\HIKARI_FxTypes.h" />
     <ClInclude Include="HIKARI\Vfx\Post\HIKARI_PostProfile.h" />
     <ClInclude Include="HIKARI\Vfx\MaterialFx\HIKARI_MaterialFxProfile.h" />
+    <ClInclude Include="HIKARI\Vfx\Parameters\HIKARI_VfxParameterValues.h" />
+    <ClInclude Include="HIKARI\Vfx\Serialization\HIKARI_VfxParameterJson.h" />
+    <ClInclude Include="HIKARI\Vfx\Serialization\HIKARI_VfxProfileJson.h" />
     <ClInclude Include="HIKARI\Vfx\Transition\HIKARI_TransitionProfile.h" />
     <ClInclude Include="HIKARI\Vfx\Backends\HIKARI_VfxBackend_EffekseerDX12.h" />
     <ClInclude Include="HIKARI\Scene\Prefab\HIKARI_PrefabDocument.h" />
@@ -1158,6 +1168,7 @@
     <ClInclude Include="HIKARI\Editor\Workspaces\Sequence\HIKARI_SequenceEditorDocumentToolbar.h" />
     <ClInclude Include="HIKARI\Editor\DragDrop\HIKARI_EditorAssetDragDrop.h" />
     <ClInclude Include="HIKARI\Editor\Gizmos\HIKARI_EditorTransformGizmo.h" />
+    <ClInclude Include="HIKARI\Editor\Gizmos\HIKARI_EditorTransformGizmoShortcuts.h" />
     <ClInclude Include="HIKARI\Editor\Gizmos\HIKARI_LightProbeVolumeGizmoRenderer.h" />
     <ClInclude Include="HIKARI\Editor\Gizmos\HIKARI_ReflectionProbeGizmoRenderer.h" />
     <ClInclude Include="HIKARI\Editor\Viewport\HIKARI_ViewportAuthoringToolbar.h" />
@@ -1212,7 +1223,8 @@
     <ClInclude Include="HIKARI\Render3D\GpuDriven\HIKARI_GpuDrivenWorkBuilder.h" />
     <ClInclude Include="HIKARI\Render3D\Meshlet\HIKARI_MeshletRenderBackend.h" />
     <ClInclude Include="HIKARI\Render3D\Resources\HIKARI_ClusterGeometryResourceSystem.h" />
-    <ClInclude Include="HIKARI\Render3D\Resources\HIKARI_RenderResourceDescriptorPool.h" />
+    <ClInclude Include="HIKARI\Render3D\Resources\Descriptors\HIKARI_RenderResourceDescriptorAccess.h" />
+    <ClInclude Include="HIKARI\Render3D\Resources\Descriptors\HIKARI_RenderResourceDescriptorPool.h" />
     <ClInclude Include="HIKARI\Render3D\Resources\HIKARI_RenderResourceHandle.h" />
     <ClInclude Include="HIKARI\Render3D\Resources\HIKARI_RenderResourcePool.h" />
     <ClInclude Include="HIKARI\Render3D\Resources\HIKARI_RenderResourceSystem.h" />
@@ -1380,6 +1392,8 @@
     <ClInclude Include="HIKARI\Audio\HIKARI_Audio.h" />
     <ClInclude Include="HIKARI\Diagnostics\HIKARI_DebugLogBuffer.h" />
     <ClInclude Include="HIKARI\Diagnostics\HIKARI_CpuFrameProfiler.h" />
+    <ClInclude Include="HIKARI\Gfx\D3D12\HIKARI_D3D12BufferAlignment.h" />
+    <ClInclude Include="HIKARI\Gfx\D3D12\HIKARI_DxgiFormatName.h" />
     <ClInclude Include="HIKARI\Gfx\HIKARI_D3D12DebugTools.h" />
     <ClInclude Include="HIKARI\Gfx\HIKARI_DXCheck.h" />
     <ClInclude Include="HIKARI\Gfx\HIKARI_GfxContext.h" />

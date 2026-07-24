@@ -49,30 +49,6 @@ namespace HIKARI::RENDER3D::DEPTH {
                 : 0;
         }
 
-        template <typename T>
-		// GPU による遅延解放を行うために、ComPtr を退避キューに登録する
-        void RetireD3D12Object(Microsoft::WRL::ComPtr<T>& object, const char* debugName) {
-            if (object == nullptr) {
-                return;
-            }
-
-            Microsoft::WRL::ComPtr<T> retired = object;
-            object.Reset();
-
-            GFX::GpuDeferredReleaseQueue* queue = SERVICES::gCtx.deferredReleaseQueue;
-            const uint64_t retireFence = CurrentRetireFenceValue();
-            if (queue != nullptr && retireFence != 0) {
-                queue->Enqueue(
-                    retireFence,
-                    [retired]() mutable {
-                        retired.Reset();
-                    },
-                    debugName != nullptr ? debugName : "DepthPyramid.Resource");
-                return;
-            }
-
-            retired.Reset();
-        }
 		// デスクリプタアロケータの状態を保持する構造体
         struct DescriptorState {
             GFX::Context context{};
@@ -533,7 +509,7 @@ namespace HIKARI::RENDER3D::DEPTH {
             mip = {};
         }
         mips_.clear();
-        RetireD3D12Object(texture_, "DepthPyramid.Texture");
+        GFX::RetireD3D12ObjectForCurrentFrame(texture_, "DepthPyramid.Texture");
         sourceWidth_ = 0;
         sourceHeight_ = 0;
         currentView_ = {};

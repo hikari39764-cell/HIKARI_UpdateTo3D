@@ -935,13 +935,13 @@ namespace HIKARI {
                         slot.IsActive() ? "true" : "false");
                     ImGui::TextDisabled("  resolved=%s", slot.resolvedPath.empty() ? "<none>" : slot.resolvedPath.c_str());
                 };
-                drawRuntimeSlot("BaseColor", runtimeMaterialOverride_->GetTextureSlot(ModelTextureUsage::BaseColor));
-                drawRuntimeSlot("Normal", runtimeMaterialOverride_->GetTextureSlot(ModelTextureUsage::Normal));
-                drawRuntimeSlot("MetallicRoughness", runtimeMaterialOverride_->GetTextureSlot(ModelTextureUsage::MetallicRoughness));
-                drawRuntimeSlot("Occlusion", runtimeMaterialOverride_->GetTextureSlot(ModelTextureUsage::Occlusion));
-                drawRuntimeSlot("Emissive", runtimeMaterialOverride_->GetTextureSlot(ModelTextureUsage::Emissive));
-                drawRuntimeSlot("Specular", runtimeMaterialOverride_->GetTextureSlot(ModelTextureUsage::Specular));
-                drawRuntimeSlot("SpecularColor", runtimeMaterialOverride_->GetTextureSlot(ModelTextureUsage::SpecularColor));
+                drawRuntimeSlot("BaseColor", runtimeMaterialOverride_->GetTextureSlot(MaterialTextureUsage::BaseColor));
+                drawRuntimeSlot("Normal", runtimeMaterialOverride_->GetTextureSlot(MaterialTextureUsage::Normal));
+                drawRuntimeSlot("MetallicRoughness", runtimeMaterialOverride_->GetTextureSlot(MaterialTextureUsage::MetallicRoughness));
+                drawRuntimeSlot("Occlusion", runtimeMaterialOverride_->GetTextureSlot(MaterialTextureUsage::Occlusion));
+                drawRuntimeSlot("Emissive", runtimeMaterialOverride_->GetTextureSlot(MaterialTextureUsage::Emissive));
+                drawRuntimeSlot("Specular", runtimeMaterialOverride_->GetTextureSlot(MaterialTextureUsage::Specular));
+                drawRuntimeSlot("SpecularColor", runtimeMaterialOverride_->GetTextureSlot(MaterialTextureUsage::SpecularColor));
                 ImGui::TreePop();
             }
             ImGui::TreePop();
@@ -1000,13 +1000,13 @@ namespace HIKARI {
                         slot.sourcePath.empty() ? "<none>" : slot.sourcePath.c_str());
                     ImGui::Text("  resolved=%s", slot.resolvedPath.empty() ? "<none>" : slot.resolvedPath.c_str());
                 };
-                drawRuntimeSlot("BaseColor", material->GetTextureSlot(ModelTextureUsage::BaseColor));
-                drawRuntimeSlot("Normal", material->GetTextureSlot(ModelTextureUsage::Normal));
-                drawRuntimeSlot("MetallicRoughness", material->GetTextureSlot(ModelTextureUsage::MetallicRoughness));
-                drawRuntimeSlot("Occlusion", material->GetTextureSlot(ModelTextureUsage::Occlusion));
-                drawRuntimeSlot("Emissive", material->GetTextureSlot(ModelTextureUsage::Emissive));
-                drawRuntimeSlot("Specular", material->GetTextureSlot(ModelTextureUsage::Specular));
-                drawRuntimeSlot("SpecularColor", material->GetTextureSlot(ModelTextureUsage::SpecularColor));
+                drawRuntimeSlot("BaseColor", material->GetTextureSlot(MaterialTextureUsage::BaseColor));
+                drawRuntimeSlot("Normal", material->GetTextureSlot(MaterialTextureUsage::Normal));
+                drawRuntimeSlot("MetallicRoughness", material->GetTextureSlot(MaterialTextureUsage::MetallicRoughness));
+                drawRuntimeSlot("Occlusion", material->GetTextureSlot(MaterialTextureUsage::Occlusion));
+                drawRuntimeSlot("Emissive", material->GetTextureSlot(MaterialTextureUsage::Emissive));
+                drawRuntimeSlot("Specular", material->GetTextureSlot(MaterialTextureUsage::Specular));
+                drawRuntimeSlot("SpecularColor", material->GetTextureSlot(MaterialTextureUsage::SpecularColor));
             }
             ImGui::TreePop();
         }

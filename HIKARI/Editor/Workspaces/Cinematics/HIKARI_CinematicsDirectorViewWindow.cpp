@@ -3,8 +3,8 @@
 #include <algorithm>
 
 #include "Editor/Commands/HIKARI_EditorCommandRouter.h"
+#include "Editor/Gizmos/HIKARI_EditorTransformGizmoShortcuts.h"
 #include "Editor/HIKARI_EditorContext.h"
-#include "Editor/HIKARI_EditorViewportInput.h"
 #include "Editor/HIKARI_SelectionSyncService.h"
 #include "Editor/Play/HIKARI_EditorPlaySession.h"
 #include "Editor/Style/HIKARI_EditorGlyphs.h"
@@ -22,38 +22,6 @@
 #endif
 
 namespace HIKARI::EDITOR {
-
-namespace {
-#if defined(HIKARI_WITH_EDITOR)
-void HandleTransformGizmoShortcuts(EditorTransformGizmoState &state,
-                                   bool focused) {
-
-  if (!CanUseEditorShortcut(EditorShortcutScope::Viewport, focused)) {
-    return;
-  }
-  if (ImGui::IsKeyPressed(ImGuiKey_Q) || ImGui::IsKeyPressed(ImGuiKey_Escape)) {
-    state.enabled = false;
-  }
-  if (ImGui::IsKeyPressed(ImGuiKey_W)) {
-    state.enabled = true;
-    state.operation = EditorTransformGizmoOperation::Translate;
-  }
-  if (ImGui::IsKeyPressed(ImGuiKey_E)) {
-    state.enabled = true;
-    state.operation = EditorTransformGizmoOperation::Rotate;
-  }
-  if (ImGui::IsKeyPressed(ImGuiKey_R)) {
-    state.enabled = true;
-    state.operation = EditorTransformGizmoOperation::Scale;
-  }
-  if (ImGui::IsKeyPressed(ImGuiKey_X)) {
-    state.mode = state.mode == EditorTransformGizmoMode::World
-                     ? EditorTransformGizmoMode::Local
-                     : EditorTransformGizmoMode::World;
-  }
-}
-#endif
-} // namespace
 
 void CinematicsWorkspaceController::DrawDirectorViewWindow(
     DocumentSceneBase &scene, EditorContext &context,

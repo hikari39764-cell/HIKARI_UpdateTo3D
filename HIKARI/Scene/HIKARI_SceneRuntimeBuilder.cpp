@@ -17,6 +17,7 @@
 #include "Render3D/Lighting/HIKARI_LightingRuntimeLoader.h"
 #include "Render3D/Lighting/HIKARI_SkyManager.h"
 #include "Render3D/Material/HIKARI_MaterialRuntimeBuilder.h"
+#include "Render3D/Material/HIKARI_MaterialTextureUsage.h"
 #include "Render3D/Reflection/HIKARI_ReflectionProbeRuntime.h"
 #include "Render3D/Resources/HIKARI_ClusterGeometryResourceSystem.h"
 #include "Render3D/Resources/HIKARI_TextureResourceSystem.h"
@@ -46,34 +47,6 @@ namespace HIKARI {
             std::replace(value.begin(), value.end(), '\\', '/');
             TEXT::ToLowerAsciiInPlace(value);
             return value;
-        }
-
-        RENDER3D::TextureResourceColorSpace ColorSpaceForUsage(ModelTextureUsage usage) {
-            switch (usage) {
-            case ModelTextureUsage::BaseColor:
-            case ModelTextureUsage::Emissive:
-            case ModelTextureUsage::SpecularColor:
-                return RENDER3D::TextureResourceColorSpace::Srgb;
-            case ModelTextureUsage::Normal:
-            case ModelTextureUsage::MetallicRoughness:
-            case ModelTextureUsage::Occlusion:
-            case ModelTextureUsage::Specular:
-            default:
-                return RENDER3D::TextureResourceColorSpace::Linear;
-            }
-        }
-
-        const char* UsageName(ModelTextureUsage usage) {
-            switch (usage) {
-            case ModelTextureUsage::BaseColor: return "baseColor";
-            case ModelTextureUsage::Normal: return "normal";
-            case ModelTextureUsage::MetallicRoughness: return "metallicRoughness";
-            case ModelTextureUsage::Occlusion: return "occlusion";
-            case ModelTextureUsage::Emissive: return "emissive";
-            case ModelTextureUsage::Specular: return "specular";
-            case ModelTextureUsage::SpecularColor: return "specularColor";
-            default: return "unknown";
-            }
         }
 
         const TextureAsset3D* FindTextureBySlot(const ModelAsset& asset, const TextureSlot& slot) {
@@ -115,7 +88,7 @@ namespace HIKARI {
             const ModelAsset& asset,
             const MaterialAsset& material,
             const TextureSlot& slot,
-            ModelTextureUsage usage) {
+            MaterialTextureUsage usage) {
 
             const TextureAsset3D* texture = FindTextureBySlot(asset, slot);
             if (texture == nullptr) {
@@ -125,9 +98,9 @@ namespace HIKARI {
             const std::string& path = SelectRuntimeTexturePath(*texture);
             AddTextureRequest(
                 plan,
-                "runtime_model/" + asset.GetName() + "/" + material.name + "/" + UsageName(usage),
+                "runtime_model/" + asset.GetName() + "/" + material.name + "/" + MaterialTextureUsageName(usage),
                 path,
-                ColorSpaceForUsage(usage));
+                MaterialTextureColorSpace(usage));
         }
 
         void CollectModelTextureRequests(
@@ -135,13 +108,13 @@ namespace HIKARI {
             const ModelAsset& asset) {
 
             for (const MaterialAsset& material : asset.materials) {
-                AddModelTextureSlot(plan, asset, material, material.baseColorTexture, ModelTextureUsage::BaseColor);
-                AddModelTextureSlot(plan, asset, material, material.normalTexture, ModelTextureUsage::Normal);
-                AddModelTextureSlot(plan, asset, material, material.metallicRoughnessTexture, ModelTextureUsage::MetallicRoughness);
-                AddModelTextureSlot(plan, asset, material, material.occlusionTexture, ModelTextureUsage::Occlusion);
-                AddModelTextureSlot(plan, asset, material, material.emissiveTexture, ModelTextureUsage::Emissive);
-                AddModelTextureSlot(plan, asset, material, material.specularTexture, ModelTextureUsage::Specular);
-                AddModelTextureSlot(plan, asset, material, material.specularColorTexture, ModelTextureUsage::SpecularColor);
+                AddModelTextureSlot(plan, asset, material, material.baseColorTexture, MaterialTextureUsage::BaseColor);
+                AddModelTextureSlot(plan, asset, material, material.normalTexture, MaterialTextureUsage::Normal);
+                AddModelTextureSlot(plan, asset, material, material.metallicRoughnessTexture, MaterialTextureUsage::MetallicRoughness);
+                AddModelTextureSlot(plan, asset, material, material.occlusionTexture, MaterialTextureUsage::Occlusion);
+                AddModelTextureSlot(plan, asset, material, material.emissiveTexture, MaterialTextureUsage::Emissive);
+                AddModelTextureSlot(plan, asset, material, material.specularTexture, MaterialTextureUsage::Specular);
+                AddModelTextureSlot(plan, asset, material, material.specularColorTexture, MaterialTextureUsage::SpecularColor);
             }
         }
 
@@ -150,7 +123,7 @@ namespace HIKARI {
             const AssetRegistry& assetRegistry,
             const std::string& materialId,
             const MaterialTextureSlotData& slot,
-            ModelTextureUsage usage) {
+            MaterialTextureUsage usage) {
 
             if (!slot.useTexture || !slot.textureAssetGuid.IsValid()) {
                 return;
@@ -164,9 +137,9 @@ namespace HIKARI {
 
             AddTextureRequest(
                 plan,
-                "runtime_material/" + materialId + "/" + UsageName(usage),
+                "runtime_material/" + materialId + "/" + MaterialTextureUsageName(usage),
                 texture->sourcePath,
-                ColorSpaceForUsage(usage));
+                MaterialTextureColorSpace(usage));
         }
 
         void CollectMaterialTextureRequests(
@@ -174,13 +147,13 @@ namespace HIKARI {
             const AssetRegistry& assetRegistry,
             const MaterialAssetDescriptor& descriptor) {
 
-            AddMaterialTextureSlot(plan, assetRegistry, descriptor.id.value, descriptor.data.baseColorTexture, ModelTextureUsage::BaseColor);
-            AddMaterialTextureSlot(plan, assetRegistry, descriptor.id.value, descriptor.data.normalTexture, ModelTextureUsage::Normal);
-            AddMaterialTextureSlot(plan, assetRegistry, descriptor.id.value, descriptor.data.metallicRoughnessTexture, ModelTextureUsage::MetallicRoughness);
-            AddMaterialTextureSlot(plan, assetRegistry, descriptor.id.value, descriptor.data.occlusionTexture, ModelTextureUsage::Occlusion);
-            AddMaterialTextureSlot(plan, assetRegistry, descriptor.id.value, descriptor.data.emissiveTexture, ModelTextureUsage::Emissive);
-            AddMaterialTextureSlot(plan, assetRegistry, descriptor.id.value, descriptor.data.specularTexture, ModelTextureUsage::Specular);
-            AddMaterialTextureSlot(plan, assetRegistry, descriptor.id.value, descriptor.data.specularColorTexture, ModelTextureUsage::SpecularColor);
+            AddMaterialTextureSlot(plan, assetRegistry, descriptor.id.value, descriptor.data.baseColorTexture, MaterialTextureUsage::BaseColor);
+            AddMaterialTextureSlot(plan, assetRegistry, descriptor.id.value, descriptor.data.normalTexture, MaterialTextureUsage::Normal);
+            AddMaterialTextureSlot(plan, assetRegistry, descriptor.id.value, descriptor.data.metallicRoughnessTexture, MaterialTextureUsage::MetallicRoughness);
+            AddMaterialTextureSlot(plan, assetRegistry, descriptor.id.value, descriptor.data.occlusionTexture, MaterialTextureUsage::Occlusion);
+            AddMaterialTextureSlot(plan, assetRegistry, descriptor.id.value, descriptor.data.emissiveTexture, MaterialTextureUsage::Emissive);
+            AddMaterialTextureSlot(plan, assetRegistry, descriptor.id.value, descriptor.data.specularTexture, MaterialTextureUsage::Specular);
+            AddMaterialTextureSlot(plan, assetRegistry, descriptor.id.value, descriptor.data.specularColorTexture, MaterialTextureUsage::SpecularColor);
         }
 
         void AddClusterGeometryRequest(

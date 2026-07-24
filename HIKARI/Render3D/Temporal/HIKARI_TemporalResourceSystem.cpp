@@ -5,7 +5,7 @@
 #include <string>
 
 #include "Gfx/HIKARI_GpuDeferredReleaseQueue.h"
-#include "Render3D/Resources/HIKARI_RenderResourceDescriptorPool.h"
+#include "Render3D/Resources/Descriptors/HIKARI_RenderResourceDescriptorPool.h"
 
 namespace HIKARI::RENDER3D::TEMPORAL {
 

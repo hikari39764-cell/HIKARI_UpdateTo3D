@@ -10,6 +10,7 @@
 
 #include "Core/HIKARI_Logger.h"
 #include "Diagnostics/HIKARI_DebugLogBuffer.h"
+#include "Gfx/D3D12/HIKARI_D3D12BufferAlignment.h"
 #include "Gfx/HIKARI_DXCheck.h"
 #include "Gfx/HIKARI_GpuFrameProfiler.h"
 #include "Gfx/HIKARI_GpuDeferredReleaseQueue.h"
@@ -21,39 +22,6 @@
 namespace HIKARI::RENDER3D::SCREENSPACE {
 
     namespace {
-        uint64_t CurrentRetireFenceValue() {
-            return SERVICES::gCtx.currentFrameRetireFenceValue != 0
-                ? SERVICES::gCtx.currentFrameRetireFenceValue
-                : 0;
-        }
-
-        template <typename T>
-        void RetireD3D12Object(
-            Microsoft::WRL::ComPtr<T>& object,
-            const char* debugName) {
-
-            if (object == nullptr) {
-                return;
-            }
-
-            Microsoft::WRL::ComPtr<T> retired = object;
-            object.Reset();
-
-            GFX::GpuDeferredReleaseQueue* queue = SERVICES::gCtx.deferredReleaseQueue;
-            const uint64_t retireFence = CurrentRetireFenceValue();
-            if (queue != nullptr && retireFence != 0) {
-                queue->Enqueue(
-                    retireFence,
-                    [retired]() mutable {
-                        retired.Reset();
-                    },
-                    debugName != nullptr ? debugName : "SSAO.D3D12Object");
-                return;
-            }
-
-            retired.Reset();
-        }
-
         struct SsaoPassCB {
             MATH::Mat4 viewProj{};
             MATH::Mat4 invViewProj{};
@@ -347,7 +315,7 @@ namespace HIKARI::RENDER3D::SCREENSPACE {
         };
 
         uint32_t constantSliceIndex = 0;
-        const UINT constantStride = MESHRENDERER::AlignConstantBufferSize(sizeof(SsaoPassCB));
+        const UINT constantStride = GFX::AlignD3D12ConstantBufferByteSize(sizeof(SsaoPassCB));
         auto uploadConstants = [&](const SsaoPassCB& constants) -> D3D12_GPU_VIRTUAL_ADDRESS {
             if (constantMapped_ == nullptr || constantBuffer_ == nullptr) {
                 return 0;
@@ -572,10 +540,10 @@ namespace HIKARI::RENDER3D::SCREENSPACE {
             return false;
         }
 
-        RetireD3D12Object(rawAo_, "SSAO.RawAO");
-        RetireD3D12Object(blurredAo_, "SSAO.BlurredAO");
-        RetireD3D12Object(resolvedAo_, "SSAO.ResolvedAO");
-        RetireD3D12Object(rtvHeap_, "SSAO.RTVHeap");
+        GFX::RetireD3D12ObjectForCurrentFrame(rawAo_, "SSAO.RawAO");
+        GFX::RetireD3D12ObjectForCurrentFrame(blurredAo_, "SSAO.BlurredAO");
+        GFX::RetireD3D12ObjectForCurrentFrame(resolvedAo_, "SSAO.ResolvedAO");
+        GFX::RetireD3D12ObjectForCurrentFrame(rtvHeap_, "SSAO.RTVHeap");
         rawRtv_ = {};
         blurredRtv_ = {};
         resolvedRtv_ = {};
@@ -622,7 +590,7 @@ namespace HIKARI::RENDER3D::SCREENSPACE {
 
         if (!constantBuffer_) {
             const auto uploadHeap = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
-            const UINT constantStride = MESHRENDERER::AlignConstantBufferSize(sizeof(SsaoPassCB));
+            const UINT constantStride = GFX::AlignD3D12ConstantBufferByteSize(sizeof(SsaoPassCB));
             const auto cbDesc = CD3DX12_RESOURCE_DESC::Buffer(
                 static_cast<UINT64>(constantStride) * kSsaoConstantSliceCount);
             hr = device->CreateCommittedResource(
@@ -860,11 +828,11 @@ namespace HIKARI::RENDER3D::SCREENSPACE {
             constantBuffer_->Unmap(0, nullptr);
             constantMapped_ = nullptr;
         }
-        RetireD3D12Object(constantBuffer_, "SSAO.ConstantBuffer");
-        RetireD3D12Object(rawAo_, "SSAO.RawAO");
-        RetireD3D12Object(blurredAo_, "SSAO.BlurredAO");
-        RetireD3D12Object(resolvedAo_, "SSAO.ResolvedAO");
-        RetireD3D12Object(rtvHeap_, "SSAO.RTVHeap");
+        GFX::RetireD3D12ObjectForCurrentFrame(constantBuffer_, "SSAO.ConstantBuffer");
+        GFX::RetireD3D12ObjectForCurrentFrame(rawAo_, "SSAO.RawAO");
+        GFX::RetireD3D12ObjectForCurrentFrame(blurredAo_, "SSAO.BlurredAO");
+        GFX::RetireD3D12ObjectForCurrentFrame(resolvedAo_, "SSAO.ResolvedAO");
+        GFX::RetireD3D12ObjectForCurrentFrame(rtvHeap_, "SSAO.RTVHeap");
         generateRootSig_.Reset();
         depthOnlyGenerateRootSig_.Reset();
         generatePso_.Reset();

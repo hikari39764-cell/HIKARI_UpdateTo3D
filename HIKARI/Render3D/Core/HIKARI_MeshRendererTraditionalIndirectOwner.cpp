@@ -1,5 +1,6 @@
 #include "Render3D/Core/HIKARI_MeshRendererTraditionalIndirectOwner.h"
 
+#include "Gfx/D3D12/HIKARI_D3D12BufferAlignment.h"
 #include "Render3D/Core/HIKARI_MeshPrimitiveCache.h"
 #include "Render3D/Core/HIKARI_MeshRendererUpload.h"
 #include "Render3D/HIKARI_Mesh.h"
@@ -198,7 +199,7 @@ namespace HIKARI::MESHRENDERER {
                 paletteSlot,
                 stream.jointPalettes[command.firstRecordIndex]);
             constexpr UINT kJointPaletteStride =
-                AlignConstantBufferSize(sizeof(JointPaletteCB));
+                GFX::AlignD3D12ConstantBufferByteSize(sizeof(JointPaletteCB));
             command.jointPaletteGpuAddress =
                 context.jointPaletteBuffer->GetGPUVirtualAddress() +
                 static_cast<UINT64>(kJointPaletteStride) * paletteSlot;

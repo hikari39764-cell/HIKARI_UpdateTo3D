@@ -14,36 +14,6 @@
 namespace HIKARI::RENDER3D::GPUDRIVEN {
 
     namespace {
-        uint64_t CurrentRetireFenceValue() {
-            return SERVICES::gCtx.currentFrameRetireFenceValue != 0
-                ? SERVICES::gCtx.currentFrameRetireFenceValue
-                : 0;
-        }
-
-        template <typename T>
-		// GPU による遅延解放を行うために、ComPtr を退避キューに登録する
-        void RetireD3D12Object(Microsoft::WRL::ComPtr<T>& object, const char* debugName) {
-            if (object == nullptr) {
-                return;
-            }
-
-            Microsoft::WRL::ComPtr<T> retired = object;
-            object.Reset();
-
-            GFX::GpuDeferredReleaseQueue* queue = SERVICES::gCtx.deferredReleaseQueue;
-            const uint64_t retireFence = CurrentRetireFenceValue();
-            if (queue != nullptr && retireFence != 0) {
-                queue->Enqueue(
-                    retireFence,
-                    [retired]() mutable {
-                        retired.Reset();
-                    },
-                    debugName != nullptr ? debugName : "GpuDepthVisibility.Resource");
-                return;
-            }
-
-            retired.Reset();
-        }
 		// 深度バッファの SRV デスクリプタを作成する。リソースが nullptr の場合は無効な RenderResourceView を返す。
         RenderResourceView CreateVisibilityDepthSrvDescriptor(
             ID3D12Resource* resource,
@@ -306,8 +276,8 @@ namespace HIKARI::RENDER3D::GPUDRIVEN {
             "GpuDepthVisibility.VisibilityDepth.SRV");
         visibilityDepthSrv_ = {};
         visibilityDsv_ = {};
-        RetireD3D12Object(visibilityDsvHeap_, "GpuDepthVisibility.VisibilityDepth.DSVHeap");
-        RetireD3D12Object(visibilityDepth_, "GpuDepthVisibility.VisibilityDepth.Texture");
+        GFX::RetireD3D12ObjectForCurrentFrame(visibilityDsvHeap_, "GpuDepthVisibility.VisibilityDepth.DSVHeap");
+        GFX::RetireD3D12ObjectForCurrentFrame(visibilityDepth_, "GpuDepthVisibility.VisibilityDepth.Texture");
         visibilityDepthState_ = D3D12_RESOURCE_STATE_DEPTH_WRITE;
         depthWidth_ = 0;
         depthHeight_ = 0;

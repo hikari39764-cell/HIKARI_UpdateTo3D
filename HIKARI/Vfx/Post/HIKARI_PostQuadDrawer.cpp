@@ -28,34 +28,6 @@ namespace HIKARI {
                 return reinterpret_cast<uint64_t>(blob);
             }
 
-            template <typename T>
-            void RetireD3D12Object(
-                Microsoft::WRL::ComPtr<T>& object,
-                const GFX::Context& context,
-                const char* debugName)
-            {
-                if (object == nullptr) {
-                    return;
-                }
-
-                Microsoft::WRL::ComPtr<T> retired = object;
-                object.Reset();
-
-                GFX::GpuDeferredReleaseQueue* queue = context.deferredReleaseQueue;
-                const uint64_t retireFence = context.currentFrameRetireFenceValue;
-                if (queue != nullptr && retireFence != 0) {
-                    queue->Enqueue(
-                        retireFence,
-                        [retired]() mutable {
-                            retired.Reset();
-                        },
-                        debugName != nullptr ? debugName : "PostQuadDrawer.D3D12Object");
-                    return;
-                }
-
-                retired.Reset();
-            }
-
             const char* kFullscreenVS = R"(
 struct VS_OUT {
   float4 pos : SV_POSITION;
@@ -317,19 +289,19 @@ float4 main(PS_IN i) : SV_TARGET
         {
             for (auto& entry : pipelineCache_) {
                 PipelineSet& set = entry.second;
-                RetireD3D12Object(set.copy, context_, "PostQuadDrawer.CopyPSO");
-                RetireD3D12Object(set.blendAlpha, context_, "PostQuadDrawer.BlendAlphaPSO");
-                RetireD3D12Object(set.blendAdd, context_, "PostQuadDrawer.BlendAddPSO");
-                RetireD3D12Object(set.blendMultiply, context_, "PostQuadDrawer.BlendMultiplyPSO");
+                GFX::RetireD3D12ObjectForFrame(set.copy, context_, "PostQuadDrawer.CopyPSO");
+                GFX::RetireD3D12ObjectForFrame(set.blendAlpha, context_, "PostQuadDrawer.BlendAlphaPSO");
+                GFX::RetireD3D12ObjectForFrame(set.blendAdd, context_, "PostQuadDrawer.BlendAddPSO");
+                GFX::RetireD3D12ObjectForFrame(set.blendMultiply, context_, "PostQuadDrawer.BlendMultiplyPSO");
                 for (auto& shaderPso : set.postByShader) {
-                    RetireD3D12Object(shaderPso.second, context_, "PostQuadDrawer.DynamicPostPSO");
+                    GFX::RetireD3D12ObjectForFrame(shaderPso.second, context_, "PostQuadDrawer.DynamicPostPSO");
                 }
                 set.postByShader.clear();
             }
             pipelineCache_.clear();
             currentPipelineSet_ = nullptr;
             currentPostPso_ = nullptr;
-            RetireD3D12Object(rootSig_, context_, "PostQuadDrawer.RootSignature");
+            GFX::RetireD3D12ObjectForFrame(rootSig_, context_, "PostQuadDrawer.RootSignature");
             vsBlob_.Reset();
             psCopyBlob_.Reset();
             currentPostPS_ = nullptr;

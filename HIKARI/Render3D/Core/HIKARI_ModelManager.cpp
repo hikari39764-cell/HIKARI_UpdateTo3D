@@ -21,6 +21,7 @@
 #include "Render3D/Core/HIKARI_AssimpModelLoader.h"
 #include "Render3D/Core/HIKARI_BoundsUtils.h"
 #include "Render3D/Core/HIKARI_Material.h"
+#include "Render3D/Material/HIKARI_MaterialTextureUsage.h"
 #include "Render3D/Resources/HIKARI_TextureResourceSystem.h"
 #include "HIKARI_Services.h"
 
@@ -72,34 +73,6 @@ namespace HIKARI {
             bool hasAlpha = false;
         };
 
-        const char* ToModelTextureUsageText(ModelTextureUsage usage) {
-            switch (usage) {
-            case ModelTextureUsage::BaseColor: return "BaseColor";
-            case ModelTextureUsage::Normal: return "Normal";
-            case ModelTextureUsage::MetallicRoughness: return "MetallicRoughness";
-            case ModelTextureUsage::Occlusion: return "Occlusion";
-            case ModelTextureUsage::Emissive: return "Emissive";
-            case ModelTextureUsage::Specular: return "Specular";
-            case ModelTextureUsage::SpecularColor: return "SpecularColor";
-            default: return "Unknown";
-            }
-        }
-
-        RENDER3D::TextureResourceColorSpace ColorSpaceForUsage(ModelTextureUsage usage) {
-            switch (usage) {
-            case ModelTextureUsage::BaseColor:
-            case ModelTextureUsage::Emissive:
-            case ModelTextureUsage::SpecularColor:
-                return RENDER3D::TextureResourceColorSpace::Srgb;
-            case ModelTextureUsage::Normal:
-            case ModelTextureUsage::MetallicRoughness:
-            case ModelTextureUsage::Occlusion:
-            case ModelTextureUsage::Specular:
-            default:
-                return RENDER3D::TextureResourceColorSpace::Linear;
-            }
-        }
-
         RENDER3D::TextureResourceHandle ResolveReleaseResource(const RuntimeTextureSlot& slot) {
             if (slot.resource) {
                 return slot.resource;
@@ -132,13 +105,13 @@ namespace HIKARI {
 
             std::vector<RENDER3D::TextureResourceHandle> releasedResources{};
             // Model reload 譎ゅ↓蜿､縺・material slot 縺ｮ texture resource 繧・deferred release 縺ｸ貂｡縺吶・
-            ReleaseTextureResourceOnce(ResolveReleaseResource(material->GetTextureSlot(ModelTextureUsage::BaseColor)), releasedResources);
-            ReleaseTextureResourceOnce(ResolveReleaseResource(material->GetTextureSlot(ModelTextureUsage::Normal)), releasedResources);
-            ReleaseTextureResourceOnce(ResolveReleaseResource(material->GetTextureSlot(ModelTextureUsage::MetallicRoughness)), releasedResources);
-            ReleaseTextureResourceOnce(ResolveReleaseResource(material->GetTextureSlot(ModelTextureUsage::Occlusion)), releasedResources);
-            ReleaseTextureResourceOnce(ResolveReleaseResource(material->GetTextureSlot(ModelTextureUsage::Emissive)), releasedResources);
-            ReleaseTextureResourceOnce(ResolveReleaseResource(material->GetTextureSlot(ModelTextureUsage::Specular)), releasedResources);
-            ReleaseTextureResourceOnce(ResolveReleaseResource(material->GetTextureSlot(ModelTextureUsage::SpecularColor)), releasedResources);
+            ReleaseTextureResourceOnce(ResolveReleaseResource(material->GetTextureSlot(MaterialTextureUsage::BaseColor)), releasedResources);
+            ReleaseTextureResourceOnce(ResolveReleaseResource(material->GetTextureSlot(MaterialTextureUsage::Normal)), releasedResources);
+            ReleaseTextureResourceOnce(ResolveReleaseResource(material->GetTextureSlot(MaterialTextureUsage::MetallicRoughness)), releasedResources);
+            ReleaseTextureResourceOnce(ResolveReleaseResource(material->GetTextureSlot(MaterialTextureUsage::Occlusion)), releasedResources);
+            ReleaseTextureResourceOnce(ResolveReleaseResource(material->GetTextureSlot(MaterialTextureUsage::Emissive)), releasedResources);
+            ReleaseTextureResourceOnce(ResolveReleaseResource(material->GetTextureSlot(MaterialTextureUsage::Specular)), releasedResources);
+            ReleaseTextureResourceOnce(ResolveReleaseResource(material->GetTextureSlot(MaterialTextureUsage::SpecularColor)), releasedResources);
         }
 
         const TextureAsset3D* FindTextureBySlot(const ModelAsset& asset, const TextureSlot& slot) {
@@ -995,7 +968,7 @@ namespace HIKARI {
 
     std::string ModelManager::ResolveTexturePath(
         const std::string& sourceTexturePath,
-        ModelTextureUsage usage) const {
+        MaterialTextureUsage usage) const {
 
         if (sourceTexturePath.empty()) {
             return {};
@@ -1007,7 +980,7 @@ namespace HIKARI {
             ++textureResolveStats_.fallbackRaw;
             HIKARI_LOG_INFO("[ModelTextureResolver] fallback raw texture source=" +
                 sourceTexturePath +
-                " usage=" + ToModelTextureUsageText(usage) +
+                " usage=" + MaterialTextureUsageName(usage) +
                 " reason=resolver not configured");
             return sourceTexturePath;
         }
@@ -1017,7 +990,7 @@ namespace HIKARI {
             ++textureResolveStats_.fallbackRaw;
             HIKARI_LOG_WARN("[ModelTextureResolver] fallback raw texture source=" +
                 sourceTexturePath +
-                " usage=" + ToModelTextureUsageText(usage) +
+                " usage=" + MaterialTextureUsageName(usage) +
                 " reason=resolver returned empty");
             return sourceTexturePath;
         }
@@ -1028,12 +1001,12 @@ namespace HIKARI {
                 ++textureResolveStats_.resolvedHtex;
                 HIKARI_LOG_INFO("[ModelTextureResolver] resolved HTEX: " +
                     sourceTexturePath +
-                    " usage=" + ToModelTextureUsageText(usage));
+                    " usage=" + MaterialTextureUsageName(usage));
             } else {
                 ++textureResolveStats_.fallbackRaw;
                 HIKARI_LOG_INFO("[ModelTextureResolver] fallback raw texture source=" +
                     sourceTexturePath +
-                    " usage=" + ToModelTextureUsageText(usage));
+                    " usage=" + MaterialTextureUsageName(usage));
             }
         } else if (
             ASSETS::SEMANTICS::ClassifyCookedAssetFormat(resolvedPath) ==
@@ -1042,12 +1015,12 @@ namespace HIKARI {
             HIKARI_LOG_INFO("[ModelTextureResolver] resolved HTEX: " +
                 sourceTexturePath +
                 " -> " + resolvedPath +
-                " usage=" + ToModelTextureUsageText(usage));
+                " usage=" + MaterialTextureUsageName(usage));
         } else {
             ++textureResolveStats_.fallbackRaw;
             HIKARI_LOG_INFO("[ModelTextureResolver] source=" +
                 sourceTexturePath +
-                " usage=" + ToModelTextureUsageText(usage) +
+                " usage=" + MaterialTextureUsageName(usage) +
                 " resolved=" + resolvedPath);
         }
 
@@ -1058,7 +1031,7 @@ namespace HIKARI {
         const ModelAsset& asset,
         const std::string& textureName,
         const TextureSlot& textureSlot,
-        ModelTextureUsage usage) const {
+        MaterialTextureUsage usage) const {
 
         RuntimeTextureSlot slot{};
         const TextureAsset3D* texture = FindTextureBySlot(asset, textureSlot);
@@ -1081,7 +1054,7 @@ namespace HIKARI {
         slot.resource = RENDER3D::LoadTextureResourceWithColorSpace(
             textureName,
             slot.resolvedPath,
-            ColorSpaceForUsage(usage));
+            MaterialTextureColorSpace(usage));
         slot.handle = RENDER3D::GetTextureResourceBackendHandle(slot.resource);
         slot.enabled = slot.handle >= 0;
         return slot;
@@ -1106,45 +1079,45 @@ namespace HIKARI {
         runtimeMaterial.SetShaderProfileId(source.shaderProfileId);
 
         // 螳溯｡梧凾 Material 縺ｯ縲∝・繝代せ縺ｨ隗｣豎ｺ貂医∩ cooked 繝代せ繧剃ｸ｡譁ｹ菫晄戟縺吶ｋ縲・
-        runtimeMaterial.SetTextureSlot(ModelTextureUsage::BaseColor, ResolveAndLoadMaterialTexture(
+        runtimeMaterial.SetTextureSlot(MaterialTextureUsage::BaseColor, ResolveAndLoadMaterialTexture(
             asset,
             materialNamePrefix + "_baseColor",
             source.baseColorTexture,
-            ModelTextureUsage::BaseColor));
-        runtimeMaterial.SetTextureSlot(ModelTextureUsage::Normal, ResolveAndLoadMaterialTexture(
+            MaterialTextureUsage::BaseColor));
+        runtimeMaterial.SetTextureSlot(MaterialTextureUsage::Normal, ResolveAndLoadMaterialTexture(
             asset,
             materialNamePrefix + "_normal",
             source.normalTexture,
-            ModelTextureUsage::Normal));
-        runtimeMaterial.SetTextureSlot(ModelTextureUsage::MetallicRoughness, ResolveAndLoadMaterialTexture(
+            MaterialTextureUsage::Normal));
+        runtimeMaterial.SetTextureSlot(MaterialTextureUsage::MetallicRoughness, ResolveAndLoadMaterialTexture(
             asset,
             materialNamePrefix + "_metallicRoughness",
             source.metallicRoughnessTexture,
-            ModelTextureUsage::MetallicRoughness));
-        runtimeMaterial.SetTextureSlot(ModelTextureUsage::Occlusion, ResolveAndLoadMaterialTexture(
+            MaterialTextureUsage::MetallicRoughness));
+        runtimeMaterial.SetTextureSlot(MaterialTextureUsage::Occlusion, ResolveAndLoadMaterialTexture(
             asset,
             materialNamePrefix + "_occlusion",
             source.occlusionTexture,
-            ModelTextureUsage::Occlusion));
-        runtimeMaterial.SetTextureSlot(ModelTextureUsage::Emissive, ResolveAndLoadMaterialTexture(
+            MaterialTextureUsage::Occlusion));
+        runtimeMaterial.SetTextureSlot(MaterialTextureUsage::Emissive, ResolveAndLoadMaterialTexture(
             asset,
             materialNamePrefix + "_emissive",
             source.emissiveTexture,
-            ModelTextureUsage::Emissive));
-        runtimeMaterial.SetTextureSlot(ModelTextureUsage::Specular, ResolveAndLoadMaterialTexture(
+            MaterialTextureUsage::Emissive));
+        runtimeMaterial.SetTextureSlot(MaterialTextureUsage::Specular, ResolveAndLoadMaterialTexture(
             asset,
             materialNamePrefix + "_specular",
             source.specularTexture,
-            ModelTextureUsage::Specular));
-        runtimeMaterial.SetTextureSlot(ModelTextureUsage::SpecularColor, ResolveAndLoadMaterialTexture(
+            MaterialTextureUsage::Specular));
+        runtimeMaterial.SetTextureSlot(MaterialTextureUsage::SpecularColor, ResolveAndLoadMaterialTexture(
             asset,
             materialNamePrefix + "_specularColor",
             source.specularColorTexture,
-            ModelTextureUsage::SpecularColor));
+            MaterialTextureUsage::SpecularColor));
     }
 
     void ModelManager::ResolvePbrTexturePaths(ModelAsset& asset) const {
-        auto resolveSlot = [this, &asset](const TextureSlot& slot, ModelTextureUsage usage) {
+        auto resolveSlot = [this, &asset](const TextureSlot& slot, MaterialTextureUsage usage) {
             TextureAsset3D* texture = FindTextureBySlot(asset, slot);
             if (texture == nullptr || texture->sourcePath.empty()) {
                 return;
@@ -1159,13 +1132,13 @@ namespace HIKARI {
 
         // 讒矩蛹匁緒逕ｻ縺ｯ ModelAsset 縺ｮ texture 驟榊・縺九ｉ SRV 繧貞ｼ輔￥縺溘ａ縲√％縺薙〒 cooked 繝代せ縺ｸ蟇・○繧九・
         for (const MaterialAsset& material : asset.materials) {
-            resolveSlot(material.baseColorTexture, ModelTextureUsage::BaseColor);
-            resolveSlot(material.normalTexture, ModelTextureUsage::Normal);
-            resolveSlot(material.metallicRoughnessTexture, ModelTextureUsage::MetallicRoughness);
-            resolveSlot(material.occlusionTexture, ModelTextureUsage::Occlusion);
-            resolveSlot(material.emissiveTexture, ModelTextureUsage::Emissive);
-            resolveSlot(material.specularTexture, ModelTextureUsage::Specular);
-            resolveSlot(material.specularColorTexture, ModelTextureUsage::SpecularColor);
+            resolveSlot(material.baseColorTexture, MaterialTextureUsage::BaseColor);
+            resolveSlot(material.normalTexture, MaterialTextureUsage::Normal);
+            resolveSlot(material.metallicRoughnessTexture, MaterialTextureUsage::MetallicRoughness);
+            resolveSlot(material.occlusionTexture, MaterialTextureUsage::Occlusion);
+            resolveSlot(material.emissiveTexture, MaterialTextureUsage::Emissive);
+            resolveSlot(material.specularTexture, MaterialTextureUsage::Specular);
+            resolveSlot(material.specularColorTexture, MaterialTextureUsage::SpecularColor);
         }
     }
 

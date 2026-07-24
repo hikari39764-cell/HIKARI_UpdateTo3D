@@ -10,6 +10,7 @@
 #include <wrl/client.h>
 
 #include "Diagnostics/HIKARI_DebugLogBuffer.h"
+#include "Gfx/D3D12/HIKARI_D3D12BufferAlignment.h"
 #include "Gfx/HIKARI_DXCheck.h"
 #include "Gfx/HIKARI_GpuFrameProfiler.h"
 #include "Gfx/HIKARI_PixProfiler.h"
@@ -47,10 +48,6 @@ namespace HIKARI::RENDER3D::TEMPORAL {
             return state;
         }
 
-        UINT AlignConstantBufferSize(UINT size) {
-            return (size + 255u) & ~255u;
-        }
-
         bool EnsureConstantBuffers(ID3D12Device* device) {
             TaaResolvePassState& state = State();
             for (uint32_t index = 0; index < kFrameSlotCount; ++index) {
@@ -61,7 +58,7 @@ namespace HIKARI::RENDER3D::TEMPORAL {
 
                 const auto heapProps = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
                 const auto bufferDesc = CD3DX12_RESOURCE_DESC::Buffer(
-                    AlignConstantBufferSize(sizeof(TaaResolveConstants)));
+                    GFX::AlignD3D12ConstantBufferByteSize(sizeof(TaaResolveConstants)));
                 const HRESULT hr = device->CreateCommittedResource(
                     &heapProps,
                     D3D12_HEAP_FLAG_NONE,
