@@ -7,7 +7,7 @@
 #include "Render3D/Core/HIKARI_Camera3D.h"
 #include "Render3D/Core/HIKARI_Material.h"
 #include "Render3D/Core/HIKARI_MeshRenderer.h"
-#include "Render3D/Core/HIKARI_ModelManager.h"
+#include "Render3D/Models/HIKARI_ModelManager.h"
 #include "Render3D/Lighting/HIKARI_IblEnvironment.h"
 #include "Render3D/Render/HIKARI_ModelRenderer.h"
 #include "Scene/HIKARI_RenderSubmissionSystem.h"
@@ -38,7 +38,9 @@ namespace HIKARI {
             ImGui::Text("Failed Models: %zu", modelManager.CountFailedAssets());
             size_t texturedMaterialCount = 0;
             for (const auto& asset : modelManager.GetAssets()) {
-                if (asset && asset->GetMaterial() && asset->GetMaterial()->HasBaseColorTexture()) {
+                if (asset &&
+                    asset->GetLegacyRuntimeMaterial() &&
+                    asset->GetLegacyRuntimeMaterial()->HasBaseColorTexture()) {
                     ++texturedMaterialCount;
                 }
             }

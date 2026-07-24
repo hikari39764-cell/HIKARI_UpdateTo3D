@@ -6,7 +6,7 @@
 #include <vector>
 
 #include "Assets/HIKARI_AssetRecord.h"
-#include "Render3D/Core/HIKARI_ModelAsset.h"
+#include "Assets/Models/HIKARI_ModelAsset.h"
 #include "Render3D/GpuDriven/HIKARI_GpuSceneRegistry.h"
 #include "Render3D/Runtime/HIKARI_RenderModelAsset.h"
 #include "Render3D/Runtime/HIKARI_SceneRenderCache.h"

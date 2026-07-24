@@ -11,7 +11,7 @@
 #include "Assets/HIKARI_AssetRegistry.h"
 #include "Assets/HIKARI_AssetTypes.h"
 #include "Render3D/Core/HIKARI_Camera3D.h"
-#include "Render3D/Core/HIKARI_ModelManager.h"
+#include "Render3D/Models/HIKARI_ModelManager.h"
 #include "Render3D/Core/HIKARI_RenderView.h"
 #include "Render3D/Debug/HIKARI_DebugCameraController3D.h"
 #include "Render3D/Lighting/HIKARI_SceneEnvironment.h"

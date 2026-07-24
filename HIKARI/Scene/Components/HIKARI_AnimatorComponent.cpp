@@ -7,8 +7,8 @@
 
 #include "Animation/Runtime/HIKARI_AnimationClipSampler.h"
 #include "Editor/Inspectors/HIKARI_IInspectorBuilder.h"
-#include "Render3D/Core/HIKARI_ModelAsset.h"
-#include "Scene/Components/HIKARI_ModelComponent.h"
+#include "Assets/Models/HIKARI_ModelAsset.h"
+#include "Scene/Components/Rendering/Model/HIKARI_ModelComponent.h"
 #include "Scene/HIKARI_GameObject.h"
 
 #if defined(HIKARI_ENABLE_IMGUI)

@@ -6,7 +6,7 @@
 
 #include "Render3D/Core/HIKARI_Camera3D.h"
 #include "Render3D/HIKARI_Math3D.h"
-#include "Render3D/Core/HIKARI_ModelAsset.h"
+#include "Assets/Models/HIKARI_ModelAsset.h"
 #include "Render3D/Lighting/HIKARI_SceneEnvironment.h"
 #include "Render3D/Shadow/HIKARI_ShadowCacheTypes.h"
 #include "Render3D/HIKARI_Transform3D.h"

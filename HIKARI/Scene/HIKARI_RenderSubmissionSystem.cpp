@@ -6,13 +6,13 @@
 #include "Render3D/Core/HIKARI_BoundsUtils.h"
 #include "Render3D/Core/HIKARI_MeshRenderer.h"
 #include "Render3D/Core/HIKARI_Camera3D.h"
-#include "Render3D/Core/HIKARI_ModelAsset.h"
+#include "Assets/Models/HIKARI_ModelAsset.h"
 #include "Render3D/Debug/HIKARI_MeshWireDebugRenderer.h"
 #include "Render3D/HIKARI_Renderer3D.h"
 #include "Render3D/Procedural/HIKARI_ProceduralModelFactory.h"
 #include "Render3D/Render/HIKARI_ModelRenderer.h"
 #include "Render3D/Shadow/HIKARI_ShadowMapRenderer.h"
-#include "Scene/Components/HIKARI_ModelComponent.h"
+#include "Scene/Components/Rendering/Model/HIKARI_ModelComponent.h"
 #include "Scene/Components/HIKARI_ProceduralMeshComponent.h"
 #include "Scene/HIKARI_GameObject.h"
 #include "Scene/HIKARI_World.h"
@@ -53,7 +53,7 @@ namespace HIKARI {
                 return PROCEDURAL::GetOrCreateModel(
                     procedural->GetSettings());
             }
-            return model.GetAsset();
+            return model.GetModelAsset();
         }
 
         void SubmitDebugOverlays(World& world, RenderSubmissionDebugStats& stats) {

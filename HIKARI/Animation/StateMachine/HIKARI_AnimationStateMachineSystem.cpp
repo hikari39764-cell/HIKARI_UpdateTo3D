@@ -10,10 +10,10 @@
 #include "Animation/StateMachine/HIKARI_CharacterMotionAnimationBridge.h"
 #include "Assets/Animation/HIKARI_AnimationStateMachineAssetStore.h"
 #include "Gameplay/Motion/HIKARI_CharacterMotionStateService.h"
-#include "Render3D/Core/HIKARI_ModelAsset.h"
+#include "Assets/Models/HIKARI_ModelAsset.h"
 #include "Scene/Components/HIKARI_AnimationStateMachineComponent.h"
 #include "Scene/Components/HIKARI_AnimatorComponent.h"
-#include "Scene/Components/HIKARI_ModelComponent.h"
+#include "Scene/Components/Rendering/Model/HIKARI_ModelComponent.h"
 #include "Scene/HIKARI_World.h"
 
 namespace HIKARI {

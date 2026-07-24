@@ -4,7 +4,7 @@
 #include <string>
 #include <vector>
 
-#include "Render3D/Core/HIKARI_ModelAsset.h"
+#include "Assets/Models/HIKARI_ModelAsset.h"
 #include "Render3D/Runtime/HIKARI_RenderSurfaceContract.h"
 
 namespace HIKARI::RENDER3D::RUNTIME {

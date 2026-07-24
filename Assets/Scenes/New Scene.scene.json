@@ -486,8 +486,6 @@
             "assetId": "316766690d9a63d68e3eff3494736c27",
             "castShadow": true,
             "debugRenderMode": "Normal",
-            "materialFxProfileId": "",
-            "materialFxValuesInitialized": false,
             "materialOverrides": [],
             "maxWireLines": 20000,
             "postGroupMask": 0,
@@ -561,8 +559,6 @@
             "assetId": "b5495438c8743f173e2cf1a7536224af",
             "castShadow": true,
             "debugRenderMode": "Normal",
-            "materialFxProfileId": "",
-            "materialFxValuesInitialized": false,
             "materialOverrides": [],
             "maxWireLines": 20000,
             "postGroupMask": 0,
@@ -821,8 +817,6 @@
             "assetId": "",
             "castShadow": true,
             "debugRenderMode": "Normal",
-            "materialFxProfileId": "",
-            "materialFxValuesInitialized": false,
             "materialOverrides": [],
             "maxWireLines": 20000,
             "postGroupMask": 0,
@@ -954,8 +948,6 @@
             "assetId": "",
             "castShadow": true,
             "debugRenderMode": "Normal",
-            "materialFxProfileId": "",
-            "materialFxValuesInitialized": false,
             "materialOverrides": [],
             "maxWireLines": 20000,
             "postGroupMask": 0,
@@ -1105,5 +1097,5 @@
       "systemId": "PhysicsSystem"
     }
   ],
-  "version": 3
+  "version": 4
 }

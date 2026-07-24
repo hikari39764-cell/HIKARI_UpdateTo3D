@@ -14,6 +14,8 @@
 #include "Assets/Geometry/HIKARI_HcmeshFormat.h"
 #include "Assets/Formats/HIKARI_HmodelFormat.h"
 #include "Assets/Importers/Policy/HIKARI_ModelImportPolicy.h"
+#include "Assets/Models/HIKARI_ModelAsset.h"
+#include "Assets/Models/Loading/HIKARI_ModelSourceLoader.h"
 #include "Assets/Semantics/HIKARI_AssetArtifactSemantics.h"
 #include "Assets/Semantics/HIKARI_AssetSourceSemantics.h"
 #include "Assets/Tasks/HIKARI_AssetTaskService.h"
@@ -23,7 +25,6 @@
 #include "Core/Serialization/Json/HIKARI_JsonMath.h"
 #include "Project/Paths/HIKARI_ProjectPath.h"
 #include "HIKARI_TextureImportBackend_DirectXTex.h"
-#include "Render3D/Core/HIKARI_ModelManager.h"
 
 namespace HIKARI {
 
@@ -918,11 +919,10 @@ namespace HIKARI {
             result.message = "[AssetImporter] model import canceled";
             return result;
         }
-        ModelManager loader{};
         ModelAsset model{};
         model.SetName(record.guid.value);
         model.SetSourcePath(absoluteSource.generic_string());
-        if (!loader.LoadCpuAssetFromSource(model)) {
+        if (!ASSETS::MODELS::LoadModelSource(model)) {
             result.message = "[AssetImporter] failed to read model source for HMODEL cook. source=" +
                 record.sourcePath.generic_string();
             HIKARI_LOG_ERROR(result.message);

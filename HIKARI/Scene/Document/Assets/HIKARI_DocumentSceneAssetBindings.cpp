@@ -14,7 +14,7 @@
 #include "Core/HIKARI_Logger.h"
 #include "Render3D/Core/HIKARI_Material.h"
 #include "Render3D/Material/HIKARI_MaterialRuntimeBuilder.h"
-#include "Scene/Components/HIKARI_ModelComponent.h"
+#include "Scene/Components/Rendering/Model/HIKARI_ModelComponent.h"
 #include "Scene/HIKARI_RenderSubmissionSystem.h"
 
 namespace HIKARI {

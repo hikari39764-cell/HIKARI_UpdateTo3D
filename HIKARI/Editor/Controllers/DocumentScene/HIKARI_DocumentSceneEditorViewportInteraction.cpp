@@ -5,7 +5,7 @@
 #include "Editor/DragDrop/HIKARI_EditorAssetDragDrop.h"
 #include "Editor/Style/HIKARI_EditorWidgets.h"
 #include "Render3D/Core/HIKARI_BoundsUtils.h"
-#include "Scene/Components/HIKARI_ModelComponent.h"
+#include "Scene/Components/Rendering/Model/HIKARI_ModelComponent.h"
 #include "Scene/HIKARI_GameObject.h"
 #include "Scene/HIKARI_RenderSubmissionSystem.h"
 #include "Scene/HIKARI_SceneDocument.h"

@@ -4,7 +4,7 @@
 #include <string>
 
 #include "Render3D/Core/HIKARI_Camera3D.h"
-#include "Render3D/Core/HIKARI_ModelManager.h"
+#include "Render3D/Models/HIKARI_ModelManager.h"
 #include "Render3D/Lighting/HIKARI_SceneEnvironment.h"
 #include "Render3D/Lighting/HIKARI_SkyManager.h"
 #include "Render3D/Resources/HIKARI_RenderResourceHandle.h"

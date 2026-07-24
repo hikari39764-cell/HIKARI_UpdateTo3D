@@ -7,7 +7,7 @@
 #include "Assets/HIKARI_AssetRegistry.h"
 #include "Assets/HIKARI_AssetTypes.h"
 #include "Assets/Sequence/HIKARI_SequenceAssetStore.h"
-#include "Render3D/Core/HIKARI_ModelManager.h"
+#include "Render3D/Models/HIKARI_ModelManager.h"
 #include "Render3D/Material/HIKARI_MaterialTextureUsage.h"
 
 namespace HIKARI {

@@ -3,7 +3,7 @@
 #include <algorithm>
 #include <cmath>
 
-#include "Render3D/Core/HIKARI_ModelAsset.h"
+#include "Assets/Models/HIKARI_ModelAsset.h"
 
 namespace HIKARI::ANIMATION {
     namespace {

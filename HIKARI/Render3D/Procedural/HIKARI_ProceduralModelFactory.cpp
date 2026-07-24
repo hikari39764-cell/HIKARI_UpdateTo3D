@@ -13,7 +13,7 @@
 #include "Assets/Geometry/HIKARI_ClusteredGeometryCooker.h"
 #include "Assets/Geometry/HIKARI_HcmeshFormat.h"
 #include "Core/HIKARI_Logger.h"
-#include "Render3D/Core/HIKARI_ModelAsset.h"
+#include "Assets/Models/HIKARI_ModelAsset.h"
 #include "Render3D/Procedural/HIKARI_ProceduralMeshBuilder.h"
 
 namespace HIKARI::PROCEDURAL {

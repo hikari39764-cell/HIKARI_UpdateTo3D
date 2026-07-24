@@ -8,7 +8,7 @@
 #include <vector>
 
 #include "Diagnostics/HIKARI_DebugLogBuffer.h"
-#include "Render3D/Core/HIKARI_ModelAsset.h"
+#include "Assets/Models/HIKARI_ModelAsset.h"
 #include "Render3D/Debug/HIKARI_Renderer3D_Debug.h"
 
 namespace HIKARI::MESHWIREDEBUG {

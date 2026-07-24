@@ -5,7 +5,7 @@
 #include <string>
 #include <vector>
 
-#include "Render3D/Core/HIKARI_ModelAsset.h"
+#include "Assets/Models/HIKARI_ModelAsset.h"
 
 namespace HIKARI::ASSETS::COLLISION {
 

@@ -10,8 +10,9 @@
 #include "Render3D/Procedural/HIKARI_ProceduralModelFactory.h"
 #include "Render3D/Runtime/HIKARI_RenderModelCache.h"
 #include "Render3D/Runtime/HIKARI_SceneRenderCache.h"
-#include "Scene/Components/HIKARI_ModelComponent.h"
 #include "Scene/Components/HIKARI_ProceduralMeshComponent.h"
+#include "Scene/Components/Rendering/MaterialFx/HIKARI_MaterialFxComponent.h"
+#include "Scene/Components/Rendering/Model/HIKARI_ModelComponent.h"
 #include "Scene/HIKARI_GameObject.h"
 #include "Scene/HIKARI_PresentationTransformService.h"
 #include "Scene/HIKARI_World.h"
@@ -35,7 +36,7 @@ namespace HIKARI {
                 return PROCEDURAL::GetOrCreateModel(
                     procedural->GetSettings());
             }
-            return model.GetAsset();
+            return model.GetModelAsset();
         }
 
         std::string ResolveClusteredGeometryPath(
@@ -183,11 +184,21 @@ namespace HIKARI {
                 desc.materialOverride != nullptr
                     ? desc.materialOverride->GetRevision()
                     : 0u;
-            desc.materialFxProfileId = model.GetMaterialFxProfileId();
             desc.postGroupMask = model.GetPostGroupMask();
-            desc.materialFxValuesInitialized = model.AreMaterialFxValuesInitialized();
-            for (int i = 0; i < VFX::kMaterialFxUserCount; ++i) {
-                desc.materialFxParamValues[i] = model.GetMaterialFxParamValues()[i];
+            if (const MaterialFxComponent* materialFx =
+                object.GetComponent<MaterialFxComponent>()) {
+
+                desc.materialFxProfileId =
+                    materialFx->GetProfileId();
+                desc.materialFxValuesInitialized =
+                    materialFx->AreValuesInitialized();
+                for (size_t i = 0;
+                    i < VFX::kMaterialFxUserCount;
+                    ++i) {
+
+                    desc.materialFxParamValues[i] =
+                        materialFx->GetParamValues()[i];
+                }
             }
             return desc;
         }

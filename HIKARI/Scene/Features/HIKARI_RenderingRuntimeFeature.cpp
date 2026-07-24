@@ -3,8 +3,9 @@
 #include <array>
 #include <memory>
 
-#include "Scene/Components/HIKARI_ModelComponent.h"
 #include "Scene/Components/HIKARI_ProceduralMeshComponent.h"
+#include "Scene/Components/Rendering/MaterialFx/HIKARI_MaterialFxComponent.h"
+#include "Scene/Components/Rendering/Model/HIKARI_ModelComponent.h"
 #include "Scene/Features/HIKARI_RuntimeFeature.h"
 #include "Scene/Features/HIKARI_RuntimeFeatureIds.h"
 #include "Scene/HIKARI_ComponentRegistry.h"
@@ -42,8 +43,9 @@ namespace HIKARI {
 
             std::span<const std::string_view>
                 GetComponentTypeNames() const noexcept override {
-                static constexpr std::array<std::string_view, 2> names{
+                static constexpr std::array<std::string_view, 3> names{
                     "ModelComponent",
+                    "MaterialFxComponent",
                     "ProceduralMeshComponent"
                 };
                 return names;
@@ -64,11 +66,34 @@ namespace HIKARI {
                     return std::make_unique<ModelComponent>();
                 };
                 model.optionalComponents = {
+                    "MaterialFxComponent",
                     "ProceduralMeshComponent"
                 };
                 model.presentation = RenderingPresentation(
                     "Model",
-                    "Controls rendering, materials, shadows, and Material FX.");
+                    "Controls the model asset, material slots, visibility, shadows, and render diagnostics.");
+
+                ComponentTypeInfo materialFx{};
+                materialFx.typeName = "MaterialFxComponent";
+                materialFx.factory =
+                    []() -> std::unique_ptr<IComponent> {
+                    return std::make_unique<MaterialFxComponent>();
+                };
+                materialFx.requiredComponents = {
+                    "ModelComponent"
+                };
+                materialFx.initializeDefaults = [](
+                    const SceneObjectData&,
+                    nlohmann::json& properties) {
+
+                    properties = {
+                        { "profileId", "" },
+                        { "valuesInitialized", false }
+                    };
+                };
+                materialFx.presentation = RenderingPresentation(
+                    "Material FX",
+                    "Applies an optional Material FX profile and per-object parameter overrides.");
 
                 ComponentTypeInfo procedural{};
                 procedural.typeName = "ProceduralMeshComponent";
@@ -101,6 +126,8 @@ namespace HIKARI {
 
                 bool success = context.componentRegistry.Register(
                     std::move(model));
+                success = context.componentRegistry.Register(
+                    std::move(materialFx)) && success;
                 success = context.componentRegistry.Register(
                     std::move(procedural)) && success;
                 success = context.systemTypeRegistry.Register(SystemTypeInfo{

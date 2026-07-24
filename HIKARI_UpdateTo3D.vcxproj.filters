@@ -49,6 +49,27 @@
     <Filter Include="Header Files\Assets\Tasks">
       <UniqueIdentifier>{7B9A3C5D-2E41-4F70-9A62-0D8E5C3B1A47}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Header Files\Assets\Models">
+      <UniqueIdentifier>{9E630415-9193-4DA6-A950-425129D2CD8B}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\Assets\Models\Loading">
+      <UniqueIdentifier>{F0B1DD9E-335B-4FB1-85DA-41FAD84A0269}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\Assets\Models\Loading\Assimp">
+      <UniqueIdentifier>{A7EEDE78-7E54-42C0-833D-D64D7B384758}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\Assets\Models\Loading\Gltf">
+      <UniqueIdentifier>{C1D63F20-55CF-4EF7-86A9-52F0CDDD7D9A}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\Assets\Models\Loading\Obj">
+      <UniqueIdentifier>{5A4922CD-CF2F-44E8-832D-9A81FE6B35A7}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\Assets\Models\Policies">
+      <UniqueIdentifier>{A37305C7-47A0-4B09-A718-F2E7C576666B}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\Assets\Models\Processing">
+      <UniqueIdentifier>{4D2FB61A-A155-41ED-BCBF-C5A94EF2F16A}</UniqueIdentifier>
+    </Filter>
     <Filter Include="Header Files\Audio">
       <UniqueIdentifier>{7316CE12-9406-53C4-B4D6-FA6C72F69C2A}</UniqueIdentifier>
     </Filter>
@@ -193,6 +214,30 @@
     <Filter Include="Header Files\Render3D\Core">
       <UniqueIdentifier>{EB1D1491-6FFB-5A82-8554-7EAE3383EE47}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Header Files\Render3D\Core\MeshRenderer">
+      <UniqueIdentifier>{C96E8DA8-ABBF-4427-B789-7A55D06A8209}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\Render3D\Core\MeshRenderer\Bindings">
+      <UniqueIdentifier>{39EFF6F0-A9A0-44BE-9CE2-5785C3EF2511}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\Render3D\Core\MeshRenderer\Data">
+      <UniqueIdentifier>{440A914A-1558-4FD7-AFA7-AF84C140AA36}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\Render3D\Core\MeshRenderer\Execution">
+      <UniqueIdentifier>{C5F1F4CF-D111-41E4-A569-3C56E7DAC393}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\Render3D\Core\MeshRenderer\Frame">
+      <UniqueIdentifier>{91AB157B-B1F7-4AD1-9667-2DAA36D56085}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\Render3D\Core\MeshRenderer\Internal">
+      <UniqueIdentifier>{28C0C092-4850-40B8-A854-09400954B771}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\Render3D\Core\MeshRenderer\Pipeline">
+      <UniqueIdentifier>{C41E0911-2E58-4B7C-8E61-CE771EF2FBB0}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\Render3D\Core\MeshRenderer\Resources">
+      <UniqueIdentifier>{4DDB5CD5-8BAD-452B-B5D2-A06BFB3000DF}</UniqueIdentifier>
+    </Filter>
     <Filter Include="Header Files\Render3D\Cluster">
       <UniqueIdentifier>{07AE88EF-98D9-443D-A5E8-4C94D5F1128B}</UniqueIdentifier>
     </Filter>
@@ -259,6 +304,15 @@
     <Filter Include="Header Files\Render3D\Views">
       <UniqueIdentifier>{4B78F6F6-2029-4C2A-A1B2-E239E6A9C9DA}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Header Files\Render3D\Models">
+      <UniqueIdentifier>{D776DC1C-DF4B-49FD-8624-3C38EEE80E47}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\Render3D\Models\Primitives">
+      <UniqueIdentifier>{EBAAEB91-FBB1-44A8-AC13-83F268874DFD}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\Render3D\Models\Runtime">
+      <UniqueIdentifier>{1BF988EC-B8EE-43A0-B31A-D62131E30FA9}</UniqueIdentifier>
+    </Filter>
     <Filter Include="Header Files\Scene">
       <UniqueIdentifier>{450ED957-FA0B-5A80-9A92-7865F0B8E6F0}</UniqueIdentifier>
     </Filter>
@@ -297,6 +351,15 @@
     </Filter>
     <Filter Include="Header Files\Scene\Components">
       <UniqueIdentifier>{F00B23EA-3B1C-53CB-B0AC-2F0ECD5136A2}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\Scene\Components\Rendering">
+      <UniqueIdentifier>{D07B6DF3-C8E6-4F64-B0F8-06D04FAD8980}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\Scene\Components\Rendering\MaterialFx">
+      <UniqueIdentifier>{69776EB6-2E31-4BBB-9365-80A73BAE7357}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\Scene\Components\Rendering\Model">
+      <UniqueIdentifier>{1BF52BE8-206A-431B-BF11-6287C1132B06}</UniqueIdentifier>
     </Filter>
     <Filter Include="Header Files\Scene\Geometry">
       <UniqueIdentifier>{EAF125D5-C82B-4AD8-8D15-BB91BC817B75}</UniqueIdentifier>
@@ -511,6 +574,24 @@
     <Filter Include="Source Files\Assets\Tasks">
       <UniqueIdentifier>{D3C82A14-6F50-4B97-A6D1-7E2F9C304B58}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Source Files\Assets\Models">
+      <UniqueIdentifier>{C9BE5D49-5E3C-4E40-976D-3A42F7848753}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Assets\Models\Loading">
+      <UniqueIdentifier>{D3CB37AA-12DD-45F9-8179-695444DF04F8}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Assets\Models\Loading\Assimp">
+      <UniqueIdentifier>{17F8B730-56BE-4D76-AEF9-1AF1AB8740D5}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Assets\Models\Loading\Gltf">
+      <UniqueIdentifier>{21907F64-F795-4457-B0F2-B6FF4C2E42F0}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Assets\Models\Loading\Obj">
+      <UniqueIdentifier>{91C99520-1EA9-4736-9A4D-97735E541B5C}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Assets\Models\Processing">
+      <UniqueIdentifier>{C2D2DEBA-25EB-476D-8F87-1A10377A6BF2}</UniqueIdentifier>
+    </Filter>
     <Filter Include="Source Files\Audio">
       <UniqueIdentifier>{6342A581-ED5F-55FD-923E-8CB34D3C22EC}</UniqueIdentifier>
     </Filter>
@@ -576,6 +657,15 @@
     </Filter>
     <Filter Include="Source Files\Editor\Inspectors">
       <UniqueIdentifier>{D68F333D-6EA5-561A-AE86-4F0B43E15014}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Editor\Inspectors\Rendering">
+      <UniqueIdentifier>{B08C2AF9-F29A-40DB-8CD3-10C5429A5CE1}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Editor\Inspectors\Rendering\MaterialFx">
+      <UniqueIdentifier>{61ACD5B2-372A-4236-A2C7-F54B52C6C6F6}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Editor\Inspectors\Rendering\Model">
+      <UniqueIdentifier>{AD038444-272B-433F-AE6B-09B1E3E383E7}</UniqueIdentifier>
     </Filter>
     <Filter Include="Source Files\Editor\Panels">
       <UniqueIdentifier>{34A5A9E3-66B5-542D-8726-306B268D5013}</UniqueIdentifier>
@@ -645,6 +735,39 @@
     </Filter>
     <Filter Include="Source Files\Render3D\Core">
       <UniqueIdentifier>{14D0B891-F99E-54D3-99C1-947942082058}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Render3D\Core\MeshRenderer">
+      <UniqueIdentifier>{700164C3-AAEB-4152-BEB3-9329973E7727}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Render3D\Core\MeshRenderer\Bindings">
+      <UniqueIdentifier>{DA00D324-B266-44A9-82E6-CCFD4B507A43}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Render3D\Core\MeshRenderer\Data">
+      <UniqueIdentifier>{D1E45224-0BBD-41DE-B284-0587A4C4D0D1}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Render3D\Core\MeshRenderer\Editor">
+      <UniqueIdentifier>{4EF39F8E-B2B7-4967-A026-C9DC3F2F7779}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Render3D\Core\MeshRenderer\Execution">
+      <UniqueIdentifier>{2E9A6BDD-C697-4E57-A739-D24D75489D39}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Render3D\Core\MeshRenderer\Frame">
+      <UniqueIdentifier>{8209B15C-ACB2-49FE-8AA4-3BCD8E217E3A}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Render3D\Core\MeshRenderer\GpuDriven">
+      <UniqueIdentifier>{D854154C-B216-4521-AE15-6DA53B0D15E6}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Render3D\Core\MeshRenderer\Internal">
+      <UniqueIdentifier>{E4880192-7B36-451B-8B91-45AF770D2BB8}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Render3D\Core\MeshRenderer\Pipeline">
+      <UniqueIdentifier>{FA848FF8-AB2B-4F87-A753-D0F5A84527F3}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Render3D\Core\MeshRenderer\Resources">
+      <UniqueIdentifier>{82438BB7-3818-4DF5-855D-F2F572027793}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Render3D\Core\MeshRenderer\Passes">
+      <UniqueIdentifier>{C2613275-566B-4EF1-95F5-1F500C8A459B}</UniqueIdentifier>
     </Filter>
     <Filter Include="Source Files\Render3D\Cluster">
       <UniqueIdentifier>{87491D43-B4C7-4D08-8A94-65F075579BBE}</UniqueIdentifier>
@@ -724,6 +847,15 @@
     <Filter Include="Source Files\Render3D\Views">
       <UniqueIdentifier>{49DE44F8-A090-44A2-B12D-F217A893E986}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Source Files\Render3D\Models">
+      <UniqueIdentifier>{9F569BE6-4056-4054-A680-3CE3F209D316}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Render3D\Models\Primitives">
+      <UniqueIdentifier>{F99B72B5-EB3B-464D-B6F1-68866FC4F294}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Render3D\Models\Runtime">
+      <UniqueIdentifier>{C99CD177-FFFD-4FA5-8F26-8A1CA64B14D1}</UniqueIdentifier>
+    </Filter>
     <Filter Include="Source Files\Scene">
       <UniqueIdentifier>{CB53B66E-152E-5AD1-99ED-23C2A99E4867}</UniqueIdentifier>
     </Filter>
@@ -759,6 +891,15 @@
     </Filter>
     <Filter Include="Source Files\Scene\Components">
       <UniqueIdentifier>{B16A3B17-051C-5A7F-ACAF-CD825550867C}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Scene\Components\Rendering">
+      <UniqueIdentifier>{9EDC0F03-4611-4056-A455-94895708AF36}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Scene\Components\Rendering\MaterialFx">
+      <UniqueIdentifier>{52BA991C-0EB6-41AE-9A20-F86FEE41F723}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Scene\Components\Rendering\Model">
+      <UniqueIdentifier>{DA05416D-2940-4BE5-9C61-877B6CEFF9ED}</UniqueIdentifier>
     </Filter>
     <Filter Include="Source Files\Scene\Debug">
       <UniqueIdentifier>{61D0EB26-341C-5110-87A3-AEEF1F6750A6}</UniqueIdentifier>
@@ -1125,14 +1266,59 @@
     <ClCompile Include="HIKARI\Render3D\HIKARI_Math3D.cpp">
       <Filter>Source Files\Render3D</Filter>
     </ClCompile>
-    <ClCompile Include="HIKARI\Render3D\Core\HIKARI_AssimpModelLoader.cpp">
-      <Filter>Source Files\Render3D\Core</Filter>
+    <ClCompile Include="HIKARI\Assets\Models\HIKARI_ModelAsset.cpp">
+      <Filter>Source Files\Assets\Models</Filter>
     </ClCompile>
-    <ClCompile Include="HIKARI\Render3D\Core\HIKARI_ModelAsset.cpp">
-      <Filter>Source Files\Render3D\Core</Filter>
+    <ClCompile Include="HIKARI\Assets\Models\Loading\HIKARI_AssimpModelLoader.cpp">
+      <Filter>Source Files\Assets\Models\Loading</Filter>
     </ClCompile>
-    <ClCompile Include="HIKARI\Render3D\Core\HIKARI_ModelManager.cpp">
-      <Filter>Source Files\Render3D\Core</Filter>
+    <ClCompile Include="HIKARI\Assets\Models\Loading\Assimp\HIKARI_AssimpMaterialReader.cpp">
+      <Filter>Source Files\Assets\Models\Loading\Assimp</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Assets\Models\Loading\Assimp\HIKARI_AssimpMeshReader.cpp">
+      <Filter>Source Files\Assets\Models\Loading\Assimp</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Assets\Models\Loading\Assimp\HIKARI_AssimpSceneReader.cpp">
+      <Filter>Source Files\Assets\Models\Loading\Assimp</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Assets\Models\Loading\HIKARI_GltfModelLoader.cpp">
+      <Filter>Source Files\Assets\Models\Loading</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Assets\Models\Loading\Gltf\HIKARI_GltfAccessorReader.cpp">
+      <Filter>Source Files\Assets\Models\Loading\Gltf</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Assets\Models\Loading\Gltf\HIKARI_GltfAnimationReader.cpp">
+      <Filter>Source Files\Assets\Models\Loading\Gltf</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Assets\Models\Loading\Gltf\HIKARI_GltfMaterialReader.cpp">
+      <Filter>Source Files\Assets\Models\Loading\Gltf</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Assets\Models\Loading\Gltf\HIKARI_GltfSceneReader.cpp">
+      <Filter>Source Files\Assets\Models\Loading\Gltf</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Assets\Models\Loading\HIKARI_ModelSourceLoader.cpp">
+      <Filter>Source Files\Assets\Models\Loading</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Assets\Models\Loading\HIKARI_ObjModelLoader.cpp">
+      <Filter>Source Files\Assets\Models\Loading</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Assets\Models\Loading\Obj\HIKARI_ObjMaterialLibrary.cpp">
+      <Filter>Source Files\Assets\Models\Loading\Obj</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Assets\Models\Processing\HIKARI_ModelGeometryPostprocess.cpp">
+      <Filter>Source Files\Assets\Models\Processing</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Render3D\Models\HIKARI_ModelManager.cpp">
+      <Filter>Source Files\Render3D\Models</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Render3D\Models\Primitives\HIKARI_BuiltinModelFactory.cpp">
+      <Filter>Source Files\Render3D\Models\Primitives</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Render3D\Models\Runtime\HIKARI_ModelRuntimeResourceBuilder.cpp">
+      <Filter>Source Files\Render3D\Models\Runtime</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Render3D\Models\Runtime\HIKARI_ModelTextureResolver.cpp">
+      <Filter>Source Files\Render3D\Models\Runtime</Filter>
     </ClCompile>
     <ClCompile Include="HIKARI\Render3D\HIKARI_Mesh.cpp">
       <Filter>Source Files\Render3D</Filter>
@@ -1143,20 +1329,53 @@
     <ClCompile Include="HIKARI\Render3D\Core\HIKARI_MeshRenderer.cpp">
       <Filter>Source Files\Render3D\Core</Filter>
     </ClCompile>
-    <ClCompile Include="HIKARI\Render3D\Core\HIKARI_MeshRendererFrameResources.cpp">
-      <Filter>Source Files\Render3D\Core</Filter>
+    <ClCompile Include="HIKARI\Render3D\Core\MeshRenderer\Editor\HIKARI_MeshEditorInteractiveRenderer.cpp">
+      <Filter>Source Files\Render3D\Core\MeshRenderer\Editor</Filter>
     </ClCompile>
-    <ClCompile Include="HIKARI\Render3D\Core\HIKARI_MeshRendererTraditionalIndirectOwner.cpp">
-      <Filter>Source Files\Render3D\Core</Filter>
+    <ClCompile Include="HIKARI\Render3D\Core\MeshRenderer\Editor\HIKARI_MeshEditorInteractiveResources.cpp">
+      <Filter>Source Files\Render3D\Core\MeshRenderer\Editor</Filter>
     </ClCompile>
-    <ClCompile Include="HIKARI\Render3D\Core\HIKARI_MeshMaterialResolver.cpp">
-      <Filter>Source Files\Render3D\Core</Filter>
+    <ClCompile Include="HIKARI\Render3D\Core\MeshRenderer\Execution\HIKARI_MeshGeometryBackendExecutor.cpp">
+      <Filter>Source Files\Render3D\Core\MeshRenderer\Execution</Filter>
     </ClCompile>
-    <ClCompile Include="HIKARI\Render3D\Core\HIKARI_MeshPrimitiveCache.cpp">
-      <Filter>Source Files\Render3D\Core</Filter>
+    <ClCompile Include="HIKARI\Render3D\Core\MeshRenderer\Frame\HIKARI_MeshFrameCoordinator.cpp">
+      <Filter>Source Files\Render3D\Core\MeshRenderer\Frame</Filter>
     </ClCompile>
-    <ClCompile Include="HIKARI\Render3D\Core\HIKARI_MeshVariantResolver.cpp">
-      <Filter>Source Files\Render3D\Core</Filter>
+    <ClCompile Include="HIKARI\Render3D\Core\MeshRenderer\Frame\HIKARI_MeshRendererInitialization.cpp">
+      <Filter>Source Files\Render3D\Core\MeshRenderer\Frame</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Render3D\Core\MeshRenderer\GpuDriven\HIKARI_MeshGpuDrivenDiagnostics.cpp">
+      <Filter>Source Files\Render3D\Core\MeshRenderer\GpuDriven</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Render3D\Core\MeshRenderer\GpuDriven\HIKARI_MeshGpuDrivenFrameCoordinator.cpp">
+      <Filter>Source Files\Render3D\Core\MeshRenderer\GpuDriven</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Render3D\Core\MeshRenderer\GpuDriven\HIKARI_MeshGpuSceneFrameSynchronizer.cpp">
+      <Filter>Source Files\Render3D\Core\MeshRenderer\GpuDriven</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Render3D\Core\MeshRenderer\Internal\HIKARI_MeshRendererState.cpp">
+      <Filter>Source Files\Render3D\Core\MeshRenderer\Internal</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Render3D\Core\MeshRenderer\Passes\HIKARI_MeshRenderPasses.cpp">
+      <Filter>Source Files\Render3D\Core\MeshRenderer\Passes</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Render3D\Core\MeshRenderer\Passes\HIKARI_MeshTemporalVelocityCollector.cpp">
+      <Filter>Source Files\Render3D\Core\MeshRenderer\Passes</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Render3D\Core\MeshRenderer\Frame\HIKARI_MeshFrameResources.cpp">
+      <Filter>Source Files\Render3D\Core\MeshRenderer\Frame</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Render3D\Core\MeshRenderer\Execution\HIKARI_MeshTraditionalIndirectOwner.cpp">
+      <Filter>Source Files\Render3D\Core\MeshRenderer\Execution</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Render3D\Core\MeshRenderer\Data\HIKARI_MeshMaterialResolver.cpp">
+      <Filter>Source Files\Render3D\Core\MeshRenderer\Data</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Render3D\Core\MeshRenderer\Resources\HIKARI_MeshPrimitiveCache.cpp">
+      <Filter>Source Files\Render3D\Core\MeshRenderer\Resources</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Render3D\Core\MeshRenderer\Pipeline\HIKARI_MeshVariantResolver.cpp">
+      <Filter>Source Files\Render3D\Core\MeshRenderer\Pipeline</Filter>
     </ClCompile>
     <ClCompile Include="HIKARI\Render3D\Lighting\HIKARI_IblEnvironment.cpp">
       <Filter>Source Files\Render3D\Lighting</Filter>
@@ -1713,6 +1932,15 @@
     <ClCompile Include="HIKARI\Editor\Inspectors\HIKARI_PhysicsCollisionFilterInspector.cpp">
       <Filter>Source Files\Editor\Inspectors</Filter>
     </ClCompile>
+    <ClCompile Include="HIKARI\Editor\Inspectors\Rendering\MaterialFx\HIKARI_MaterialFxComponentInspector.cpp">
+      <Filter>Source Files\Editor\Inspectors\Rendering\MaterialFx</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Editor\Inspectors\Rendering\Model\HIKARI_ModelComponentDiagnostics.cpp">
+      <Filter>Source Files\Editor\Inspectors\Rendering\Model</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Editor\Inspectors\Rendering\Model\HIKARI_ModelComponentInspector.cpp">
+      <Filter>Source Files\Editor\Inspectors\Rendering\Model</Filter>
+    </ClCompile>
     <ClCompile Include="HIKARI\Scene\HIKARI_SceneManager.cpp">
       <Filter>Source Files\Scene</Filter>
     </ClCompile>
@@ -1722,8 +1950,17 @@
     <ClCompile Include="HIKARI\Scene\HIKARI_World.cpp">
       <Filter>Source Files\Scene</Filter>
     </ClCompile>
-    <ClCompile Include="HIKARI\Scene\Components\HIKARI_ModelComponent.cpp">
-      <Filter>Source Files\Scene\Components</Filter>
+    <ClCompile Include="HIKARI\Scene\Components\Rendering\MaterialFx\HIKARI_MaterialFxComponent.cpp">
+      <Filter>Source Files\Scene\Components\Rendering\MaterialFx</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Scene\Components\Rendering\MaterialFx\HIKARI_MaterialFxComponentSerialization.cpp">
+      <Filter>Source Files\Scene\Components\Rendering\MaterialFx</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Scene\Components\Rendering\Model\HIKARI_ModelComponent.cpp">
+      <Filter>Source Files\Scene\Components\Rendering\Model</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Scene\Components\Rendering\Model\HIKARI_ModelComponentSerialization.cpp">
+      <Filter>Source Files\Scene\Components\Rendering\Model</Filter>
     </ClCompile>
     <ClCompile Include="HIKARI\Scene\Components\HIKARI_ProceduralMeshComponent.cpp">
       <Filter>Source Files\Scene\Components</Filter>
@@ -2547,10 +2784,27 @@
     <ClCompile Include="HIKARI\RuntimeTools\HIKARI_PortableObjectToolsPanel.cpp">
       <Filter>Source Files\Runtime</Filter>
     </ClCompile>
-    <ClCompile Include="HIKARI\Render3D\Core\HIKARI_MeshRendererBindings.cpp" />
-    <ClCompile Include="HIKARI\Render3D\Core\HIKARI_MeshRendererPso.cpp" />
-    <ClCompile Include="HIKARI\Render3D\Core\HIKARI_MeshRendererUpload.cpp" />
-    <ClCompile Include="HIKARI\Render3D\Core\HIKARI_MeshDrawExecutor.cpp" />
+    <ClCompile Include="HIKARI\Render3D\Core\MeshRenderer\Bindings\HIKARI_MeshResourceBindings.cpp">
+      <Filter>Source Files\Render3D\Core\MeshRenderer\Bindings</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Render3D\Core\MeshRenderer\Bindings\HIKARI_MeshPassResourceResolver.cpp">
+      <Filter>Source Files\Render3D\Core\MeshRenderer\Bindings</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Render3D\Core\MeshRenderer\Pipeline\HIKARI_MeshPipelineStore.cpp">
+      <Filter>Source Files\Render3D\Core\MeshRenderer\Pipeline</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Render3D\Core\MeshRenderer\Pipeline\HIKARI_MeshPipelineInitialization.cpp">
+      <Filter>Source Files\Render3D\Core\MeshRenderer\Pipeline</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Render3D\Core\MeshRenderer\Pipeline\HIKARI_MeshInputLayouts.cpp">
+      <Filter>Source Files\Render3D\Core\MeshRenderer\Pipeline</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Render3D\Core\MeshRenderer\Data\HIKARI_MeshDrawDataBuilder.cpp">
+      <Filter>Source Files\Render3D\Core\MeshRenderer\Data</Filter>
+    </ClCompile>
+    <ClCompile Include="HIKARI\Render3D\Core\MeshRenderer\Execution\HIKARI_MeshDrawExecutor.cpp">
+      <Filter>Source Files\Render3D\Core\MeshRenderer\Execution</Filter>
+    </ClCompile>
     <ClCompile Include="HIKARI\Render3D\GpuDriven\HIKARI_SurfaceGpuSceneFrameBuffer.cpp">
       <Filter>Source Files\Render3D\GpuDriven</Filter>
     </ClCompile>
@@ -2914,17 +3168,20 @@
     <ClInclude Include="HIKARI\Render3D\Core\HIKARI_MeshRenderer.h">
       <Filter>Header Files\Render3D\Core</Filter>
     </ClInclude>
-    <ClInclude Include="HIKARI\Render3D\Core\HIKARI_MeshMaterialResolver.h">
-      <Filter>Header Files\Render3D\Core</Filter>
+    <ClInclude Include="HIKARI\Render3D\Core\MeshRenderer\Internal\HIKARI_MeshRendererInternal.h">
+      <Filter>Header Files\Render3D\Core\MeshRenderer\Internal</Filter>
     </ClInclude>
-    <ClInclude Include="HIKARI\Render3D\Core\HIKARI_MeshPrimitiveCache.h">
-      <Filter>Header Files\Render3D\Core</Filter>
+    <ClInclude Include="HIKARI\Render3D\Core\MeshRenderer\Data\HIKARI_MeshMaterialResolver.h">
+      <Filter>Header Files\Render3D\Core\MeshRenderer\Data</Filter>
     </ClInclude>
-    <ClInclude Include="HIKARI\Render3D\Core\HIKARI_MeshRendererState.h">
-      <Filter>Header Files\Render3D\Core</Filter>
+    <ClInclude Include="HIKARI\Render3D\Core\MeshRenderer\Resources\HIKARI_MeshPrimitiveCache.h">
+      <Filter>Header Files\Render3D\Core\MeshRenderer\Resources</Filter>
     </ClInclude>
-    <ClInclude Include="HIKARI\Render3D\Core\HIKARI_MeshVariantResolver.h">
-      <Filter>Header Files\Render3D\Core</Filter>
+    <ClInclude Include="HIKARI\Render3D\Core\MeshRenderer\Internal\HIKARI_MeshRendererState.h">
+      <Filter>Header Files\Render3D\Core\MeshRenderer\Internal</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Render3D\Core\MeshRenderer\Pipeline\HIKARI_MeshVariantResolver.h">
+      <Filter>Header Files\Render3D\Core\MeshRenderer\Pipeline</Filter>
     </ClInclude>
     <ClInclude Include="HIKARI\Render3D\GpuDriven\HIKARI_SurfaceGpuSceneFrameBuffer.h">
       <Filter>Header Files\Render3D\GpuDriven</Filter>
@@ -2980,14 +3237,80 @@
     <ClInclude Include="HIKARI\Render3D\GpuDriven\HIKARI_GpuVisibilityResult.h">
       <Filter>Header Files\Render3D\GpuDriven</Filter>
     </ClInclude>
-    <ClInclude Include="HIKARI\Render3D\Core\HIKARI_AssimpModelLoader.h">
-      <Filter>Header Files\Render3D\Core</Filter>
+    <ClInclude Include="HIKARI\Assets\Models\HIKARI_ModelAsset.h">
+      <Filter>Header Files\Assets\Models</Filter>
     </ClInclude>
-    <ClInclude Include="HIKARI\Render3D\Core\HIKARI_ModelAsset.h">
-      <Filter>Header Files\Render3D\Core</Filter>
+    <ClInclude Include="HIKARI\Assets\Models\HIKARI_ModelAssetLookup.h">
+      <Filter>Header Files\Assets\Models</Filter>
     </ClInclude>
-    <ClInclude Include="HIKARI\Render3D\Core\HIKARI_ModelManager.h">
-      <Filter>Header Files\Render3D\Core</Filter>
+    <ClInclude Include="HIKARI\Assets\Models\HIKARI_ModelAssetTypes.h">
+      <Filter>Header Files\Assets\Models</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Assets\Models\Loading\HIKARI_AssimpModelLoader.h">
+      <Filter>Header Files\Assets\Models\Loading</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Assets\Models\Loading\Assimp\HIKARI_AssimpMaterialReader.h">
+      <Filter>Header Files\Assets\Models\Loading\Assimp</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Assets\Models\Loading\Assimp\HIKARI_AssimpMeshReader.h">
+      <Filter>Header Files\Assets\Models\Loading\Assimp</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Assets\Models\Loading\Assimp\HIKARI_AssimpSceneReader.h">
+      <Filter>Header Files\Assets\Models\Loading\Assimp</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Assets\Models\Loading\Assimp\HIKARI_AssimpTypeConversion.h">
+      <Filter>Header Files\Assets\Models\Loading\Assimp</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Assets\Models\Loading\HIKARI_GltfModelLoader.h">
+      <Filter>Header Files\Assets\Models\Loading</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Assets\Models\Loading\Gltf\HIKARI_GltfAccessorReader.h">
+      <Filter>Header Files\Assets\Models\Loading\Gltf</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Assets\Models\Loading\Gltf\HIKARI_GltfAnimationReader.h">
+      <Filter>Header Files\Assets\Models\Loading\Gltf</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Assets\Models\Loading\Gltf\HIKARI_GltfMaterialReader.h">
+      <Filter>Header Files\Assets\Models\Loading\Gltf</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Assets\Models\Loading\Gltf\HIKARI_GltfSceneReader.h">
+      <Filter>Header Files\Assets\Models\Loading\Gltf</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Assets\Models\Loading\HIKARI_ModelSourceLoader.h">
+      <Filter>Header Files\Assets\Models\Loading</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Assets\Models\Loading\HIKARI_ModelSourcePath.h">
+      <Filter>Header Files\Assets\Models\Loading</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Assets\Models\Loading\HIKARI_ObjModelLoader.h">
+      <Filter>Header Files\Assets\Models\Loading</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Assets\Models\Loading\Obj\HIKARI_ObjMaterialLibrary.h">
+      <Filter>Header Files\Assets\Models\Loading\Obj</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Assets\Models\Loading\Obj\HIKARI_ObjText.h">
+      <Filter>Header Files\Assets\Models\Loading\Obj</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Assets\Models\Policies\HIKARI_ModelMaterialPolicy.h">
+      <Filter>Header Files\Assets\Models\Policies</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Assets\Models\Policies\HIKARI_ModelSurfacePolicy.h">
+      <Filter>Header Files\Assets\Models\Policies</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Assets\Models\Processing\HIKARI_ModelGeometryPostprocess.h">
+      <Filter>Header Files\Assets\Models\Processing</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Render3D\Models\HIKARI_ModelManager.h">
+      <Filter>Header Files\Render3D\Models</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Render3D\Models\Primitives\HIKARI_BuiltinModelFactory.h">
+      <Filter>Header Files\Render3D\Models\Primitives</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Render3D\Models\Runtime\HIKARI_ModelRuntimeResourceBuilder.h">
+      <Filter>Header Files\Render3D\Models\Runtime</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Render3D\Models\Runtime\HIKARI_ModelTextureResolver.h">
+      <Filter>Header Files\Render3D\Models\Runtime</Filter>
     </ClInclude>
     <ClInclude Include="HIKARI\Render3D\Procedural\HIKARI_ProceduralModelFactory.h">
       <Filter>Header Files\Render3D</Filter>
@@ -3028,8 +3351,11 @@
     <ClInclude Include="HIKARI\Scene\Components\HIKARI_IComponent.h">
       <Filter>Header Files\Scene\Components</Filter>
     </ClInclude>
-    <ClInclude Include="HIKARI\Scene\Components\HIKARI_ModelComponent.h">
-      <Filter>Header Files\Scene\Components</Filter>
+    <ClInclude Include="HIKARI\Scene\Components\Rendering\MaterialFx\HIKARI_MaterialFxComponent.h">
+      <Filter>Header Files\Scene\Components\Rendering\MaterialFx</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Scene\Components\Rendering\Model\HIKARI_ModelComponent.h">
+      <Filter>Header Files\Scene\Components\Rendering\Model</Filter>
     </ClInclude>
     <ClInclude Include="HIKARI\Scene\Components\HIKARI_ProceduralMeshComponent.h">
       <Filter>Header Files\Scene\Components</Filter>
@@ -4318,15 +4644,32 @@
     <ClInclude Include="HIKARI\Editor\Play\HIKARI_EditorPlaySession.h">
       <Filter>Header Files\Editor\Play</Filter>
     </ClInclude>
-    <ClInclude Include="HIKARI\Render3D\Core\HIKARI_MeshDrawExecutor.h" />
+    <ClInclude Include="HIKARI\Render3D\Core\MeshRenderer\Execution\HIKARI_MeshDrawExecutor.h">
+      <Filter>Header Files\Render3D\Core\MeshRenderer\Execution</Filter>
+    </ClInclude>
     <ClInclude Include="HIKARI\Render3D\Core\HIKARI_MeshPassResources.h" />
-    <ClInclude Include="HIKARI\Render3D\Core\HIKARI_MeshRendererBindings.h" />
-    <ClInclude Include="HIKARI\Render3D\Core\HIKARI_MeshRendererPso.h" />
-    <ClInclude Include="HIKARI\Render3D\Core\HIKARI_MeshRendererRootParams.h" />
-    <ClInclude Include="HIKARI\Render3D\Core\HIKARI_MeshRendererFrameResources.h" />
-    <ClInclude Include="HIKARI\Render3D\Core\HIKARI_MeshRendererTraditionalIndirectOwner.h" />
+    <ClInclude Include="HIKARI\Render3D\Core\MeshRenderer\Bindings\HIKARI_MeshResourceBindings.h">
+      <Filter>Header Files\Render3D\Core\MeshRenderer\Bindings</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Render3D\Core\MeshRenderer\Pipeline\HIKARI_MeshPipelineStore.h">
+      <Filter>Header Files\Render3D\Core\MeshRenderer\Pipeline</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Render3D\Core\MeshRenderer\Pipeline\HIKARI_MeshInputLayouts.h">
+      <Filter>Header Files\Render3D\Core\MeshRenderer\Pipeline</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Render3D\Core\MeshRenderer\Pipeline\HIKARI_MeshRootParameters.h">
+      <Filter>Header Files\Render3D\Core\MeshRenderer\Pipeline</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Render3D\Core\MeshRenderer\Frame\HIKARI_MeshFrameResources.h">
+      <Filter>Header Files\Render3D\Core\MeshRenderer\Frame</Filter>
+    </ClInclude>
+    <ClInclude Include="HIKARI\Render3D\Core\MeshRenderer\Execution\HIKARI_MeshTraditionalIndirectOwner.h">
+      <Filter>Header Files\Render3D\Core\MeshRenderer\Execution</Filter>
+    </ClInclude>
     <ClInclude Include="HIKARI\Render3D\Core\HIKARI_MeshRendererTypes.h" />
-    <ClInclude Include="HIKARI\Render3D\Core\HIKARI_MeshRendererUpload.h" />
+    <ClInclude Include="HIKARI\Render3D\Core\MeshRenderer\Data\HIKARI_MeshDrawDataBuilder.h">
+      <Filter>Header Files\Render3D\Core\MeshRenderer\Data</Filter>
+    </ClInclude>
     <ClInclude Include="HIKARI\Render3D\Pipeline\HIKARI_RenderPhase.h" />
     <ClInclude Include="HIKARI\Render3D\Pipeline\HIKARI_RenderFrameContext.h" />
     <ClInclude Include="HIKARI\Render3D\Cluster\HIKARI_ClusterGpuData.h">
